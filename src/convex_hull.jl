@@ -1,0 +1,101 @@
+
+abstract type ConvexHullAlgorithm end
+
+struct GiftWrappingAlg <: ConvexHullAlgorithm end
+struct GrahamScanAlg   <: ConvexHullAlgorithm end
+
+"""
+    convex_hull(points, alg=GiftWrappingAlg)
+
+Determine the indices of the convex hull for a set of points.
+
+`alg` can either be `GiftWrappingAlg()` or `GrahamScanAlg()`.
+
+For  `n` input vertices and `h` resultant vertices on the convex hull:
+- `GiftWrappingAlg` runs in `O(nh)` time.
+- `GrahamScanAlg` runs in `O(n*log(n))` time.
+"""
+convex_hull(points::Polygon) = convex_hull(points, GiftWrappingAlg())
+
+function convex_hull(points::Polygon, ::GiftWrappingAlg)
+    # https://www.geeksforgeeks.org/convex-hull-using-jarvis-algorithm-or-wrapping/    
+    topleft = left_topmost(points)
+    hull_idxs = Int[]
+    n = length(points)
+
+    p = topleft
+    q = 1
+    while true
+        push!(hull_idxs, p)
+        q = (p % n + 1)
+
+        point_p = points[p]
+        point_q = points[q]
+        # find more counter-clockwise point than q
+        for i in eachindex(points)
+            point_i = points[i]
+            turn = get_orientation(point_p, point_i, point_q)
+            if turn == COUNTER_CLOCKWISE
+                q = i
+                point_q = point_i
+            elseif turn == COLINEAR
+                dq = norm2(point_q, point_p)
+                di = norm2(point_i, point_p)
+                if di > dq
+                    q = i
+                    point_q = point_i
+                end
+            end
+        end
+        p = q
+
+        if (p == topleft)
+            break
+        end
+    end
+    hull_idxs
+end
+
+function left_topmost(points::Polygon)
+    idx = 1
+    for i in eachindex(points)
+        if points[i][1] < points[idx][1]
+            idx = i
+        elseif (points[i][1] == points[idx][1]) && (points[i][2] > points[idx][2])
+            idx = i
+        end
+    end
+    idx
+end
+
+function convex_hull(points::Polygon, ::GrahamScanAlg)
+    # https://www.geeksforgeeks.org/convex-hull-using-graham-scan/
+    idx = bottom_leftmost(points)
+    p0 = points[idx]
+    idxs = sortperm(points, lt=(p, q) -> isless_orientation(p, q, p0))
+
+    hull = idxs[[1, 2, 3]]
+    if get_orientation(points[hull[1]], points[hull[2]], points[hull[3]]) == COLINEAR
+        deleteat!(hull, 2)
+    end
+    for idx in idxs[4:end]
+        while length(hull) > 1 &&
+            get_orientation(points[hull[end-1]], points[hull[end]], points[idx]) != COUNTER_CLOCKWISE
+            pop!(hull)
+        end
+        push!(hull, idx)
+    end
+    hull
+end
+
+function bottom_leftmost(points::Polygon)
+    idx = 1
+    for i in eachindex(points)
+        if points[i][2] < points[idx][2]
+            idx = i
+        elseif (points[i][2] == points[idx][2]) && (points[i][1] < points[idx][1])
+            idx = i
+        end
+    end
+    idx
+end

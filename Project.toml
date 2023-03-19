@@ -1,0 +1,7 @@
+name = "PolygonAlgorithms"
+uuid = "32a0d02f-32d9-4438-b5ed-3a2932b48f96"
+authors = ["Lior Sinai <sinailior@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
