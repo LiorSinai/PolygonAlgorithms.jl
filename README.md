@@ -2,6 +2,11 @@
 
 Implementations of Polygon algorithms.
 
+<p align="center">
+  <img src="images/convex_hull.png" width="45%" style="padding:5px"/>
+  <img src="images/spiral_star.png" width="45%"  style="padding:5px"/> 
+</p>
+
 ## Description
 ### Representation
 
