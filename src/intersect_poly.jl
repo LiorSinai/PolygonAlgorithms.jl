@@ -161,7 +161,16 @@ function link_intersections!(
                     in_half_plane(prev2, edge1_next; on_border_is_inside=false)
         if head_in_1 != tail_in_1 # entry/exit point
             set_exit!(inter1, inter2, !head_in_1 && tail_in_1)
-        else
+        else 
+            # check if there is an segment overlap
+            share_head_edge, share_tail_edge = share_edges(point, prev1, next1, prev2, next2)
+            if share_head_edge && !share_tail_edge
+                set_exit!(inter1, inter2, false)
+                return
+            elseif !share_head_edge && share_tail_edge
+                set_exit!(inter1, inter2, true)
+                return
+            end
             inter1.data.link = inter2
             inter2.data.link = inter1
             inter2.data.type = VERTIX
@@ -259,4 +268,19 @@ function get_lone_vertix_intercepts(polygon::DoublyLinkedList{PointInfo{T}}, vis
         node = node.next == polygon.head ? nothing : node.next
     end
     regions
+end
+
+function share_edges(vertix::Point2D, prev1::Point2D, next1::Point2D, prev2::Point2D, next2::Point2D)
+    orientation1 = get_orientation(prev1, vertix, next1)
+    orientation2 = get_orientation(prev2, vertix, next2)
+    tail_edge1 = orientation1 == orientation2 ? (prev1, vertix) : (vertix, next1)
+    head_edge1 = orientation1 == orientation2 ? (vertix, next1) : (prev1, vertix)
+    mid_prev1 = (((tail_edge1[1][1] + tail_edge1[2][1])/2), ((tail_edge1[1][2] + tail_edge1[2][2])/2))
+    mid_next1 = (((head_edge1[1][1] + head_edge1[2][1])/2), ((head_edge1[1][2] + head_edge1[2][2])/2))
+    mid_prev2 = (((prev2[1] + vertix[1])/2), ((prev2[2] + vertix[2])/2))
+    mid_next2 = (((next2[1] + vertix[1])/2), ((next2[2] + vertix[2])/2))
+    # check both because one edge might be shorter
+    share_tail_edge = on_segment(mid_prev2, tail_edge1) || on_segment(mid_prev1, (prev2, vertix))
+    share_head_edge = on_segment(mid_next2, head_edge1) || on_segment(mid_next1, (vertix, next2))
+    share_head_edge, share_tail_edge
 end

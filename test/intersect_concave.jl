@@ -145,7 +145,7 @@ end
     @test are_regions_equal(regions, expected)
 end
 
-@testset "concave outer vertix intercept" begin 
+@testset "concave outer share portion" begin 
     poly1 = [
         (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 2.0), (2.0, 2.0), (2.0, 0.0)
     ]
@@ -154,6 +154,26 @@ end
     ]
 
     expected = [[(1.0, 1.0)]]
+    regions = intersect_geometry(poly1, poly2)
+    @test are_regions_equal(regions, expected)
+    regions = intersect_geometry(poly2, poly1)
+    @test are_regions_equal(regions, expected)
+
+    # now intersect on edge to the left
+    poly2 = [
+        (-1.0, 0.0), (0.8, 1.0), (1.0, 1.0), (0.0, -1.0)
+    ]
+    expected = [[(0.8, 1.0), (1.0, 1.0)]]
+    regions = intersect_geometry(poly1, poly2)
+    @test are_regions_equal(regions, expected)
+    regions = intersect_geometry(poly2, poly1)
+    @test are_regions_equal(regions, expected)
+
+    # now intersect on edge to the right
+    poly2 = [
+        (-1.0, 0.0), (1.0, 1.0), (1.0, 0.9), (0.0, -1.0)
+    ]
+    expected = [[(1.0, 1.0), (1.0, 0.9)]]
     regions = intersect_geometry(poly1, poly2)
     @test are_regions_equal(regions, expected)
     regions = intersect_geometry(poly2, poly1)
