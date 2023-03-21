@@ -1,7 +1,7 @@
 """
-    do_intersect(segment1, segment2)
+    do_intersect(segment1::Tuple{Point2D,Point2D}, segment2::Tuple{Point2D,Point2D})
 
-Determine if the segments intersect. For the intersection point, use `intersect_segments`. 
+Determine if the segments intersect. For the intersection point, use `intersect_geometry`. 
 """
 function do_intersect(segment1::Segment2D, segment2::Segment2D)
     o1 = get_orientation(segment1[1], segment1[2], segment2[1])
@@ -23,7 +23,7 @@ function do_intersect(segment1::Segment2D, segment2::Segment2D)
 end
     
 """
-    intersect_geometry(segment1, segment2)
+    intersect_geometry(segment1::Tuple{Point2D,Point2D}, segment2::Tuple{Point2D,Point2D})
 
 Returns the intersection point if it exists or nothing otherwise.
 Use `do_intersect` for a quicker boolean test.
@@ -48,7 +48,7 @@ function intersect_geometry(
 end
 
 """
-    line_from_segment(segment)
+    line_from_segment(segment::Tuple{Point2D,Point2D})
 
 Equation of line is `ax + by = c`.
 """
@@ -60,7 +60,7 @@ function line_from_segment(segment::Segment2D)
 end
 
 """
-    intersect_geometry(line1, line2)
+    intersect_geometry(line1::Line2D, line2::Line2D)
 
 Returns the intersection point if it exists or nothing if they are parallel.
 
@@ -87,18 +87,18 @@ end
 function negative_zero_to_zero(x::T) where T <: AbstractFloat
     # in the edge case that x is zero this will set comparisons to fail
     # Set([0.0]) == Set([-0.0]) is false
-    # so just set it zero
+    # so just set it to zero
     x == -0.0 ? zero(x) : x
 end
 
 """
-    intersect_edges(polygon1, polygon2)
+    intersect_edges(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D})
 
 Find all points which lie on the intersection of the edges of the vertices given by `polygon1` and `polygon2`.
 
 Time complexity is `O(nm)` where `n` and `m` are the number of vertices of polygon 1 and 2 respectively.
 """
-function intersect_edges(polygon1::Polygon{T}, polygon2::Polygon{T}) where T
+function intersect_edges(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}) where T
     points = Point2D{T}[]
     n = length(polygon1)
     m = length(polygon2)

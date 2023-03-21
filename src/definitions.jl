@@ -1,6 +1,6 @@
 const Point2D{T<:AbstractFloat} = NTuple{2,T}
 const Segment2D{T<:AbstractFloat} = NTuple{2,Point2D{T}}
-const Polygon{T<:AbstractFloat} = Vector{<:Point2D{T}}
+const Polygon2D{T<:AbstractFloat} = Vector{<:Point2D{T}}
 
 """
     Line2D(a, b, c)
@@ -59,7 +59,7 @@ end
 rotate(points::Vector{<:Point2D}, θ::Float64, p0::Point2D) = 
     translate(rotate(translate(points, (-p0[1], -p0[2])), θ), p0)
 
-x_coords(points::Polygon) = [p[1] for p in points]
-x_coords(points::Polygon, idxs::AbstractVector{Int}) = [p[1] for p in points[idxs]]
-y_coords(points::Polygon) = [p[2] for p in points]
-y_coords(points::Polygon, idxs::AbstractVector{Int}) = [p[2] for p in points[idxs]]
+x_coords(points::Polygon2D) = [p[1] for p in points]
+x_coords(points::Polygon2D, idxs::AbstractVector{Int}) = [p[1] for p in points[idxs]]
+y_coords(points::Polygon2D) = [p[2] for p in points]
+y_coords(points::Polygon2D, idxs::AbstractVector{Int}) = [p[2] for p in points[idxs]]

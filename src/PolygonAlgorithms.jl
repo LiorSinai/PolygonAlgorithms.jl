@@ -13,7 +13,7 @@ include("intersect_poly.jl")
 include("intersect_convex.jl")
 include("convex_hull.jl")
 
-export order_clockwise
+export Point2D, Polygon2D, Segment2D, Line2D
 export get_orientation, Orientation, on_segment
 export area_polygon, first_moment, centroid_polygon, is_counter_clockwise, is_clockwise
 export point_in_polygon

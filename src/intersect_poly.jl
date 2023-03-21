@@ -1,23 +1,18 @@
 """
-    intersect_geometry(polygon1, polygon2)
+    intersect_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D})
 
-Returns the points of regions of intersections of two general polygons. 
-Uses the Weiler-Atherton algorithm which fails for self-intersecting polygons. 
+Returns (possibly) multiple regions, edges and single points of intersection. 
+Only returns the larger type if one is within another e.g. an edge is also part of a region.
+
+It uses the Weiler-Atherton algorithm which fails for self-intersecting polygons. 
 This version also does not cater for holes.
 For a more general algorithm, see the Martinez-Rueda polygon clipping algorithm.
 
 Runs in `O(nm)` time where `n` and `m` are the number of vertices of polygon1 and polygon2 respectively.
 
-Returns:
-    1. Regions of intersection.
-    2. Edges of intersection.
-    3. Single points of intersection.
-
-If one type is within another e.g. an edge is also part of a region, only returns the larger type.
-
-For convex polygons use `intertect_convex` for an `O(n+m)` algorithm.
+For convex polygons use `intersect_convex` for an `O(n+m)` algorithm.
 """
-function intersect_geometry(polygon1::Polygon{T}, polygon2::Polygon{T}) where T
+function intersect_geometry(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}) where T
     if polygon1 == polygon2
         return [polygon1]
     end
@@ -61,7 +56,7 @@ mutable struct PointInfo{T}
     type::IntersectionType
 end
 
-function generate_list(polygon::Polygon{T}) where T
+function generate_list(polygon::Polygon2D{T}) where T
     data = PointInfo{T}(polygon[1], false, nothing, NONE)
     head = Node(data)
     list = DoublyLinkedList(head)
@@ -83,7 +78,8 @@ end
 
 function find_and_insert_intersections!(
         polygon1::DoublyLinkedList{PointInfo{T}}, 
-        polygon2::DoublyLinkedList{PointInfo{T}}
+        polygon2::DoublyLinkedList{PointInfo{T}};
+        atol::Float64=1e-6
         ) where T
     ## collect original nodes before mutating in place
     vec1 = collect_nodes(polygon1)
@@ -95,40 +91,39 @@ function find_and_insert_intersections!(
             edge2 = (node2.data.point, next2.data.point)
             p = intersect_geometry(edge1, edge2)
             if !isnothing(p)
-                i1 = insert_intersection!(p, node1, next1; id=1)
-                i2 = insert_intersection!(p, node2, next2; id=2)
-                link_intersections!(i1, i2, edge1, edge2)
+                i1 = insert_intersection!(p, node1, next1; atol=atol, id=1)
+                i2 = insert_intersection!(p, node2, next2; atol=atol, id=2)
+                link_intersections!(i1, i2, edge1, edge2; atol=atol)
             end
         end
     end
 end
 
-function insert_intersection!(point::Point2D, node::Node{<:PointInfo}, next::Node{<:PointInfo}; atol=1e-6, id=1)
-    if is_same_point(point, node.data.point)
-        i1 = node
-        i1.data.intersection = true
-    elseif is_same_point(point, next.data.point)
-        i1 = next
-        i1.data.intersection = true
+function insert_intersection!(point::Point2D, node::Node{<:PointInfo}, next::Node{<:PointInfo}; atol::Float64=1e-6, id=1)
+    if is_same_point(point, node.data.point; atol=atol)
+        intercept = node
+        intercept.data.intersection = true
+    elseif is_same_point(point, next.data.point; atol=atol)
+        intercept = next
+        intercept.data.intersection = true
     else
-        i1 = insert_intersection_in_order!(node, point; id=id, atol=atol)
+        intercept = insert_intersection_in_order!(node, point; id=id, atol=atol)
     end
-    i1
+    intercept
 end
 
-function insert_intersection_in_order!(node::Node{<:PointInfo}, point::Point2D; atol=1e-6, id=1)
+function insert_intersection_in_order!(node::Node{<:PointInfo}, point::Point2D; atol::Float64=1e-6, id=1)
     start = node
     while node.next.data.intersection && node.next != start
         d1 = norm2(point, node.data.point)
         d2 = norm2(node.next.data.point, node.data.point)
         if d1 < d2
             break
+        elseif d1 == d2 # (vertix) intersection here already
+            node.next.data.intersection = true
+            return node.next
         end
         node = node.next
-    end
-    if is_same_point(point, node.data.point; atol=atol) # (vertix) intersection here already
-        node.data.intersection = true
-        return node
     end
     info = PointInfo(point, true, nothing, NONE)
     insert!(node, info)
@@ -139,7 +134,7 @@ function link_intersections!(
         inter2::Node{<:PointInfo}, 
         edge1::Segment2D, 
         edge2::Segment2D; 
-        atol=1e-6
+        atol::Float64=1e-6
     )
     point = inter1.data.point
     on_edge1 = (is_same_point(point, edge1[1]; atol=atol) || is_same_point(point, edge1[2]; atol=atol))
@@ -161,25 +156,23 @@ function link_intersections!(
                     in_half_plane(prev2, edge1_next; on_border_is_inside=false)
         if head_in_1 != tail_in_1 # entry/exit point
             set_exit!(inter1, inter2, !head_in_1 && tail_in_1)
-        else 
-            # check if there is an segment overlap
+        else # check if there is segment overlap
             share_head_edge, share_tail_edge = share_edges(point, prev1, next1, prev2, next2)
             if share_head_edge && !share_tail_edge
                 set_exit!(inter1, inter2, false)
-                return
             elseif !share_head_edge && share_tail_edge
                 set_exit!(inter1, inter2, true)
-                return
+            else # either inner vertix or outer vertix
+                inter1.data.link = inter2
+                inter2.data.link = inter1
+                inter2.data.type = VERTIX
+                inter1.data.type = VERTIX
             end
-            inter1.data.link = inter2
-            inter2.data.link = inter1
-            inter2.data.type = VERTIX
-            inter1.data.type = VERTIX
         end
         return
     elseif head2_on_edge # edge2 hitting edge
         tail_in_1 = in_half_plane(edge2[1], edge1)
-        set_exit!(inter1, inter2, tail_in_1) # note: if true it might bounce back in and will only be a pseudo-exit
+        set_exit!(inter1, inter2, tail_in_1)
     elseif tail2_on_edge # edge2 leaving edge
         head_in_1 = in_half_plane(edge2[2], edge1)
         set_exit!(inter1, inter2, !head_in_1)  
@@ -187,7 +180,7 @@ function link_intersections!(
         exiting_1_to_2 = in_half_plane(edge2[1], edge1; on_border_is_inside=false)
         set_exit!(inter1, inter2, exiting_1_to_2)
     end
-    if is_vertix_intercept(inter2) # bounces off (case 2+3) or cycles back (case 2+3+4)
+    if is_vertix_intercept(inter2) # bounces off (case 2+3) or cycles back (case 2/3+4)
         inter1.data.type = VERTIX
         inter2.data.type = VERTIX
     end
@@ -262,7 +255,7 @@ function get_lone_vertix_intercepts(polygon::DoublyLinkedList{PointInfo{T}}, vis
     regions = Vector{Point2D{T}}[]
     node = polygon.head
     while !isnothing(node)
-        if node.data.intersection && !(node in visited) && node.data.type == VERTIX
+        if node.data.intersection && (node.data.type == VERTIX) && !(node in visited) 
             push!(regions, [node.data.point])
         end
         node = node.next == polygon.head ? nothing : node.next

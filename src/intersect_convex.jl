@@ -10,29 +10,34 @@ struct WeilerAthertonAlg <: ConvexPolygonIntersectionAlgorithm end
 Find the intersection points of convex polygons `polygon1` and `polygon2`.
 They are not guaranteed to be unique.
 
-A major assumption is that convex polygons have only one area of intersection.
-This fails in the general case with non-convex polgyons. 
-For that, see the polygon clipping algorithms such as Weiler-Atherton.
+A major assumption is that convex polygons only have one area of intersection.
+This fails in the general case with non-convex polygons. 
+See `intersect_geometry` for a more general `O(nm)` algorithm.
 
-`alg` can either be `ChasingEdgesAlg()` or `PointSearchAlg()`
+`alg` can either be `ChasingEdgesAlg()`, `PointSearchAlg()` or `WeilerAthertonAlg()`.
 
 For `n` and `m` vertices on polygon 1 and 2 respectively:
-- `ChasingEdgesAlg()`
+- `ChasingEdgesAlg`:
     - Time complexity: `O(n+m)`. 
     - Algorithm is from "A New Linear Algorithm for Intersecting Convex Polygons" (1981) by Joseph O'Rourke et. al.
     - Reference: https://www.cs.jhu.edu/~misha/Spring16/ORourke82.pdf
-- `PointSearchAlg()`
+- `PointSearchAlg`:
     - Time complexity: `O(nm)`. 
     - For general non-intersecting polygons, the intersection points are valid but the order is not.
     - Algorithm:
     
         - intersection of all edge pairs in O(nm) time.
-        - Checks all point in polgyons in O(nm)+O(mn) time.
+        - Checks all point in polygons in O(nm)+O(mn) time.
         - Sort the final result counter-clockwise.
-"""
-intersect_convex(polygon1::Polygon, polygon2::Polygon) = intersect_convex(polygon1, polygon2, ChasingEdgesAlg())
 
-function intersect_convex(polygon1::Polygon, polygon2::Polygon, ::PointSearchAlg)
+- `WeilerAthertonAlg`:
+    - Time complexity: `O(nm)`. 
+    - Designed for more complex concave polygons with multiple areas of intersection.
+    - Will only return 0 or 1 regions else will throw an error.
+"""
+intersect_convex(polygon1::Polygon2D, polygon2::Polygon2D) = intersect_convex(polygon1, polygon2, ChasingEdgesAlg())
+
+function intersect_convex(polygon1::Polygon2D, polygon2::Polygon2D, ::PointSearchAlg)
     #https://www.swtestacademy.com/intersection-convex-polygons-algorithm/
     intersection_points = intersect_edges(polygon1, polygon2)
     
@@ -50,7 +55,7 @@ function intersect_convex(polygon1::Polygon, polygon2::Polygon, ::PointSearchAlg
     points
 end
 
-function intersect_convex(polygon1::Polygon{T}, polygon2::Polygon{T}, ::ChasingEdgesAlg) where T
+function intersect_convex(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::ChasingEdgesAlg) where T
     n = length(polygon1)
     m = length(polygon2)
     points = Point2D{T}[]
@@ -111,7 +116,7 @@ function intersect_convex(polygon1::Polygon{T}, polygon2::Polygon{T}, ::ChasingE
     points
 end
 
-function intersect_convex(polygon1::Polygon{T}, polygon2::Polygon{T}, ::WeilerAthertonAlg) where T
+function intersect_convex(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::WeilerAthertonAlg) where T
     regions = intersect_geometry(polygon1, polygon2)
     if isempty(regions)
         return Point2D{T}[]

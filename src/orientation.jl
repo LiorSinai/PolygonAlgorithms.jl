@@ -3,10 +3,7 @@
 """
     get_orientation(p, q, r)
 
-Determine orientation of three points
-- 0 -> co-linear
-- 1 -> clockwise
-- 2 -> counter-clockwise
+Determine orientation of three points.
 """
 function get_orientation(p::Point2D, q::Point2D, r::Point2D)
     cross_product = (q[2] - p[2]) * (r[1] - q[1]) - (r[2] - q[2]) * (q[1] - p[1])
@@ -18,12 +15,12 @@ function get_orientation(p::Point2D, q::Point2D, r::Point2D)
 end
 
 """
-    on_segment(point, segment; atol=1e-6, on_line=Nothing)
+    on_segment(point, segment::Tuple{Point2D,Point2D}; atol=1e-6, on_line=Nothing)
 
-Determine if a point q lies on the segement pr. 
+Determine if a point lies on the segment. 
 """
 function on_segment(q::Point2D, segment::NTuple{2, Point2D}; 
-    atol=1e-6, on_line::Union{Nothing, Bool}=nothing
+    atol::Float64=1e-6, on_line::Union{Nothing, Bool}=nothing
     )
     p, r = segment
     if isnothing(on_line)
@@ -86,6 +83,13 @@ end
 # angle between two lines
 function dot_product(p::Point2D, q::Point2D, r::Point2D)
     (p[1] - q[1]) * (r[1] - q[1]) + (p[2] - q[2]) * (r[2] - q[2])
+end
+
+function inner_angle(p::Point2D, q::Point2D, r::Point2D)
+    dot = dot_product(p, q, r)
+    mag1 = dot_product(p, q, p)
+    mag2 = dot_product(r, q, r)
+    acos(dot / (sqrt(mag1 * mag2)))
 end
 
 # the half-plane is drawn by extending the edge to ±infinity and back into the polygon

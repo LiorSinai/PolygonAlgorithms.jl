@@ -28,9 +28,8 @@ To convert between the forms, use `matrix_to_points` or `points_to_matrix`.
 For all of the the following `n` and `m` are the number of vertices of the polygons.
 
 1. Area of polygon and centroid of polygon. 
-    - Shoe-lace formula
+    - Shoe-lace formula.
     - Time complexity: `O(n)`. 
-    - Orientation (clockwise or counter-clockwise) uses signed area.
     - Reference: [Wikipedia](https://en.wikipedia.org/wiki/Polygon#Area).
 2. Point in polygon.
     - Ray casting with an extension from the following paper: "A Simple and Correct Even-Odd Algorithm for the Point-in-Polygon Problem for Complex Polygons" by Michael Galetzka and Patrick Glauner (2017).
@@ -42,10 +41,7 @@ For all of the the following `n` and `m` are the number of vertices of the polyg
         - Reference: [Wikipedia](https://en.wikipedia.org/wiki/Gift_wrapping_algorithm).
     - Graham Scan algorithm:
         - Time complexity: `O(n*log(n))`.
-4. Intersection of edges.
-    - Linear algebra used for intersection of line segments.
-    - Time complexity: `O(nm)`.
-5. Intersection of polygons (polygon clipping). 
+4. Intersection of polygons (polygon clipping). 
     - Chasing edges algorithm:
         - Convex only.
         - From "A New Linear Algorithm for Intersecting Convex Polygons" (1981) by Joseph O'Rourke et. al.
