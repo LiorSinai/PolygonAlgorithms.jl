@@ -147,13 +147,13 @@ end
 
 @testset "concave outer vertix intercept" begin 
     poly1 = [
-        (0.0, 0.0), (0.0, 1.0), (-1.0, 1.0), (-1.0, 2.0), (1.0, 2.0), (1.0, 0.0)
+        (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 2.0), (2.0, 2.0), (2.0, 0.0)
     ]
     poly2 = [
-        (-2.0, 0.0), (0.0, 1.0), (-1.0, -1.0)
+        (-1.0, 0.0), (1.0, 1.0), (0.0, -1.0)
     ]
 
-    expected = [[(0.0, 1.0)]]
+    expected = [[(1.0, 1.0)]]
     regions = intersect_geometry(poly1, poly2)
     @test are_regions_equal(regions, expected)
     regions = intersect_geometry(poly2, poly1)

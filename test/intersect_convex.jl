@@ -162,6 +162,39 @@ end
     @test issetequal(answer, expected)
 end
 
+@testset "vertix intersections" begin 
+    poly1 = [
+        (0.0, 0.0), (0.5, 1.0), (1.0, 0.0)
+    ]
+    poly2 = [
+        (0.0, 1.0), (0.0, 3.0), (1.0, 3.0), (1.0, 1.0)
+    ]
+
+    # single point
+    expected = [(0.5, 1.0)]
+    points = intersect_convex(poly1, poly2, alg)
+    @test issetequal(points, expected)
+    points = intersect_convex(poly2, poly1, alg)
+    @test issetequal(points, expected)
+
+    # 2 points inside
+    poly1_ = translate(poly1, ((0.0), (1.5)))
+    expected = poly1_
+    points = intersect_convex(poly1_, poly2, alg)
+    @test issetequal(points, expected)
+    points = intersect_convex(poly2, poly1_, alg)
+    @test issetequal(points, expected)
+
+    # 3 points inside
+    poly1_ = translate(poly1, ((0.0), (2.0)))
+    expected = poly1_
+    points = intersect_convex(poly1_, poly2, alg)
+    @test issetequal(points, expected)
+    points = intersect_convex(poly2, poly1_, alg)
+    @test issetequal(points, expected)
+end
+
+
 @testset "cross" begin
     poly1 = [
         (0.0, 0.0), (0.0, 2.0), (1.0, 2.0), (1.0, 0.0)

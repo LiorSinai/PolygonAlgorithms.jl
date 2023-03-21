@@ -9,11 +9,11 @@ For a more general algorithm, see the Martinez-Rueda polygon clipping algorithm.
 Runs in `O(nm)` time where `n` and `m` are the number of vertices of polygon1 and polygon2 respectively.
 
 Returns:
-    1. Regions of intersection as a set of vertices.
-    2. Edges of intersection as a set of vertices.
+    1. Regions of intersection.
+    2. Edges of intersection.
     3. Single points of intersection.
 
-If one type is within another e.g. an edge is also part of a  region, only returns the larger type.
+If one type is within another e.g. an edge is also part of a region, only returns the larger type.
 
 For convex polygons use `intertect_convex` for an `O(n+m)` algorithm.
 """
@@ -82,9 +82,9 @@ function get_first_non_intersection_point(polygon::DoublyLinkedList{<:PointInfo}
 end
 
 function find_and_insert_intersections!(
-        polygon1::DoublyLinkedList{<:PointInfo}, 
-        polygon2::DoublyLinkedList{<:PointInfo}
-        )
+        polygon1::DoublyLinkedList{PointInfo{T}}, 
+        polygon2::DoublyLinkedList{PointInfo{T}}
+        ) where T
     ## collect original nodes before mutating in place
     vec1 = collect_nodes(polygon1)
     vec2 = collect_nodes(polygon2)
@@ -95,12 +95,25 @@ function find_and_insert_intersections!(
             edge2 = (node2.data.point, next2.data.point)
             p = intersect_geometry(edge1, edge2)
             if !isnothing(p)
-                i1 = insert_intersection_in_order!(node1, p; id=1)
-                i2 = insert_intersection_in_order!(node2, p; id=2)
+                i1 = insert_intersection!(p, node1, next1; id=1)
+                i2 = insert_intersection!(p, node2, next2; id=2)
                 link_intersections!(i1, i2, edge1, edge2)
             end
         end
     end
+end
+
+function insert_intersection!(point::Point2D, node::Node{<:PointInfo}, next::Node{<:PointInfo}; atol=1e-6, id=1)
+    if is_same_point(point, node.data.point)
+        i1 = node
+        i1.data.intersection = true
+    elseif is_same_point(point, next.data.point)
+        i1 = next
+        i1.data.intersection = true
+    else
+        i1 = insert_intersection_in_order!(node, point; id=id, atol=atol)
+    end
+    i1
 end
 
 function insert_intersection_in_order!(node::Node{<:PointInfo}, point::Point2D; atol=1e-6, id=1)
@@ -113,10 +126,7 @@ function insert_intersection_in_order!(node::Node{<:PointInfo}, point::Point2D; 
         end
         node = node.next
     end
-    if is_same_point(point, node.next.data.point; atol=atol)
-        node.next.data.intersection = true
-        return node.next
-    elseif is_same_point(point, node.data.point; atol=atol)
+    if is_same_point(point, node.data.point; atol=atol) # (vertix) intersection here already
         node.data.intersection = true
         return node
     end
@@ -132,8 +142,11 @@ function link_intersections!(
         atol=1e-6
     )
     point = inter1.data.point
-    if (is_same_point(point, edge1[1]; atol=atol) || is_same_point(point, edge1[2]; atol=atol)) && 
-        (is_same_point(point, edge2[1]; atol=atol) || is_same_point(point, edge2[2]; atol=atol))
+    on_edge1 = (is_same_point(point, edge1[1]; atol=atol) || is_same_point(point, edge1[2]; atol=atol))
+    head2_on_edge = is_same_point(point, edge2[2]; atol=atol)
+    tail2_on_edge = is_same_point(point, edge2[1]; atol=atol)
+    on_edge2 = head2_on_edge || tail2_on_edge
+    if on_edge1 && on_edge2
         # intersect at common vertix
         prev1 = inter1.prev.data.point
         next1 = inter1.next.data.point
@@ -141,23 +154,24 @@ function link_intersections!(
         edge1_next = (point, next1)
         next2 = inter2.next.data.point
         prev2 = inter2.prev.data.point
+        # case where only one is true: \|/__   
         head_in_1 = in_half_plane(next2, edge1_prev; on_border_is_inside=false) ||
                     in_half_plane(next2, edge1_next; on_border_is_inside=false)
         tail_in_1 = in_half_plane(prev2, edge1_prev; on_border_is_inside=false) ||
                     in_half_plane(prev2, edge1_next; on_border_is_inside=false)
         if head_in_1 != tail_in_1 # entry/exit point
             set_exit!(inter1, inter2, !head_in_1 && tail_in_1)
-        elseif !has_plane_overlap(inter1, inter2) || !has_parallel_edges(inter1, inter2)
-            # lone vertix intercept with no shared edges
+        else
             inter1.data.link = inter2
             inter2.data.link = inter1
             inter2.data.type = VERTIX
             inter1.data.type = VERTIX
         end
-    elseif is_same_point(point, edge2[2]; atol=atol) # edge2 hitting edge
+        return
+    elseif head2_on_edge # edge2 hitting edge
         tail_in_1 = in_half_plane(edge2[1], edge1)
         set_exit!(inter1, inter2, tail_in_1) # note: if true it might bounce back in and will only be a pseudo-exit
-    elseif is_same_point(point, edge2[1]; atol=atol) # edge2 leaving edge
+    elseif tail2_on_edge # edge2 leaving edge
         head_in_1 = in_half_plane(edge2[2], edge1)
         set_exit!(inter1, inter2, !head_in_1)  
     else # cross or edge1 hitting/leaving edge
@@ -216,7 +230,7 @@ function walk_loop(start::Node{PointInfo{T}}) where T
             push!(loop, node.data.point)
         end
         if node.data.type == VERTIX 
-            push!(visited, node.data.link) # exclude it as a lone vertix intercept
+            push!(visited, node.data.link)
             from_link = false
             node = node.next
         elseif !isnothing(node.data.link)
@@ -233,43 +247,6 @@ end
 function is_vertix_intercept(node::Node{<:PointInfo})
     node2 = node.data.link
     !isnothing(node2) && !isnothing(node2.data.link) && node2.data.link == node
-end
-
-function has_plane_overlap(inter1::Node{<:PointInfo}, inter2::Node{<:PointInfo})
-    # if the intersection is at a common vertix require an extra check for the type of intersection.
-    # assumes inter1.data.point == inter2.data.point
-    # >> or << 
-    #    Share common plane, inside or outside the polygons. 
-    #    Might share a vertix and edges.
-    # >< 
-    #    Do not share a common plane. 
-    #    Definitely single vertix intercept 
-    #    Require !head_in_1 && !tail_in_1
-    prev1 = inter1.prev.data.point
-    next1 = inter1.next.data.point
-    next2 = inter2.next.data.point
-    prev2 = inter2.prev.data.point
-    edge1_prev = (prev1, inter1.data.point)
-    mid1 = ((next1[1] + prev1[1])/2, (next1[2] + prev1[2])/2)
-    mid2 = ((next2[1] + prev2[1])/2, (next2[2] + prev2[2])/2)
-    in_plane12 = in_half_plane(mid2, edge1_prev; on_border_is_inside=false)
-    in_plane11 = in_half_plane(mid1, edge1_prev; on_border_is_inside=false)
-    in_plane11 == in_plane12
-end
-
-function has_parallel_edges(inter1::Node{<:PointInfo}, inter2::Node{<:PointInfo})
-    # If the intersection is at a common vertix require an extra check for the type of intersection.
-    # Fails in the case where lines are mirrored e.g. ><
-    # requires inter1.data.point == inter2.data.point for shared edge
-    edge1_prev = (inter1.prev.data.point, inter1.data.point)
-    edge1_next = (inter1.data.point, inter1.next.data.point)
-    edge2_prev = (inter2.prev.data.point, inter2.data.point)
-    edge2_next = (inter2.data.point, inter2.next.data.point)
-    result = (cross_product(edge1_prev, edge2_prev) == 0.0) ||
-             (cross_product(edge1_prev, edge2_next) == 0.0) ||
-             (cross_product(edge1_next, edge2_prev) == 0.0) ||
-             (cross_product(edge1_next, edge2_next) == 0.0)
-    result
 end
 
 function get_lone_vertix_intercepts(polygon::DoublyLinkedList{PointInfo{T}}, visited::Set{Node{PointInfo{T}}}) where T
