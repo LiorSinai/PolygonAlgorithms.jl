@@ -1,16 +1,19 @@
 """
     intersect_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D})
 
-Returns (possibly) multiple regions, edges and single points of intersection. 
+Returns multiple regions, edges and single points of intersection. 
 Only returns the larger type if one is within another e.g. an edge is also part of a region.
 
-It uses the Weiler-Atherton algorithm which fails for self-intersecting polygons. 
-This version also does not cater for holes.
-For a more general algorithm, see the Martinez-Rueda polygon clipping algorithm.
+This uses the Weiler-Atherton algorithm.
+It runs in `O(nm)` time where `n` and `m` are the number of vertices of polygon1 and polygon2 respectively.
+Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
 
-Runs in `O(nm)` time where `n` and `m` are the number of vertices of polygon1 and polygon2 respectively.
+Limitations
+1. This version does not cater for holes.
+2. It partially fails for self-intersecting areas. For example, a shared edge that connects to a region of intersection.
+3. It can fail completely for self-intersecting polygons.
 
-For convex polygons use `intersect_convex` for an `O(n+m)` algorithm.
+For a more general algorithm see the Martinez-Rueda polygon clipping algorithm.
 """
 function intersect_geometry(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}) where T
     if polygon1 == polygon2
@@ -91,37 +94,30 @@ function find_and_insert_intersections!(
             edge2 = (node2.data.point, next2.data.point)
             p = intersect_geometry(edge1, edge2)
             if !isnothing(p)
-                i1 = insert_intersection!(p, node1, next1; atol=atol, id=1)
-                i2 = insert_intersection!(p, node2, next2; atol=atol, id=2)
+                i1 = insert_intersection_in_order!(p, node1, next1; atol=atol)
+                i2 = insert_intersection_in_order!(p, node2, next2; atol=atol)
                 link_intersections!(i1, i2, edge1, edge2; atol=atol)
             end
         end
     end
 end
 
-function insert_intersection!(point::Point2D, node::Node{<:PointInfo}, next::Node{<:PointInfo}; atol::Float64=1e-6, id=1)
-    if is_same_point(point, node.data.point; atol=atol)
-        intercept = node
-        intercept.data.intersection = true
-    elseif is_same_point(point, next.data.point; atol=atol)
-        intercept = next
-        intercept.data.intersection = true
-    else
-        intercept = insert_intersection_in_order!(node, point; id=id, atol=atol)
-    end
-    intercept
-end
-
-function insert_intersection_in_order!(node::Node{<:PointInfo}, point::Point2D; atol::Float64=1e-6, id=1)
-    start = node
-    while node.next.data.intersection && node.next != start
-        d1 = norm2(point, node.data.point)
-        d2 = norm2(node.next.data.point, node.data.point)
-        if d1 < d2
-            break
-        elseif d1 == d2 # (vertix) intersection here already
+function insert_intersection_in_order!(
+    point::Point2D, tail::Node{<:PointInfo}, head::Node{<:PointInfo}
+    ; atol::Float64=1e-6
+    )
+    node = tail
+    while node != head.next
+        d1 = norm(point, node.data.point)
+        d2 = norm(node.next.data.point, node.data.point)
+        if d1 < atol # either on tail or intersection here already
+            node.data.intersection = true
+            return node
+        elseif abs(d1 - d2) < atol # either on head or intersection here already
             node.next.data.intersection = true
             return node.next
+        elseif d1 < d2
+            break
         end
         node = node.next
     end
@@ -150,10 +146,10 @@ function link_intersections!(
         next2 = inter2.next.data.point
         prev2 = inter2.prev.data.point
         # case where only one is true: \|/__   
-        head_in_1 = in_half_plane(next2, edge1_prev; on_border_is_inside=false) ||
-                    in_half_plane(next2, edge1_next; on_border_is_inside=false)
-        tail_in_1 = in_half_plane(prev2, edge1_prev; on_border_is_inside=false) ||
-                    in_half_plane(prev2, edge1_next; on_border_is_inside=false)
+        head_in_1 = in_half_plane(next2, edge1_prev, false; on_border_is_inside=false) ||
+                    in_half_plane(next2, edge1_next, false; on_border_is_inside=false)
+        tail_in_1 = in_half_plane(prev2, edge1_prev, false; on_border_is_inside=false) ||
+                    in_half_plane(prev2, edge1_next, false; on_border_is_inside=false)
         if head_in_1 != tail_in_1 # entry/exit point
             set_exit!(inter1, inter2, !head_in_1 && tail_in_1)
         else # check if there is segment overlap
@@ -171,13 +167,13 @@ function link_intersections!(
         end
         return
     elseif head2_on_edge # edge2 hitting edge
-        tail_in_1 = in_half_plane(edge2[1], edge1)
+        tail_in_1 = in_half_plane(edge2[1], edge1, false)
         set_exit!(inter1, inter2, tail_in_1)
     elseif tail2_on_edge # edge2 leaving edge
-        head_in_1 = in_half_plane(edge2[2], edge1)
+        head_in_1 = in_half_plane(edge2[2], edge1, false)
         set_exit!(inter1, inter2, !head_in_1)  
     else # cross or edge1 hitting/leaving edge
-        exiting_1_to_2 = in_half_plane(edge2[1], edge1; on_border_is_inside=false)
+        exiting_1_to_2 = in_half_plane(edge2[1], edge1, false; on_border_is_inside=false)
         set_exit!(inter1, inter2, exiting_1_to_2)
     end
     if is_vertix_intercept(inter2) # bounces off (case 2+3) or cycles back (case 2/3+4)

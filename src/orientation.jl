@@ -93,7 +93,7 @@ function inner_angle(p::Point2D, q::Point2D, r::Point2D)
 end
 
 # the half-plane is drawn by extending the edge to ±infinity and back into the polygon
-function in_half_plane(x::Point2D, edge; on_border_is_inside=true)
-    c = cross_product((edge[1], x), edge) 
-    (c == 0.0 && on_border_is_inside) || c > 0
+function in_half_plane(x::Point2D, edge, is_counter_clockwise::Bool=true; on_border_is_inside=true)
+    c = cross_product(edge, (edge[1], x))
+    (c == 0.0 && on_border_is_inside) || (is_counter_clockwise ? c > 0 : c < 0)
 end

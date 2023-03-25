@@ -5,7 +5,7 @@ struct ChasingEdgesAlg <: ConvexPolygonIntersectionAlgorithm end
 struct WeilerAthertonAlg <: ConvexPolygonIntersectionAlgorithm end
 
 """
-    intersect_convex(polygon1, polygon2, alg=ChasingEdgesAlg())
+    intersect_convex(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=ChasingEdgesAlg())
 
 Find the intersection points of convex polygons `polygon1` and `polygon2`.
 They are not guaranteed to be unique.
@@ -23,17 +23,13 @@ For `n` and `m` vertices on polygon 1 and 2 respectively:
     - Reference: https://www.cs.jhu.edu/~misha/Spring16/ORourke82.pdf
 - `PointSearchAlg`:
     - Time complexity: `O(nm)`. 
+    - Algorithm: (1) Intersect all edge pairs. (2) Check all points in the other polygon. (3) Sort results counter-clockwise. 
     - For general non-intersecting polygons, the intersection points are valid but the order is not.
-    - Algorithm:
-    
-        - intersection of all edge pairs in O(nm) time.
-        - Checks all point in polygons in O(nm)+O(mn) time.
-        - Sort the final result counter-clockwise.
 
 - `WeilerAthertonAlg`:
     - Time complexity: `O(nm)`. 
     - Designed for more complex concave polygons with multiple areas of intersection.
-    - Will only return 0 or 1 regions else will throw an error.
+    - Will throw an error if there is more than one region of intersection.
 """
 intersect_convex(polygon1::Polygon2D, polygon2::Polygon2D) = intersect_convex(polygon1, polygon2, ChasingEdgesAlg())
 
@@ -59,11 +55,10 @@ function intersect_convex(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::Chas
     n = length(polygon1)
     m = length(polygon2)
     points = Point2D{T}[]
-    # order clockwise -> counter-clockwise from original paper does not seem to give correct results
-    if is_counter_clockwise(polygon1)
+    if is_clockwise(polygon1)
         polygon1 = reverse(polygon1)
     end
-    if is_counter_clockwise(polygon2)
+    if is_clockwise(polygon2)
         polygon2 = reverse(polygon2)
     end
     poly1_in_2 = false
@@ -86,10 +81,10 @@ function intersect_convex(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::Chas
             end
             push!(points, inter)
             poly1_in_2 = in_half_plane(polygon1[i], edge2)
-            poly2_in_1 = !poly1_in_2 #&& in_half_plane(polygon2[j], edge1)
+            poly2_in_1 = !poly1_in_2
         end
         advance_1 = false 
-        if cross_product(edge1, edge2) >= 0 # cross_product swapped compared to original paper
+        if cross_product(edge2, edge1) >= 0
             advance_1 = !(in_half_plane(polygon1[i], edge2))
         else
             advance_1 = in_half_plane(polygon2[j], edge1)

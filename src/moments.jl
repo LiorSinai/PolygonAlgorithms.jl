@@ -21,7 +21,7 @@ function first_moment(vertices::Polygon2D)
 end
 
 is_clockwise(vertices::Polygon2D) = first_moment(vertices) <= 0.0
-is_counter_clockwise(vertices::Polygon2D) = first_moment(vertices) > 0.0
+is_counter_clockwise(vertices::Polygon2D) = first_moment(vertices) >= 0.0
 
 """
   centroid_polygon(vertices::Vector{<:Point2D})
