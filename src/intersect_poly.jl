@@ -204,7 +204,7 @@ function walk_linked_lists(polygon::DoublyLinkedList{PointInfo{T}}) where T
             if node.data.type == ENTRY
                 loop, visited_in_loop = walk_loop(node)
                 if !isempty(visited_in_loop)
-                    push!(visited, [p.data.point for p in visited_in_loop]...)
+                    push!(visited, visited_in_loop...)
                 end
                 push!(regions, loop)
             end
@@ -216,27 +216,21 @@ end
 
 function walk_loop(start::Node{PointInfo{T}}) where T
     loop = Point2D{T}[]
-    visited = Set{Node{PointInfo{T}}}()
+    visited = Set{Point2D{T}}()
     push!(loop, start.data.point)
-    push!(visited, start)
+    push!(visited, start.data.point)
     node = start.next
-    from_link = false
+    from_link = false # for debugging purposes
     while (node != start) && (node.data.point != start.data.point)
-        if (node in visited) && (node.data.type != VERTIX) # many edges can hit the same vertix
+        push!(loop, node.data.point)
+        if (node.data.point in visited) && (node.data.type != VERTIX) # many edges can hit the same vertix
             @warn "Cycle detected: start node: $start; repeated node: $node"
             break
         end
-        push!(visited, node)
-        if !from_link
-            push!(loop, node.data.point)
-        end
-        if node.data.type == VERTIX 
-            push!(visited, node.data.link)
-            from_link = false
-            node = node.next
-        elseif !isnothing(node.data.link)
+        push!(visited, node.data.point)
+        if !isnothing(node.data.link) && node.data.type != VERTIX 
             from_link = true
-            node = node.data.link
+            node = node.data.link.next
         else
             from_link = false
             node = node.next
