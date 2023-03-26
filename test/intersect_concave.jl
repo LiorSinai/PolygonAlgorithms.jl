@@ -159,7 +159,7 @@ end
     regions = intersect_geometry(poly2, poly1)
     @test are_regions_equal(regions, expected)
 
-    # now intersect on edge to the left
+    # share edge to the left
     poly2 = [
         (-1.0, 0.0), (0.8, 1.0), (1.0, 1.0), (0.0, -1.0)
     ]
@@ -169,11 +169,66 @@ end
     regions = intersect_geometry(poly2, poly1)
     @test are_regions_equal(regions, expected)
 
-    # now intersect on edge to the right
+    # share edge to the right
     poly2 = [
         (-1.0, 0.0), (1.0, 1.0), (1.0, 0.9), (0.0, -1.0)
     ]
     expected = [[(1.0, 1.0), (1.0, 0.9)]]
+    regions = intersect_geometry(poly1, poly2)
+    @test are_regions_equal(regions, expected)
+    regions = intersect_geometry(poly2, poly1)
+    @test are_regions_equal(regions, expected)
+
+    # share 2 edges
+    poly2 = [
+        (-1.0, 0.0), (0.8, 1.0), (1.0, 1.0), (1.0, 0.9), (0.0, -1.0)
+    ]
+    expected = [[(0.8, 1.0), (1.0, 1.0), (1.0, 0.9)]]
+    regions = intersect_geometry(poly1, poly2)
+    @test are_regions_equal(regions, expected)
+    regions = intersect_geometry(poly2, poly1)
+    @test are_regions_equal(regions, expected)
+end
+
+@testset "concave convex share outer" begin 
+    poly1 = [
+        (0.0, 0.0), (0.0, 1.0), (1.0, 0.0)
+    ]
+    poly2 = [
+        (2.0, 1.0), (2.0, -0.5), (1.0, 0.0),
+    ]
+
+    expected = [[(1.0, 0.0)]]
+    regions = intersect_geometry(poly1, poly2)
+    @test are_regions_equal(regions, expected)
+    regions = intersect_geometry(poly2, poly1)
+    @test are_regions_equal(regions, expected)
+
+    # share edge below
+    poly2 = [
+        (2.0, 1.0), (2.0, -0.5), (0.5, 0.0), (1.0, 0.0)
+    ]
+    expected = [[(0.5, 0.0), (1.0, 0.0)]]
+    regions = intersect_geometry(poly1, poly2)
+    @test are_regions_equal(regions, expected)
+    regions = intersect_geometry(poly2, poly1)
+    @test are_regions_equal(regions, expected)
+
+    # share edge above
+    poly2 = [
+        (2.0, 1.0), (2.0, -0.5), (1.0, 0.0), (0.5, 0.5)
+    ]
+    expected = [[(1.0, 0.0), (0.5, 0.5)]]
+    regions = intersect_geometry(poly1, poly2)
+    @test are_regions_equal(regions, expected)
+    regions = intersect_geometry(poly2, poly1)
+    @test are_regions_equal(regions, expected)
+
+    # share both
+    poly2 = [
+        (2.0, 1.0), (2.0, -0.5), (0.5, 0.0), (1.0, 0.0), (0.5, 0.5)
+    ]
+    expected = [[(0.5, 0.0), (1.0, 0.0), (0.5, 0.5)]]
     regions = intersect_geometry(poly1, poly2)
     @test are_regions_equal(regions, expected)
     regions = intersect_geometry(poly2, poly1)

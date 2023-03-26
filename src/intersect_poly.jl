@@ -45,8 +45,8 @@ function intersect_geometry(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}) wher
             return [polygon2]
         end
     end
-    vertix_intercepts = get_lone_vertix_intercepts(list2, visited)
-    push!(regions, vertix_intercepts...)
+    not_visited = get_unvisited_intercepts(list2, visited)
+    push!(regions, not_visited...)
     regions
 end
 
@@ -150,20 +150,16 @@ function link_intersections!(
                     in_half_plane(next2, edge1_next, false; on_border_is_inside=false)
         tail_in_1 = in_half_plane(prev2, edge1_prev, false; on_border_is_inside=false) ||
                     in_half_plane(prev2, edge1_next, false; on_border_is_inside=false)
-        if head_in_1 != tail_in_1 # entry/exit point
+        share_head_edge, share_tail_edge, head_on_tail = has_edge_overlap(point, prev1, next1, prev2, next2)
+        share_plane = has_plane_overlap(point, prev1, next1, prev2, next2)
+        if !share_plane && !(share_head_edge || share_tail_edge || head_on_tail)
+            set_vertix_intercept!(inter1, inter2) # lone outer vertix
+        elseif head_in_1 != tail_in_1 # entry/exit point of edges/regions
             set_exit!(inter1, inter2, !head_in_1 && tail_in_1)
-        else # check if there is segment overlap
-            share_head_edge, share_tail_edge = share_edges(point, prev1, next1, prev2, next2)
-            if share_head_edge && !share_tail_edge
-                set_exit!(inter1, inter2, false)
-            elseif !share_head_edge && share_tail_edge
-                set_exit!(inter1, inter2, true)
-            else # either inner vertix or outer vertix
-                inter1.data.link = inter2
-                inter2.data.link = inter1
-                inter2.data.type = VERTIX
-                inter1.data.type = VERTIX
-            end
+        elseif share_head_edge != share_tail_edge # share one edge
+            set_exit!(inter1, inter2, !share_head_edge && share_tail_edge)
+        else # vertix between edges or lone inner/outer vertix
+            set_vertix_intercept!(inter1, inter2)
         end
         return
     elseif head2_on_edge # edge2 hitting edge
@@ -173,7 +169,7 @@ function link_intersections!(
         head_in_1 = in_half_plane(edge2[2], edge1, false)
         set_exit!(inter1, inter2, !head_in_1)  
     else # cross or edge1 hitting/leaving edge
-        exiting_1_to_2 = in_half_plane(edge2[1], edge1, false; on_border_is_inside=false)
+        exiting_1_to_2 = in_half_plane(edge2[1], edge1, false)
         set_exit!(inter1, inter2, exiting_1_to_2)
     end
     if is_vertix_intercept(inter2) # bounces off (case 2+3) or cycles back (case 2/3+4)
@@ -192,16 +188,23 @@ function set_exit!(inter1::Node{<:PointInfo}, inter2::Node{<:PointInfo}, exiting
     end 
 end
 
+function set_vertix_intercept!(inter1::Node{<:PointInfo}, inter2::Node{<:PointInfo})
+    inter1.data.link = inter2
+    inter2.data.link = inter1
+    inter2.data.type = VERTIX
+    inter1.data.type = VERTIX
+end
+
 function walk_linked_lists(polygon::DoublyLinkedList{PointInfo{T}}) where T
     regions = Vector{Point2D{T}}[]
     node = polygon.head
-    visited = Set{Node{PointInfo{T}}}()
+    visited = Set{Point2D{T}}()
     while !isnothing(node)
-        if !(node in visited) && node.data.intersection
+        if !(node.data.point in visited) && node.data.intersection
             if node.data.type == ENTRY
                 loop, visited_in_loop = walk_loop(node)
                 if !isempty(visited_in_loop)
-                    push!(visited, visited_in_loop...)
+                    push!(visited, [p.data.point for p in visited_in_loop]...)
                 end
                 push!(regions, loop)
             end
@@ -247,11 +250,11 @@ function is_vertix_intercept(node::Node{<:PointInfo})
     !isnothing(node2) && !isnothing(node2.data.link) && node2.data.link == node
 end
 
-function get_lone_vertix_intercepts(polygon::DoublyLinkedList{PointInfo{T}}, visited::Set{Node{PointInfo{T}}}) where T
+function get_unvisited_intercepts(polygon::DoublyLinkedList{PointInfo{T}}, visited::Set{Point2D{T}}) where T
     regions = Vector{Point2D{T}}[]
     node = polygon.head
     while !isnothing(node)
-        if node.data.intersection && (node.data.type == VERTIX) && !(node in visited) 
+        if node.data.intersection && !(node.data.point in visited) 
             push!(regions, [node.data.point])
         end
         node = node.next == polygon.head ? nothing : node.next
@@ -259,17 +262,36 @@ function get_lone_vertix_intercepts(polygon::DoublyLinkedList{PointInfo{T}}, vis
     regions
 end
 
-function share_edges(vertix::Point2D, prev1::Point2D, next1::Point2D, prev2::Point2D, next2::Point2D)
-    orientation1 = get_orientation(prev1, vertix, next1)
-    orientation2 = get_orientation(prev2, vertix, next2)
-    tail_edge1 = orientation1 == orientation2 ? (prev1, vertix) : (vertix, next1)
-    head_edge1 = orientation1 == orientation2 ? (vertix, next1) : (prev1, vertix)
-    mid_prev1 = (((tail_edge1[1][1] + tail_edge1[2][1])/2), ((tail_edge1[1][2] + tail_edge1[2][2])/2))
-    mid_next1 = (((head_edge1[1][1] + head_edge1[2][1])/2), ((head_edge1[1][2] + head_edge1[2][2])/2))
-    mid_prev2 = (((prev2[1] + vertix[1])/2), ((prev2[2] + vertix[2])/2))
-    mid_next2 = (((next2[1] + vertix[1])/2), ((next2[2] + vertix[2])/2))
+function has_edge_overlap(vertix::Point2D, prev1::Point2D, next1::Point2D, prev2::Point2D, next2::Point2D)
+    tail_edge1 = (prev1, vertix)
+    head_edge1 = (vertix, next1)
+    tail_edge2 = (prev2, vertix)
+    head_edge2 = (vertix, next2)
+    mid_prev1 = segment_mid_point(tail_edge1)
+    mid_head1 = segment_mid_point(head_edge1)
+    mid_prev2 = segment_mid_point(tail_edge2)
+    mid_next2 = segment_mid_point(head_edge2)
     # check both because one edge might be shorter
-    share_tail_edge = on_segment(mid_prev2, tail_edge1) || on_segment(mid_prev1, (prev2, vertix))
-    share_head_edge = on_segment(mid_next2, head_edge1) || on_segment(mid_next1, (vertix, next2))
-    share_head_edge, share_tail_edge
+    share_tail_edge = on_segment(mid_prev2, tail_edge1) || on_segment(mid_head1, tail_edge2)
+    share_head_edge = on_segment(mid_next2, head_edge1) || on_segment(mid_prev1, head_edge2)
+    head_on_tail = on_segment(mid_head1, head_edge2) || on_segment(mid_prev1, tail_edge2)  ||
+                   on_segment(mid_prev2, head_edge1) || on_segment(mid_next2, tail_edge1)
+    share_head_edge, share_tail_edge, head_on_tail
+end
+
+function segment_mid_point(segment::Segment2D)
+    x = (segment[1][1] + segment[2][1])/2
+    y = (segment[1][2] + segment[2][2])/2
+    (x, y)
+end
+
+function has_plane_overlap(vertix::Point2D, prev1::Point2D, next1::Point2D, prev2::Point2D, next2::Point2D)
+    # share a common plane: >> or << might only intersect at the vertix or share edges or share a whole region
+    # do not share a common plane: >< might intersect at a vertix or share edges 
+    edge1_prev = (prev1, vertix)
+    mid1 = ((next1[1] + prev1[1])/2, (next1[2] + prev1[2])/2)
+    mid2 = ((next2[1] + prev2[1])/2, (next2[2] + prev2[2])/2)
+    in_plane12 = in_half_plane(mid2, edge1_prev, false; on_border_is_inside=false)
+    in_plane11 = in_half_plane(mid1, edge1_prev, false; on_border_is_inside=false)
+    in_plane11 == in_plane12
 end
