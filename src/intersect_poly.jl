@@ -146,22 +146,22 @@ function link_intersections!(
         next2 = inter2.next.data.point
         prev2 = inter2.prev.data.point
         # case where only one is true: \|/__   
-        head_in_1 = in_half_plane(next2, edge1_prev, false; on_border_is_inside=false) ||
-                    in_half_plane(next2, edge1_next, false; on_border_is_inside=false)
-        tail_in_1 = in_half_plane(prev2, edge1_prev, false; on_border_is_inside=false) ||
-                    in_half_plane(prev2, edge1_next, false; on_border_is_inside=false)
-        share_head_edge, share_tail_edge, head_on_tail = has_edge_overlap(point, prev1, next1, prev2, next2)
+        next2_in_1 = in_half_plane(next2, edge1_prev, false; on_border_is_inside=false) ||
+                     in_half_plane(next2, edge1_next, false; on_border_is_inside=false)
+        prev2_in_1 = in_half_plane(prev2, edge1_prev, false; on_border_is_inside=false) ||
+                     in_half_plane(prev2, edge1_next, false; on_border_is_inside=false)
+        next2_on_edge1, prev2_on_edge1 = has_edge_overlap(point, prev1, next1, prev2, next2)
         share_plane = has_plane_overlap(point, prev1, next1, prev2, next2)
-        if !share_plane && !(share_head_edge || share_tail_edge || head_on_tail)
-            set_vertix_intercept!(inter1, inter2) # lone outer vertix
-        elseif head_in_1 != tail_in_1 # entry/exit point of edges/regions
-            set_exit!(inter1, inter2, !head_in_1 && tail_in_1)
-        elseif share_head_edge != share_tail_edge # share one edge
-            set_exit!(inter1, inter2, !share_head_edge && share_tail_edge)
-        else # vertix between edges or lone inner/outer vertix
+        share_edge = next2_on_edge1 || prev2_on_edge1
+        if (!share_plane && !share_edge)
+            set_vertix_intercept!(inter1, inter2) # lone outer vertix 
+        elseif xor(next2_in_1, prev2_in_1) # entry/exit point of edges/regions
+            set_exit!(inter1, inter2, !next2_in_1 && prev2_in_1)
+        elseif xor(next2_on_edge1, prev2_on_edge1) # share one edge
+            set_exit!(inter1, inter2, !next2_on_edge1 && prev2_on_edge1)
+        else # vertix between edges or lone inner/outer vertix 
             set_vertix_intercept!(inter1, inter2)
         end
-        return
     elseif head2_on_edge # edge2 hitting edge
         tail_in_1 = in_half_plane(edge2[1], edge1, false)
         set_exit!(inter1, inter2, tail_in_1)
@@ -267,19 +267,21 @@ function has_edge_overlap(vertix::Point2D, prev1::Point2D, next1::Point2D, prev2
     head_edge1 = (vertix, next1)
     tail_edge2 = (prev2, vertix)
     head_edge2 = (vertix, next2)
-    mid_prev1 = segment_mid_point(tail_edge1)
-    mid_head1 = segment_mid_point(head_edge1)
-    mid_prev2 = segment_mid_point(tail_edge2)
-    mid_next2 = segment_mid_point(head_edge2)
+    mid_prev1 = segment_midpoint(tail_edge1)
+    mid_head1 = segment_midpoint(head_edge1)
+    mid_prev2 = segment_midpoint(tail_edge2)
+    mid_next2 = segment_midpoint(head_edge2)
     # check both because one edge might be shorter
-    share_tail_edge = on_segment(mid_prev2, tail_edge1) || on_segment(mid_head1, tail_edge2)
-    share_head_edge = on_segment(mid_next2, head_edge1) || on_segment(mid_prev1, head_edge2)
-    head_on_tail = on_segment(mid_head1, head_edge2) || on_segment(mid_prev1, tail_edge2)  ||
-                   on_segment(mid_prev2, head_edge1) || on_segment(mid_next2, tail_edge1)
-    share_head_edge, share_tail_edge, head_on_tail
+    prev2_on_head1 = on_segment(mid_prev2, head_edge1) || on_segment(mid_head1, tail_edge2)
+    next2_on_tail1 = on_segment(mid_next2, tail_edge1) || on_segment(mid_prev1, head_edge2)
+    prev2_on_tail1 = on_segment(mid_prev2, tail_edge1) || on_segment(mid_prev1, tail_edge2)
+    next2_on_head1 = on_segment(mid_head1, head_edge2) || on_segment(mid_next2, head_edge1)
+    prev2_on_edge1 = prev2_on_head1 || prev2_on_tail1
+    next2_on_edge1 = next2_on_tail1 || next2_on_head1
+    next2_on_edge1, prev2_on_edge1
 end
 
-function segment_mid_point(segment::Segment2D)
+function segment_midpoint(segment::Segment2D)
     x = (segment[1][1] + segment[2][1])/2
     y = (segment[1][2] + segment[2][2])/2
     (x, y)
