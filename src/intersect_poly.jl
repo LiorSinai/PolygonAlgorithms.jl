@@ -289,7 +289,7 @@ function has_plane_overlap(vertix::Point2D, prev1::Point2D, next1::Point2D, prev
     edge1_prev = (prev1, vertix)
     mid1 = ((next1[1] + prev1[1])/2, (next1[2] + prev1[2])/2)
     mid2 = ((next2[1] + prev2[1])/2, (next2[2] + prev2[2])/2)
-    in_plane12 = in_half_plane(mid2, edge1_prev, false; on_border_is_inside=false)
-    in_plane11 = in_half_plane(mid1, edge1_prev, false; on_border_is_inside=false)
+    in_plane12 = in_half_plane(mid2, edge1_prev, false)
+    in_plane11 = in_half_plane(mid1, edge1_prev, false)
     in_plane11 == in_plane12
 end
