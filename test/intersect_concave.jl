@@ -1,4 +1,4 @@
-@testset verbose = true "intersect-concave" begin
+@testset "intersect-concave" begin
 
 function are_regions_equal(r1::Vector{Vector{T}}, r2::Vector{Vector{T}}) where T
     r1_sets = [Set(r) for r in r1]
@@ -253,6 +253,33 @@ end
     @test are_regions_equal(regions, expected)
     regions = intersect_geometry(poly2, poly1)
     @test are_regions_equal(regions, expected)
+end
+
+@testset "hilbert curve - order 2" begin 
+    # This is an example of intersection regions which are self-intersecting
+    # despite the original polygons not being self-intersecting.
+    poly1 = [
+        (-0.125, 0.125), (-0.125, 0.875), (0.125, 0.875), (0.125, 0.625),
+        (0.375, 0.625), (0.375, 0.875), (0.625, 0.875), (0.875, 0.875),
+        (0.875, 0.625), (0.625, 0.625), (0.625, 0.375), (0.875, 0.375),
+        (0.875, 0.125), (0.625, 0.125), (0.375, 0.125), (0.375, 0.375),
+        (0.125, 0.375), (0.125, 0.125),
+    ]
+    poly2 = PolygonAlgorithms.rotate(poly1, π/2.0, (0.5, 0.5))
+
+    expected= [
+        [
+            (0.125, 0.875), (0.125, 0.625), 
+            (0.375, 0.625), (0.375, 0.875), (0.375, 0.625), 
+            (0.625, 0.625), (0.626, 0.875), (0.875, 0.875), (0.875, 0.625), (0.625, 0.625),
+            (0.625, 0.375), (0.875, 0.375), (0.625, 0.375),
+            (0.625, 0.125), (0.875, 0.125), (0.625, 0.125),
+            (0.375, 0.125), (0.375, 0.375), (0.125, 0.375), (0.125, 0.625),
+        ],
+        [(0.125, 0.125)]
+    ]
+    regions = intersect_geometry(poly1, poly2)
+    @test_broken are_regions_equal(regions, expected)
 end
 
 end
