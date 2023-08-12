@@ -23,7 +23,30 @@ For example, inverting a matrix has no meaning.
 
 To convert between the forms, use `matrix_to_points` or `points_to_matrix`.
 
-### Algorithms
+### Example
+
+```julia
+using PolygonAlgorithms
+using PolygonAlgorithms: x_coords, y_coords
+
+poly = [
+    (0.4, 0.5), (0.7, 2.0), (5.3, 1.4), (4.0, -0.6)
+]
+area_polygon(poly) # 7.855
+point_in_polygon((2.0, 0.5), poly) # true
+point_in_polygon((10.0, 10.0), poly) # false
+
+poly2 = [
+    (3.0, 3.0), (4.0, 1.0), (3.0, 0.5), (2.0, -0.5), (1.5, 0.9)
+]
+intersection = intersect_geometry(poly, poly2)
+
+using Plots
+idxs = vcat(1:length(poly), 1)
+plot(x_coords(poly, idxs), y_coords(poly, idxs))
+```
+
+## Algorithms
 
 For all of the the following `n` and `m` are the number of vertices of the polygons.
 
@@ -71,10 +94,7 @@ Optionally, tests can be run with:
 (@v1.x) pkg> test PolygonAlgorithms
 ```
 
-## Example
-
-
 ## Related
 
-See also [PolygonOps](https://github.com/JuliaGeometry/PolygonOps.jl)
-and [PolygonClipping](https://github.com/JuliaGeometry/PolygonClipping.jl).
+- [PolygonOps](https://github.com/JuliaGeometry/PolygonOps.jl)
+- [PolygonClipping](https://github.com/JuliaGeometry/PolygonClipping.jl)
