@@ -85,9 +85,9 @@ function intersect_geometry(line1::Line2D, line2::Line2D; atol=1e-6)
 end
 
 function negative_zero_to_zero(x::T) where T <: AbstractFloat
-    # in the edge case that x is zero this will set comparisons to fail
-    # Set([0.0]) == Set([-0.0]) is false
-    # so just set it to zero
+    # If x is zero this will cause set comparisons to fail:
+    #   Set([0.0]) != Set([-0.0])
+    # So assign negative zero to positive zero.
     x == -0.0 ? zero(x) : x
 end
 
