@@ -1,4 +1,4 @@
-@testset verbose = true "convex intersections -$alg" for alg in [
+@testset "convex intersections -$alg" for alg in [
     PolygonAlgorithms.PointSearchAlg(),
     PolygonAlgorithms.ChasingEdgesAlg(),
     PolygonAlgorithms.WeilerAthertonAlg(),

@@ -1,4 +1,4 @@
-@testset verbose = true "edge intersections" begin
+@testset "edge intersections" begin
 
 @testset "intersect segments" begin
     seg1 = ((1.0, 1.0), (2.0, 3.0));

@@ -1,4 +1,4 @@
-@testset verbose = true "convex hulls -$alg" for alg in [
+@testset "convex hulls -$alg" for alg in [
     PolygonAlgorithms.GiftWrappingAlg(),
     PolygonAlgorithms.GrahamScanAlg(),
 ]

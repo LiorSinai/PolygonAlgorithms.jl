@@ -1,4 +1,4 @@
-@testset verbose = true "point in polygon" begin
+@testset "point in polygon" begin
 
 H_polygon = (
     [

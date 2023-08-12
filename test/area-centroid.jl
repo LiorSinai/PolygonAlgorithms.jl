@@ -1,4 +1,4 @@
-@testset verbose = true "area-centroids" begin
+@testset "area-centroids" begin
 
 @testset "area rectangle" begin
     h, w = 2.0, 3.0
@@ -42,6 +42,5 @@ end;
     expected = (5.0, 5.45)
     @test centroid == expected
 end;
-
 
 end
