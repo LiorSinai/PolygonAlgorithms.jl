@@ -28,12 +28,9 @@ function intersect_geometry(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}) wher
     if is_counter_clockwise(polygon2)
         polygon2 = reverse(polygon2)
     end
-    # convert polygons to list so can follow loops betwween them
-    list1 = generate_list(polygon1)
-    list2 = generate_list(polygon2)
-    # insert intersections
+    list1 = convert_to_linked_list(polygon1)
+    list2 = convert_to_linked_list(polygon2)
     find_and_insert_intersections!(list1, list2)
-    # walk loops
     regions, visited = walk_linked_lists(list2)
     # special cases
     if isempty(regions)
@@ -59,7 +56,7 @@ mutable struct PointInfo{T}
     type::IntersectionType
 end
 
-function generate_list(polygon::Polygon2D{T}) where T
+function convert_to_linked_list(polygon::Polygon2D{T}) where T
     data = PointInfo{T}(polygon[1], false, nothing, NONE)
     head = Node(data)
     list = DoublyLinkedList(head)
@@ -137,15 +134,14 @@ function link_intersections!(
     head2_on_edge = is_same_point(point, edge2[2]; atol=atol)
     tail2_on_edge = is_same_point(point, edge2[1]; atol=atol)
     on_edge2 = head2_on_edge || tail2_on_edge
-    if on_edge1 && on_edge2
-        # intersect at common vertix
+    if on_edge1 && on_edge2 
+        # case 1: intersect at common vertix
         prev1 = inter1.prev.data.point
         next1 = inter1.next.data.point
         edge1_prev = (prev1, point)
         edge1_next = (point, next1)
         next2 = inter2.next.data.point
         prev2 = inter2.prev.data.point
-        # case where only one is true: \|/__   
         next2_in_1 = in_half_plane(next2, edge1_prev, false; on_border_is_inside=false) ||
                      in_half_plane(next2, edge1_next, false; on_border_is_inside=false)
         prev2_in_1 = in_half_plane(prev2, edge1_prev, false; on_border_is_inside=false) ||
@@ -162,13 +158,13 @@ function link_intersections!(
         else # vertix between edges or lone inner/outer vertix 
             set_vertix_intercept!(inter1, inter2)
         end
-    elseif head2_on_edge # edge2 hitting edge
+    elseif head2_on_edge # case 2: edge2 hitting edge
         tail_in_1 = in_half_plane(edge2[1], edge1, false)
         set_exit!(inter1, inter2, tail_in_1)
-    elseif tail2_on_edge # edge2 leaving edge
+    elseif tail2_on_edge # case 3: edge2 leaving edge
         head_in_1 = in_half_plane(edge2[2], edge1, false)
         set_exit!(inter1, inter2, !head_in_1)  
-    else # cross or edge1 hitting/leaving edge
+    else # case 4: cross or edge1 hitting/leaving edge
         exiting_1_to_2 = in_half_plane(edge2[1], edge1, false)
         set_exit!(inter1, inter2, exiting_1_to_2)
     end
@@ -179,7 +175,7 @@ function link_intersections!(
 end
 
 function set_exit!(inter1::Node{<:PointInfo}, inter2::Node{<:PointInfo}, exiting_1_to_2::Bool)
-    if exiting_1_to_2 # edge of polygon 2 is exiting poylgon 1 (intersection region)
+    if exiting_1_to_2 # edge of polygon 2 is exiting poylgon 1
         inter2.data.link = inter1 # so move from polygon2 to polygon1
         inter2.data.type = EXIT
     else
@@ -200,14 +196,12 @@ function walk_linked_lists(polygon::DoublyLinkedList{PointInfo{T}}) where T
     node = polygon.head
     visited = Set{Point2D{T}}()
     while !isnothing(node)
-        if !(node.data.point in visited) && node.data.intersection
-            if node.data.type == ENTRY
-                loop, visited_in_loop = walk_loop(node)
-                if !isempty(visited_in_loop)
-                    push!(visited, visited_in_loop...)
-                end
-                push!(regions, loop)
+        if !(node.data.point in visited) && node.data.type == ENTRY
+            loop, visited_in_loop = walk_loop(node)
+            if !isempty(visited_in_loop)
+                push!(visited, visited_in_loop...)
             end
+            push!(regions, loop)
         end
         node = node.next == polygon.head ? nothing : node.next
     end
@@ -263,15 +257,16 @@ function has_edge_overlap(vertix::Point2D, prev1::Point2D, next1::Point2D, prev2
     head_edge1 = (vertix, next1)
     tail_edge2 = (prev2, vertix)
     head_edge2 = (vertix, next2)
-    mid_prev1 = segment_midpoint(tail_edge1)
+    mid_tail1 = segment_midpoint(tail_edge1)
     mid_head1 = segment_midpoint(head_edge1)
-    mid_prev2 = segment_midpoint(tail_edge2)
-    mid_next2 = segment_midpoint(head_edge2)
+    mid_tail2 = segment_midpoint(tail_edge2)
+    mid_head2 = segment_midpoint(head_edge2)
     # check both because one edge might be shorter
-    prev2_on_head1 = on_segment(mid_prev2, head_edge1) || on_segment(mid_head1, tail_edge2)
-    next2_on_tail1 = on_segment(mid_next2, tail_edge1) || on_segment(mid_prev1, head_edge2)
-    prev2_on_tail1 = on_segment(mid_prev2, tail_edge1) || on_segment(mid_prev1, tail_edge2)
-    next2_on_head1 = on_segment(mid_head1, head_edge2) || on_segment(mid_next2, head_edge1)
+    prev2_on_head1 = on_segment(mid_tail2, head_edge1) || on_segment(mid_head1, tail_edge2)
+    next2_on_tail1 = on_segment(mid_head2, tail_edge1) || on_segment(mid_tail1, head_edge2)
+    prev2_on_tail1 = on_segment(mid_tail2, tail_edge1) || on_segment(mid_tail1, tail_edge2)
+    next2_on_head1 = on_segment(mid_head1, head_edge2) || on_segment(mid_head2, head_edge1)
+    # check both because unsure of directions
     prev2_on_edge1 = prev2_on_head1 || prev2_on_tail1
     next2_on_edge1 = next2_on_tail1 || next2_on_head1
     next2_on_edge1, prev2_on_edge1

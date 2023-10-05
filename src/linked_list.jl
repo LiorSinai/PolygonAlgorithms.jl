@@ -71,6 +71,7 @@ function Base.length(list::DoublyLinkedList)
 end
 
 function collect_nodes(list::DoublyLinkedList{T}) where T
+    # A standard collect(list) will return the data, not the nodes themselves
     vec = Node{T}[]
     node = list.head
     push!(vec, node)
