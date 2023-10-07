@@ -84,11 +84,11 @@ function find_and_insert_intersections!(
     ## collect original nodes before mutating in place
     vec1 = collect_nodes(polygon1)
     vec2 = collect_nodes(polygon2)
-    ## find itersections
-    for (node1, next1) in zip(vec1, vcat(vec1[2:end], vec1[1]))
-        edge1 = (node1.data.point, next1.data.point) 
-        for (node2, next2) in zip(vec2, vcat(vec2[2:end], vec2[1]))
-            edge2 = (node2.data.point, next2.data.point)
+    ## find intersections
+    for (node2, next2) in zip(vec2, vcat(vec2[2:end], vec2[1]))
+        edge2 = (node2.data.point, next2.data.point)
+        for (node1, next1) in zip(vec1, vcat(vec1[2:end], vec1[1]))
+            edge1 = (node1.data.point, next1.data.point) 
             p = intersect_geometry(edge1, edge2)
             if !isnothing(p)
                 i1 = insert_intersection_in_order!(p, node1, next1; atol=atol)
