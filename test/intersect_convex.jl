@@ -1,3 +1,5 @@
+using PolygonAlgorithms: translate
+
 @testset "convex intersections -$alg" for alg in [
     PolygonAlgorithms.PointSearchAlg(),
     PolygonAlgorithms.ChasingEdgesAlg(),
@@ -194,6 +196,47 @@ end
     @test issetequal(points, expected)
 end
 
+@testset "quads single vertix intersect" begin 
+    poly1 = [
+        (1.0, 1.0), (2.0, 4.0), (5.0, 5.0), (4.0, 2.0)
+    ]
+    poly2 = [
+        (4.0, 2.0), (3.0, 4.0), (6.0, 4.0), (7.0, 1.0)
+    ]
+
+    expected = [(4.0, 2.0), (3.0, 4.0), (4.666666666666667, 4.0)]
+    points = intersect_convex(poly1, poly2, alg)
+    @test issetequal(points, expected)
+    points = intersect_convex(poly2, poly1, alg)
+    @test issetequal(points, expected)
+end
+
+@testset "share lines" begin 
+    poly1 = [
+        (5.0, 8.0), (9.0, 4.0), (1.0, 4.0),
+    ]
+    poly2 = [
+        (5.0, 1.0), (1.0, 4.0), (9.0, 4.0)
+    ]
+    expected = [(1.0, 4.0), (9.0, 4.0)]
+    points = intersect_convex(poly1, poly2, alg)
+    @test issetequal(points, expected)
+    points = intersect_convex(poly2, poly1, alg)
+    @test issetequal(points, expected)
+
+    # shared point
+    poly1 = [
+        (5.0, 8.0), (9.0, 4.0), (5.0, 4.0), (1.0, 4.0),
+    ]
+    poly2 = [
+        (5.0, 1.0), (1.0, 4.0), (5.0, 4.0), (9.0, 4.0)
+    ]
+    expected = [(1.0, 4.0), (5.0, 4.0), (9.0, 4.0), (5.0, 4.0),]
+    points = intersect_convex(poly1, poly2, alg)
+    @test issetequal(points, expected)
+    points = intersect_convex(poly2, poly1, alg)
+    @test issetequal(points, expected)
+end
 
 @testset "cross" begin
     poly1 = [

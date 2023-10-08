@@ -134,29 +134,20 @@ function link_intersections!(
     head2_on_edge = is_same_point(point, edge2[2]; atol=atol)
     tail2_on_edge = is_same_point(point, edge2[1]; atol=atol)
     on_edge2 = head2_on_edge || tail2_on_edge
-    if on_edge1 && on_edge2 
-        # case 1: intersect at common vertix
+    if on_edge1 && on_edge2 # case 1: intersect at common vertix
         prev1 = inter1.prev.data.point
         next1 = inter1.next.data.point
-        edge1_prev = (prev1, point)
-        edge1_next = (point, next1)
         next2 = inter2.next.data.point
         prev2 = inter2.prev.data.point
-        next2_in_1 = in_half_plane(edge1_prev, next2, false; on_border_is_inside=false) ||
-                     in_half_plane(edge1_next, next2, false; on_border_is_inside=false)
-        prev2_in_1 = in_half_plane(edge1_prev, prev2, false; on_border_is_inside=false) ||
-                     in_half_plane(edge1_next, prev2,false; on_border_is_inside=false)
         next2_on_edge1, prev2_on_edge1 = has_edge_overlap(point, prev1, next1, prev2, next2)
-        share_plane = has_plane_overlap(point, prev1, next1, prev2, next2)
-        share_edge = next2_on_edge1 || prev2_on_edge1
-        if (!share_plane && !share_edge)
-            set_vertix_intercept!(inter1, inter2) # lone outer vertix 
-        elseif xor(next2_in_1, prev2_in_1) # entry/exit point of edges/regions
-            set_link!(inter1, inter2, next2_in_1 && !prev2_in_1)
-        elseif xor(next2_on_edge1, prev2_on_edge1) # share one edge
-            set_link!(inter1, inter2, next2_on_edge1 && !prev2_on_edge1)
-        else # vertix between edges or lone inner/outer vertix 
-            set_vertix_intercept!(inter1, inter2)
+        tail2_in_1, head2_in_1 = in_plane((prev1, point, next1), prev2, next2)
+        tail2_in_1 = tail2_in_1 || prev2_on_edge1
+        head2_in_1 = head2_in_1 || next2_on_edge1
+        if head2_in_1 == tail2_in_1
+            # vertix between edges or lone inner/outer vertix 
+            set_vertix_intercept!(inter1, inter2)  
+        else 
+            set_link!(inter1, inter2, head2_in_1)
         end
     elseif head2_on_edge # case 2: edge2 hitting edge
         tail_in_1 = in_half_plane(edge1, edge2[1], false)
@@ -172,6 +163,7 @@ function link_intersections!(
         inter1.data.type = VERTIX
         inter2.data.type = VERTIX
     end
+    inter1, inter2
 end
 
 function set_link!(inter1::Node{<:PointInfo}, inter2::Node{<:PointInfo}, entering_1_from_2::Bool)
@@ -282,13 +274,27 @@ function segment_midpoint(segment::Segment2D)
     (x, y)
 end
 
-function has_plane_overlap(vertix::Point2D, prev1::Point2D, next1::Point2D, prev2::Point2D, next2::Point2D)
-    # share a common plane: >> or << might only intersect at the vertix or share edges or share a whole region
-    # do not share a common plane: >< might intersect at a vertix or share edges 
-    edge1_prev = (prev1, vertix)
-    mid1 = ((next1[1] + prev1[1])/2, (next1[2] + prev1[2])/2)
-    mid2 = ((next2[1] + prev2[1])/2, (next2[2] + prev2[2])/2)
-    in_plane12 = in_half_plane(edge1_prev, mid2, false)
-    in_plane11 = in_half_plane(edge1_prev, mid1, false)
-    in_plane11 == in_plane12
+function in_plane(edge::NTuple{3, Point2D}, point1::Point2D, point2::Point2D)
+    # assume half-plane is clockwise of the edge
+    # if in half-planes of edge[1:2] && edge[2:3] then definitely in the plane.
+    # But if in one half-plane it can be either in or out. 
+    # A better strategy is to check angles instead.
+    vertix = edge[2]
+    angle_tail = atan_pos(edge[1][2] - vertix[2], edge[1][1] - vertix[1])
+    angle_head = atan_pos(edge[3][2] - vertix[2], edge[3][1] - vertix[1])
+    angle1 = atan_pos(point1[2] - vertix[2], point1[1] - vertix[1])
+    angle2 = atan_pos(point2[2] - vertix[2], point2[1] - vertix[1])
+    if angle_tail < angle_head
+        tail2_in_1 = (angle_tail < angle1 < angle_head) 
+        head2_in_1 = (angle_tail < angle2 < angle_head) 
+    else
+        tail2_in_1 = (angle1 > angle_tail) || (angle1 < angle_head)
+        head2_in_1 = (angle2 > angle_tail) || (angle2 < angle_head)
+    end
+    tail2_in_1, head2_in_1
+end
+
+function atan_pos(y::Real, x::Real)
+    angle = atan(y, x)
+    angle < 0 ? angle + 2π : angle
 end
