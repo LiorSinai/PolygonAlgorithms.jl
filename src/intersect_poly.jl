@@ -10,8 +10,7 @@ Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
 
 Limitations
 1. This version does not cater for holes.
-2. It partially fails for self-intersecting areas. For example, a shared edge that connects to a region of intersection.
-3. It can fail completely for self-intersecting polygons.
+2. It can fail completely for self-intersecting polygons.
 
 For a more general algorithm see the Martinez-Rueda polygon clipping algorithm.
 """
