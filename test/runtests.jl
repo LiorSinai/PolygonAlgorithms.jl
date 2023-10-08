@@ -11,5 +11,6 @@ using PolygonAlgorithms: translate, rotate, PointSet
     include("intersect_convex.jl")
     include("intersect_concave.jl")
     include("intersect_numeric.jl")
+    include("intersect_hilbert.jl")
     include("convex_hull.jl")
 end
