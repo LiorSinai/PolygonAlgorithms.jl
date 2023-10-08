@@ -1,10 +1,13 @@
-using PolygonAlgorithms: translate
+using PolygonAlgorithms: translate, PointSet
 
 @testset "intersect-concave" begin
 
 function are_regions_equal(r1::Vector{Vector{T}}, r2::Vector{Vector{T}}) where T
-    r1_sets = [Set(r) for r in r1]
-    r2_sets = [Set(r) for r in r2]
+    if length(r1) != length(r2)
+        return false
+    end
+    r1_sets = [PointSet(r) for r in r1]
+    r2_sets = [PointSet(r) for r in r2]
     issetequal(r1_sets, r2_sets)
 end
 
@@ -249,7 +252,7 @@ end
     regions = intersect_geometry(poly1, poly2)
     @test_broken are_regions_equal(regions, expected)
     regions = intersect_geometry(poly2, poly1)
-    @test_broken are_regions_equal(regions, expected)
+    @test are_regions_equal(regions, expected)
 end
 
 @testset "concave saw + vertix intercepts" begin 

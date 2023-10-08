@@ -81,14 +81,7 @@ function intersect_geometry(line1::Line2D, line2::Line2D; atol=1e-6)
     end
     x = (b2 * c1 - b1 * c2) / determinant
     y = (a1 * c2 - c1 * a2) / determinant
-    (negative_zero_to_zero(x), negative_zero_to_zero(y))
-end
-
-function negative_zero_to_zero(x::T) where T <: AbstractFloat
-    # If x is zero this will cause set comparisons to fail:
-    #   Set([0.0]) != Set([-0.0])
-    # So assign negative zero to positive zero.
-    x == -0.0 ? zero(x) : x
+    (x, y)
 end
 
 """

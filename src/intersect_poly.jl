@@ -186,7 +186,7 @@ end
 function walk_linked_lists(polygon::DoublyLinkedList{PointInfo{T}}) where T
     regions = Vector{Point2D{T}}[]
     node = polygon.head
-    visited = Set{Point2D{T}}()
+    visited = PointSet()
     while !isnothing(node)
         if !(node.data.point in visited) && node.data.type == ENTRY
             loop, visited_in_loop = walk_loop(node)
@@ -236,7 +236,7 @@ function is_vertix_intercept(node::Node{<:PointInfo})
     !isnothing(node2) && !isnothing(node2.data.link) && node2.data.link == node
 end
 
-function get_unvisited_intercepts(polygon::DoublyLinkedList{PointInfo{T}}, visited::Set{Point2D{T}}) where T
+function get_unvisited_intercepts(polygon::DoublyLinkedList{PointInfo{T}}, visited::PointSet{T}) where T
     regions = Vector{Point2D{T}}[]
     node = polygon.head
     while !isnothing(node)
