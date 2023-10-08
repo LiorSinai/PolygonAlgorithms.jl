@@ -152,21 +152,21 @@ function link_intersections!(
         if (!share_plane && !share_edge)
             set_vertix_intercept!(inter1, inter2) # lone outer vertix 
         elseif xor(next2_in_1, prev2_in_1) # entry/exit point of edges/regions
-            set_exit!(inter1, inter2, !next2_in_1 && prev2_in_1)
+            set_link!(inter1, inter2, next2_in_1 && !prev2_in_1)
         elseif xor(next2_on_edge1, prev2_on_edge1) # share one edge
-            set_exit!(inter1, inter2, !next2_on_edge1 && prev2_on_edge1)
+            set_link!(inter1, inter2, next2_on_edge1 && !prev2_on_edge1)
         else # vertix between edges or lone inner/outer vertix 
             set_vertix_intercept!(inter1, inter2)
         end
     elseif head2_on_edge # case 2: edge2 hitting edge
         tail_in_1 = in_half_plane(edge2[1], edge1, false)
-        set_exit!(inter1, inter2, tail_in_1)
+        set_link!(inter1, inter2, !tail_in_1)
     elseif tail2_on_edge # case 3: edge2 leaving edge
         head_in_1 = in_half_plane(edge2[2], edge1, false)
-        set_exit!(inter1, inter2, !head_in_1)  
+        set_link!(inter1, inter2, head_in_1)  
     else # case 4: cross or edge1 hitting/leaving edge
-        exiting_1_to_2 = in_half_plane(edge2[1], edge1, false)
-        set_exit!(inter1, inter2, exiting_1_to_2)
+        entering_1_from_2 = in_half_plane(edge2[2], edge1, false)
+        set_link!(inter1, inter2, entering_1_from_2)
     end
     if is_vertix_intercept(inter2) # bounces off (case 2+3) or cycles back (case 2/3+4)
         inter1.data.type = VERTIX
@@ -174,13 +174,13 @@ function link_intersections!(
     end
 end
 
-function set_exit!(inter1::Node{<:PointInfo}, inter2::Node{<:PointInfo}, exiting_1_to_2::Bool)
-    if exiting_1_to_2 # edge of polygon 2 is exiting poylgon 1
-        inter2.data.link = inter1 # so move from polygon2 to polygon1
-        inter2.data.type = EXIT
-    else
+function set_link!(inter1::Node{<:PointInfo}, inter2::Node{<:PointInfo}, entering_1_from_2::Bool)
+    if entering_1_from_2 # edge of polygon 2 is entering poylgon 1 
         inter1.data.link = inter2
         inter2.data.type = ENTRY
+    else 
+        inter2.data.link = inter1
+        inter2.data.type = EXIT
     end 
 end
 
