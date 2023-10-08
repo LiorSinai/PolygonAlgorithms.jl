@@ -80,14 +80,14 @@ function intersect_convex(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::Chas
                 break
             end
             push!(points, inter)
-            poly1_in_2 = in_half_plane(polygon1[i], edge2)
+            poly1_in_2 = in_half_plane(edge2, polygon1[i])
             poly2_in_1 = !poly1_in_2
         end
         advance_1 = false 
         if cross_product(edge2, edge1) >= 0
-            advance_1 = !(in_half_plane(polygon1[i], edge2))
+            advance_1 = !(in_half_plane(edge2, polygon1[i], ))
         else
-            advance_1 = in_half_plane(polygon2[j], edge1)
+            advance_1 = in_half_plane(edge1, polygon2[j])
         end
         if advance_1
             if poly1_in_2

@@ -142,10 +142,10 @@ function link_intersections!(
         edge1_next = (point, next1)
         next2 = inter2.next.data.point
         prev2 = inter2.prev.data.point
-        next2_in_1 = in_half_plane(next2, edge1_prev, false; on_border_is_inside=false) ||
-                     in_half_plane(next2, edge1_next, false; on_border_is_inside=false)
-        prev2_in_1 = in_half_plane(prev2, edge1_prev, false; on_border_is_inside=false) ||
-                     in_half_plane(prev2, edge1_next, false; on_border_is_inside=false)
+        next2_in_1 = in_half_plane(edge1_prev, next2, false; on_border_is_inside=false) ||
+                     in_half_plane(edge1_next, next2, false; on_border_is_inside=false)
+        prev2_in_1 = in_half_plane(edge1_prev, prev2, false; on_border_is_inside=false) ||
+                     in_half_plane(edge1_next, prev2,false; on_border_is_inside=false)
         next2_on_edge1, prev2_on_edge1 = has_edge_overlap(point, prev1, next1, prev2, next2)
         share_plane = has_plane_overlap(point, prev1, next1, prev2, next2)
         share_edge = next2_on_edge1 || prev2_on_edge1
@@ -159,13 +159,13 @@ function link_intersections!(
             set_vertix_intercept!(inter1, inter2)
         end
     elseif head2_on_edge # case 2: edge2 hitting edge
-        tail_in_1 = in_half_plane(edge2[1], edge1, false)
+        tail_in_1 = in_half_plane(edge1, edge2[1], false)
         set_link!(inter1, inter2, !tail_in_1)
     elseif tail2_on_edge # case 3: edge2 leaving edge
-        head_in_1 = in_half_plane(edge2[2], edge1, false)
+        head_in_1 = in_half_plane(edge1, edge2[2], false)
         set_link!(inter1, inter2, head_in_1)  
     else # case 4: cross or edge1 hitting/leaving edge
-        entering_1_from_2 = in_half_plane(edge2[2], edge1, false)
+        entering_1_from_2 = in_half_plane(edge1, edge2[2], false)
         set_link!(inter1, inter2, entering_1_from_2)
     end
     if is_vertix_intercept(inter2) # bounces off (case 2+3) or cycles back (case 2/3+4)
@@ -288,7 +288,7 @@ function has_plane_overlap(vertix::Point2D, prev1::Point2D, next1::Point2D, prev
     edge1_prev = (prev1, vertix)
     mid1 = ((next1[1] + prev1[1])/2, (next1[2] + prev1[2])/2)
     mid2 = ((next2[1] + prev2[1])/2, (next2[2] + prev2[2])/2)
-    in_plane12 = in_half_plane(mid2, edge1_prev, false)
-    in_plane11 = in_half_plane(mid1, edge1_prev, false)
+    in_plane12 = in_half_plane(edge1_prev, mid2, false)
+    in_plane11 = in_half_plane(edge1_prev, mid1, false)
     in_plane11 == in_plane12
 end
