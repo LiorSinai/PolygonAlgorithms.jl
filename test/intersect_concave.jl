@@ -1,8 +1,13 @@
+using PolygonAlgorithms: translate, PointSet
+
 @testset "intersect-concave" begin
 
 function are_regions_equal(r1::Vector{Vector{T}}, r2::Vector{Vector{T}}) where T
-    r1_sets = [Set(r) for r in r1]
-    r2_sets = [Set(r) for r in r2]
+    if length(r1) != length(r2)
+        return false
+    end
+    r1_sets = [PointSet(r) for r in r1]
+    r2_sets = [PointSet(r) for r in r2]
     issetequal(r1_sets, r2_sets)
 end
 
@@ -216,7 +221,7 @@ end
 
     # share edge above
     poly2 = [
-        (2.0, 1.0), (2.0, -0.5), (1.0, 0.0), (0.5, 0.5)
+        (2.0, 1.0), (2.0, -0.5), (-0.5, -0.5), (1.0, 0.0), (0.5, 0.5)
     ]
     expected = [[(1.0, 0.0), (0.5, 0.5)]]
     regions = intersect_geometry(poly1, poly2)
@@ -231,6 +236,21 @@ end
     expected = [[(0.5, 0.0), (1.0, 0.0), (0.5, 0.5)]]
     regions = intersect_geometry(poly1, poly2)
     @test are_regions_equal(regions, expected)
+    regions = intersect_geometry(poly2, poly1)
+    @test are_regions_equal(regions, expected)
+end
+
+@testset "concave outer share portion and inner" begin 
+    # self-intersecting area
+    poly1 = [
+        (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 2.0), (2.0, 2.0), (2.0, 0.0)
+    ]
+    poly2 = [
+        (-1.0, 0.0), (0.3, 1.5), (0.7, 1.0), (1.0, 1.0), (0.0, -1.0)
+    ]
+    expected = [[(1.0, 1.0), (0.7, 1.0), (0.0, 1.0), (0.0, 1.1538461538461537), (0.3, 1.5), (0.7, 1.0), (1.0, 1.0)]]
+    regions = intersect_geometry(poly1, poly2)
+    @test_broken are_regions_equal(regions, expected)
     regions = intersect_geometry(poly2, poly1)
     @test are_regions_equal(regions, expected)
 end
@@ -255,6 +275,40 @@ end
     @test are_regions_equal(regions, expected)
 end
 
+@testset "overlapping arches" begin
+    poly1 = [
+        (0.0, 0.0), (-1.0, 0.0), (-1.0, 2.0), (2.0, 2.0), (2.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)
+    ]
+    poly2 = [
+        (0.0, 1.0), (0.0, 2.0), (2.0, 2.0), (2.0, -1.0), (0.0, -1.0), (0.0, 0.0),  (1.0, 0.0), (1.0, 1.0),
+    ]
+    expected = [
+        [(1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 2.0), (2.0, 2.0), (2.0, 0.0)],
+        [(0.0, 0.0)],
+    ]
+    regions = intersect_geometry(poly1, poly2)
+    @test are_regions_equal(regions, expected)
+    regions = intersect_geometry(poly2, poly1)
+    @test are_regions_equal(regions, expected)
+
+    # mirror image
+    poly1 = [
+        (0.0, 0.0), (1.0, 0.0), (1.0, 2.0), (-2.0, 2.0), (-2.0, 0.0), (-1.0, 0.0), (-1.0, 1.0), (0.0, 1.0)
+    ]
+    poly2 = [
+        (0.0, 1.0), (0.0, 2.0), (-2.0, 2.0), (-2.0, -1.0), (0.0, -1.0), (0.0, 0.0),  (-1.0, 0.0), (-1.0, 1.0),
+    ]
+    expected = [
+        [(-2.0, 0.0), (-2.0, 2.0), (0.0, 2.0), (0.0, 1.0), (-1.0, 1.0), (-1.0, 0.0),],
+        [(0.0, 0.0)],
+    ]
+    regions = intersect_geometry(poly1, poly2)
+    @test are_regions_equal(regions, expected)
+    regions = intersect_geometry(poly2, poly1)
+    @test are_regions_equal(regions, expected)
+end
+
+
 @testset "hilbert curve - order 2" begin 
     # This is an example of intersection regions which are self-intersecting
     # despite the original polygons not being self-intersecting.
@@ -271,7 +325,7 @@ end
         [
             (0.125, 0.875), (0.125, 0.625), 
             (0.375, 0.625), (0.375, 0.875), (0.375, 0.625), 
-            (0.625, 0.625), (0.626, 0.875), (0.875, 0.875), (0.875, 0.625), (0.625, 0.625),
+            (0.625, 0.625), (0.625, 0.875), (0.875, 0.875), (0.875, 0.625), (0.625, 0.625),
             (0.625, 0.375), (0.875, 0.375), (0.625, 0.375),
             (0.625, 0.125), (0.875, 0.125), (0.625, 0.125),
             (0.375, 0.125), (0.375, 0.375), (0.125, 0.375), (0.125, 0.625),
@@ -279,7 +333,9 @@ end
         [(0.125, 0.125)]
     ]
     regions = intersect_geometry(poly1, poly2)
-    @test_broken are_regions_equal(regions, expected)
+    @test are_regions_equal(regions, expected)
+    regions = intersect_geometry(poly2, poly1)
+    @test are_regions_equal(regions, expected)
 end
 
 end

@@ -5,10 +5,13 @@ import Base: length, show
 
 include("definitions.jl")
 include("orientation.jl")
+include("linked_list.jl")
+include("point_set.jl")
+
 include("moments.jl")
 include("point_in_polygon.jl")
 include("intersect.jl")
-include("linked_list.jl")
+
 include("intersect_poly.jl")
 include("intersect_convex.jl")
 include("convex_hull.jl")

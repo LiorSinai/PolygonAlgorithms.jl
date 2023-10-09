@@ -1,3 +1,5 @@
+using PolygonAlgorithms: PointSet
+
 @testset "edge intersections" begin
 
 @testset "intersect segments" begin
@@ -58,7 +60,7 @@ end
     ]
 
     points = intersect_edges(poly1, poly1)
-    @test issetequal(points, poly1)
+    @test PointSet(points) == PointSet(poly1)
 
     # overlap
     poly2 = translate(poly1, (1.0, 1.0))
@@ -66,7 +68,7 @@ end
         (1.0, 2.0), (2.0, 1.0)
         ]
     points = intersect_edges(poly1, poly2)
-    @test issetequal(points, expected)
+    @test PointSet(points) == PointSet(expected)
 
     # overlap along edges
     poly2 = translate(poly1, (1.0, 0.0))
@@ -74,13 +76,13 @@ end
         (1.0, 2.0), (2.0, 2.0), (2.0, 0.0), (1.0, 0.0)
         ]
     points = intersect_edges(poly1, poly2)
-    @test issetequal(points, expected)
+    @test PointSet(points) == PointSet(expected)
 
     # single point of itersection
     poly2 = translate(poly1, (2.0, 2.0))
     expected = [(2.0, 2.0)]
     points = intersect_edges(poly1, poly2)
-    @test issetequal(points, expected)
+    @test PointSet(points) == PointSet(expected)
 
     # intersect along edge
     poly2 = translate(poly1, (2.0, 1.0))
@@ -89,13 +91,13 @@ end
         (2.0, 1.0)
         ]
     points = intersect_edges(poly1, poly2)
-    @test issetequal(points, expected)
+    @test PointSet(points) == PointSet(expected)
 
     # no intersection
     poly2 = translate(poly1, (3.0, 3.0))
     expected = []
     points = intersect_edges(poly1, poly2)
-    @test issetequal(points, expected)
+    @test isempty(points)
 end
 
 @testset "cross" begin
@@ -109,7 +111,7 @@ end
         (0.0, 1.5), (0.0, 0.5), (1.0, 1.5), (1.0, 0.5)
     ]
     points = intersect_edges(poly1, poly2)
-    @test issetequal(points, expected)
+    @test PointSet(points) == PointSet(expected)
 end
 
 @testset "star of david" begin
@@ -132,7 +134,7 @@ end
         (+1/3, +h/3),
         ]
     points = intersect_edges(poly1, poly2)
-    @test issetequal(expected, points)
+    @test PointSet(points) == PointSet(expected)
 end
 
 @testset "intersect pentagram" begin
@@ -174,8 +176,7 @@ end
         (0.728571, 0.357143),
     ]
     points = intersect_edges(poly1, poly2)
-    answer = Set([round.(p, digits=6) for p in points])
-    @test issetequal(answer, expected)
+    @test PointSet(points) == PointSet(expected)
 end
 
 end
