@@ -257,9 +257,9 @@ function has_edge_overlap(vertix::Point2D, prev1::Point2D, next1::Point2D, prev2
     mid_tail2 = segment_midpoint(tail_edge2)
     mid_head2 = segment_midpoint(head_edge2)
     # check both because one edge might be shorter
+    prev2_on_tail1 = on_segment(mid_tail2, tail_edge1) || on_segment(mid_tail1, tail_edge2)
     prev2_on_head1 = on_segment(mid_tail2, head_edge1) || on_segment(mid_head1, tail_edge2)
     next2_on_tail1 = on_segment(mid_head2, tail_edge1) || on_segment(mid_tail1, head_edge2)
-    prev2_on_tail1 = on_segment(mid_tail2, tail_edge1) || on_segment(mid_tail1, tail_edge2)
     next2_on_head1 = on_segment(mid_head1, head_edge2) || on_segment(mid_head2, head_edge1)
     # check both because unsure of directions
     prev2_on_edge1 = prev2_on_head1 || prev2_on_tail1
