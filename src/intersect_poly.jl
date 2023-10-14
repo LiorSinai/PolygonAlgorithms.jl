@@ -46,7 +46,7 @@ function intersect_geometry(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}) wher
     regions
 end
 
-@enum IntersectionType NONE ENTRY EXIT VERTIX
+@enum IntersectionType NONE ENTRY EXIT VERTEX
 
 mutable struct PointInfo{T}
     point::Point2D{T}
@@ -133,7 +133,7 @@ function link_intersections!(
     head2_on_edge = is_same_point(point, edge2[2]; atol=atol)
     tail2_on_edge = is_same_point(point, edge2[1]; atol=atol)
     on_edge2 = head2_on_edge || tail2_on_edge
-    if on_edge1 && on_edge2 # case 1: intersect at common vertix
+    if on_edge1 && on_edge2 # case 1: intersect at common vertex
         prev1 = inter1.prev.data.point
         next1 = inter1.next.data.point
         next2 = inter2.next.data.point
@@ -143,8 +143,8 @@ function link_intersections!(
         tail2_in_1 = tail2_in_1 || prev2_on_edge1
         head2_in_1 = head2_in_1 || next2_on_edge1
         if head2_in_1 == tail2_in_1
-            # vertix between edges or lone inner/outer vertix 
-            set_vertix_intercept!(inter1, inter2)  
+            # vertex between edges or lone inner/outer vertex 
+            set_vertex_intercept!(inter1, inter2)  
         else 
             set_link!(inter1, inter2, head2_in_1)
         end
@@ -158,9 +158,9 @@ function link_intersections!(
         entering_1_from_2 = in_half_plane(edge1, edge2[2], false)
         set_link!(inter1, inter2, entering_1_from_2)
     end
-    if is_vertix_intercept(inter2) # bounces off (case 2+3) or cycles back (case 2/3+4)
-        inter1.data.type = VERTIX
-        inter2.data.type = VERTIX
+    if is_vertex_intercept(inter2) # bounces off (case 2+3) or cycles back (case 2/3+4)
+        inter1.data.type = VERTEX
+        inter2.data.type = VERTEX
     end
     inter1, inter2
 end
@@ -175,11 +175,11 @@ function set_link!(inter1::Node{<:PointInfo}, inter2::Node{<:PointInfo}, enterin
     end 
 end
 
-function set_vertix_intercept!(inter1::Node{<:PointInfo}, inter2::Node{<:PointInfo})
+function set_vertex_intercept!(inter1::Node{<:PointInfo}, inter2::Node{<:PointInfo})
     inter1.data.link = inter2
     inter2.data.link = inter1
-    inter2.data.type = VERTIX
-    inter1.data.type = VERTIX
+    inter2.data.type = VERTEX
+    inter1.data.type = VERTEX
 end
 
 function walk_linked_lists(polygon::DoublyLinkedList{PointInfo{T}}) where T
@@ -210,13 +210,13 @@ function walk_loop(start::Node{PointInfo{T}}) where T
     while (node != start) && (node.data.point != start.data.point)
         push!(loop, node.data.point)
         if (node in visited) && # can go to the same point on different nodes!
-            (node.data.type != VERTIX) &&  # many edges can hit the same vertix
+            (node.data.type != VERTEX) &&  # many edges can hit the same vertex
             (node.prev.data.point != node.data.point) # exception for repeated nodes
             @warn "Cycle detected: start node: $start; repeated node: $node"
             break
         end
         push!(visited, node)
-        if !isnothing(node.data.link) && node.data.type != VERTIX 
+        if !isnothing(node.data.link) && node.data.type != VERTEX 
             if (node.data.link == start)
                 break
             end
@@ -230,7 +230,7 @@ function walk_loop(start::Node{PointInfo{T}}) where T
     loop, visited
 end
 
-function is_vertix_intercept(node::Node{<:PointInfo})
+function is_vertex_intercept(node::Node{<:PointInfo})
     node2 = node.data.link
     !isnothing(node2) && !isnothing(node2.data.link) && node2.data.link == node
 end
@@ -247,11 +247,11 @@ function get_unvisited_intercepts(polygon::DoublyLinkedList{PointInfo{T}}, visit
     regions
 end
 
-function has_edge_overlap(vertix::Point2D, prev1::Point2D, next1::Point2D, prev2::Point2D, next2::Point2D)
-    tail_edge1 = (prev1, vertix)
-    head_edge1 = (vertix, next1)
-    tail_edge2 = (prev2, vertix)
-    head_edge2 = (vertix, next2)
+function has_edge_overlap(vertex::Point2D, prev1::Point2D, next1::Point2D, prev2::Point2D, next2::Point2D)
+    tail_edge1 = (prev1, vertex)
+    head_edge1 = (vertex, next1)
+    tail_edge2 = (prev2, vertex)
+    head_edge2 = (vertex, next2)
     mid_tail1 = segment_midpoint(tail_edge1)
     mid_head1 = segment_midpoint(head_edge1)
     mid_tail2 = segment_midpoint(tail_edge2)
@@ -278,11 +278,11 @@ function in_plane(edge::NTuple{3, Point2D}, point1::Point2D, point2::Point2D)
     # if in half-planes of edge[1:2] && edge[2:3] then definitely in the plane.
     # But if in one half-plane it can be either in or out. 
     # A better strategy is to check angles instead.
-    vertix = edge[2]
-    angle_tail = atan_pos(edge[1][2] - vertix[2], edge[1][1] - vertix[1])
-    angle_head = atan_pos(edge[3][2] - vertix[2], edge[3][1] - vertix[1])
-    angle1 = atan_pos(point1[2] - vertix[2], point1[1] - vertix[1])
-    angle2 = atan_pos(point2[2] - vertix[2], point2[1] - vertix[1])
+    vertex = edge[2]
+    angle_tail = atan_pos(edge[1][2] - vertex[2], edge[1][1] - vertex[1])
+    angle_head = atan_pos(edge[3][2] - vertex[2], edge[3][1] - vertex[1])
+    angle1 = atan_pos(point1[2] - vertex[2], point1[1] - vertex[1])
+    angle2 = atan_pos(point2[2] - vertex[2], point2[1] - vertex[1])
     if angle_tail < angle_head
         tail2_in_1 = (angle_tail < angle1 < angle_head) 
         head2_in_1 = (angle_tail < angle2 < angle_head) 
