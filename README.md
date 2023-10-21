@@ -78,6 +78,7 @@ For all of the the following `n` and `m` are the number of vertices of the polyg
     - Weiler-Atherton algorithm:
         - Concave and convex but not self-intersecting.
         - Time complexity: `O(nm)`. 
+        - For a full explanation, see my [blog post](https://liorsinai.github.io/mathematics/2023/09/30/polygon-clipping.html).
 
 ## Installation
 
