@@ -1,7 +1,7 @@
 """
-    point_in_polygon(point, vertices)
+    contains(vertices, point; on_border_is_inside=true)
 
-Runs in `O(n)` time when `n=length(vertices)`.
+Runs in `O(n)` time where `n=length(vertices)`.
 
 This algorithm is an an extension of the odd-even ray algorithm.
 It is based on "A Simple and Correct Even-Odd Algorithm for the Point-in-Polygon Problem for Complex Polygons" 
@@ -9,7 +9,7 @@ by Michael Galetzka and Patrick Glauner (2017).
 It skips vertices that are on the ray. To compensate, the ray is projected backwards (to the left) so that an 
 intersection can be found for a skipped vertix if needed.
 """
-function point_in_polygon(point::Point2D{T}, vertices::Polygon2D; on_border_is_inside=true) where T
+function contains(vertices::Polygon2D, point::Point2D{T}; on_border_is_inside::Bool=true) where T
     n = length(vertices)
     num_intersections = 0
 

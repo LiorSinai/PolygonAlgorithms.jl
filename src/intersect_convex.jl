@@ -37,9 +37,9 @@ function intersect_convex(polygon1::Polygon2D, polygon2::Polygon2D, ::PointSearc
     #https://www.swtestacademy.com/intersection-convex-polygons-algorithm/
     intersection_points = intersect_edges(polygon1, polygon2)
     
-    i1_in_2 = [point_in_polygon(p, polygon2) for p in polygon1]
+    i1_in_2 = [contains(polygon2, p) for p in polygon1]
     p1_in_2 = polygon1[i1_in_2]
-    i2_in_1 = [point_in_polygon(p, polygon1) for p in polygon2]
+    i2_in_1 = [contains(polygon1, p) for p in polygon2]
     p2_in_1 = polygon2[i2_in_1]
 
     if isempty(intersection_points) && isempty(p1_in_2) && isempty(p2_in_1)
@@ -102,9 +102,9 @@ function intersect_convex(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::Chas
         end
     end
     if isempty(points)
-        if point_in_polygon(polygon1[1], polygon2)
+        if contains(polygon2, polygon1[1])
             return polygon1
-        elseif  point_in_polygon(polygon2[1], polygon1)
+        elseif contains(polygon1, polygon2[1])
             return polygon2
         end
     end

@@ -33,8 +33,8 @@ poly = [
     (0.4, 0.5), (0.7, 2.0), (5.3, 1.4), (4.0, -0.6)
 ]
 area_polygon(poly) # 7.855
-point_in_polygon((2.0, 0.5), poly) # true
-point_in_polygon((10.0, 10.0), poly) # false
+contains(poly, (2.0, 0.5)) # true
+contains(poly, (10.0, 10.0)) # false
 
 poly2 = [
     (3.0, 3.0), (4.0, 1.0), (3.0, 0.5), (2.0, -0.5), (1.5, 0.9)
