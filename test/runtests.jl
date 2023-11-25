@@ -6,6 +6,7 @@ using PolygonAlgorithms: translate, rotate, PointSet
     include("linked_list.jl")
     include("point_set.jl")
     include("area-centroid.jl")
+    include("bounds.jl")
     include("intersect.jl")
     include("point_in_polygon.jl")
     include("intersect_convex.jl")
