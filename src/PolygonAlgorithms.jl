@@ -11,6 +11,7 @@ include("point_set.jl")
 include("moments.jl")
 include("point_in_polygon.jl")
 include("intersect.jl")
+include("bounds.jl")
 
 include("intersect_poly.jl")
 include("intersect_convex.jl")
@@ -21,6 +22,7 @@ include("deprecations.jl")
 export Point2D, Polygon2D, Segment2D, Line2D
 export get_orientation, Orientation, on_segment
 export area_polygon, first_moment, centroid_polygon, is_counter_clockwise, is_clockwise
+export bounds
 export do_intersect, intersect_geometry, intersect_edges
 export intersect_convex
 export convex_hull
