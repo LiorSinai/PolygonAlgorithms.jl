@@ -35,9 +35,9 @@ function intersect_geometry(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}) wher
     if isempty(regions)
         p1 = get_first_non_intersection_point(list1)
         p2 = get_first_non_intersection_point(list2)
-        if point_in_polygon(p1, polygon2)
+        if contains(polygon2, p1)
             return [polygon1]
-        elseif point_in_polygon(p2, polygon1)
+        elseif contains(polygon1, p2)
             return [polygon2]
         end
     end
