@@ -39,8 +39,8 @@ function intersect_geometry(
         return nothing
     end
     
-    on_segment1 = on_segment(point, segment1; atol=atol, on_line=true)
-    on_segment2 = on_segment(point, segment2; atol=atol, on_line=true)
+    on_segment1 = on_segment(point, segment1, true; atol=atol)
+    on_segment2 = on_segment(point, segment2, true; atol=atol)
     if on_segment1 && on_segment2
         return point 
     end
