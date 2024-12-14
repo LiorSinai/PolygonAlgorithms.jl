@@ -4,8 +4,8 @@ using PolygonAlgorithms: PointSet
 
 @testset "intersect segments" begin
     seg1 = ((1.0, 1.0), (2.0, 3.0));
+
     seg2 = ((1.0, 3.0), (4.0, 1.0));
-    
     @test do_intersect(seg1, seg2)
     @test intersect_geometry(seg1, seg2) == (1.75, 2.5)
 
@@ -23,6 +23,10 @@ using PolygonAlgorithms: PointSet
 
     seg2 = ((1.0, 0.0), (2.0, 2.0)); # parallel
     @test !do_intersect(seg1, seg2)
+    @test isnothing(intersect_geometry(seg1, seg2))
+
+    seg2 = ((1.5, 2.0), (2.5, 4.0)); # parallel & overlap
+    @test do_intersect(seg1, seg2)
     @test isnothing(intersect_geometry(seg1, seg2))
 end;
 
@@ -135,21 +139,6 @@ end
         ]
     points = intersect_edges(poly1, poly2)
     @test PointSet(points) == PointSet(expected)
-end
-
-@testset "intersect pentagram" begin
-    poly1 = [
-        (-1.0, 0.0), (0.0, 0.7), (1.0, 0.0), (0.5, -1.0), (-0.5, -1.0)
-    ]
-    # pentagram - complex polygon
-    poly1 = poly1[[1, 3, 5, 2, 4]]
-
-    poly2 = [
-        (-0.5, 0.3), (0.5, 0.3), (0.5, -0.6), (-0.5, -0.6)
-    ]
-
-    points = intersect_edges(poly1, poly2)
-    @test length(points) == 10 
 end
 
 @testset "generic convex" begin

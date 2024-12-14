@@ -25,7 +25,6 @@ For `n` and `m` vertices on polygon 1 and 2 respectively:
     - Time complexity: `O(nm)`. 
     - Algorithm: (1) Intersect all edge pairs. (2) Check all points in the other polygon. (3) Sort results counter-clockwise. 
     - For general non-intersecting polygons, the intersection points are valid but the order is not.
-
 - `WeilerAthertonAlg`:
     - Time complexity: `O(nm)`. 
     - Designed for more complex concave polygons with multiple areas of intersection.

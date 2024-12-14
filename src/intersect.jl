@@ -62,7 +62,7 @@ end
 """
     intersect_geometry(line1::Line2D, line2::Line2D)
 
-Returns the intersection point if it exists or nothing if they are parallel.
+Returns the intersection point if it exists or nothing if they are parallel or coincident.
 
 Equation of line is `ax + by = c`.
 
@@ -77,7 +77,7 @@ function intersect_geometry(line1::Line2D, line2::Line2D; atol=1e-6)
     a2, b2, c2 = line2.a, line2.b, line2.c
     determinant = a1 * b2 - a2 * b1
     if abs(determinant) < atol
-        return nothing # parallel lines
+        return nothing # parallel lines or coincident
     end
     x = (b2 * c1 - b1 * c2) / determinant
     y = (a1 * c2 - c1 * a2) / determinant

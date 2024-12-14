@@ -6,8 +6,7 @@
 Determine orientation of three points.
 """
 function get_orientation(p::Point2D, q::Point2D, r::Point2D; atol=1e-6)
-    cross_product = (q[2] - p[2]) * (r[1] - q[1]) - (r[2] - q[2]) * (q[1] - p[1])
-    
+    cross_product = (q[2] - p[2]) * (r[1] - q[1]) - (r[2] - q[2]) * (q[1] - p[1])    
     orientation = abs(cross_product) < atol ? COLINEAR : 
         cross_product > 0 ?  CLOCKWISE : 
         COUNTER_CLOCKWISE
