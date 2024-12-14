@@ -14,9 +14,7 @@ include("intersect.jl")
 include("moments.jl")
 
 include("point_in_polygon.jl")
-include("weiler_atherton.jl")
-include("intersect_convex.jl")
-
+include("polygon_boolean.jl")
 include("deprecations.jl")
 
 export Point2D, Polygon2D, Segment2D, Line2D
