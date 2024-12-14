@@ -13,17 +13,39 @@ mutable struct Node{T}
 end
 
 function Node(data::T, prev::Node{T}, next::Node{T}) where T
-    node =  Node(data)
+    node = Node(data)
     node.prev = prev
     node.next = next
     node
 end
 
-struct DoublyLinkedList{T}
-    head::Node{T}
+"""
+    insert!(node, data)
+
+Insert a new node `Node(data)` after `node`.
+"""
+function Base.insert!(node::Node{T}, data::T) where {T}
+    middle = Node(data, node, node.next)
+    node.next.prev = middle
+    node.next = middle
+    middle
+end
+
+function Base.show(io::IO, node::Node)
+    print(io, typeof(node), '(')
+    print(io, node.data)
+    print(io, ')')
+end
+
+mutable struct DoublyLinkedList{T}
+    head::Union{Node{T}, Nothing}
 end
 
 function Base.push!(list::DoublyLinkedList{T}, data::T) where {T}
+    if isnothing(list.head)
+        list.head = Node(data)
+        return list.head
+    end
     head = list.head
     tail = head.prev
     node = Node(data, tail, head)
@@ -32,32 +54,23 @@ function Base.push!(list::DoublyLinkedList{T}, data::T) where {T}
     node
 end
 
-function Base.insert!(node::Node{T}, data::T) where {T}
-    middle = Node(data, node, node.next)
-    node.next.prev = middle
-    node.next = middle
-    middle
-end
-
 Base.iterate(list::DoublyLinkedList) = (list.head.data, list.head.next)
 Base.iterate(list::DoublyLinkedList, state::Node) = state == list.head ? nothing : (state.data, state.next)
 
-function Base.show(io::IO, node::Node)
-    print(io, typeof(node), '(')
-    print(io, node.data)
-    print(io, ')')
-end
-
 function Base.show(io::IO, list::DoublyLinkedList)
-    print(io, typeof(list), '(')
-    print(io, join(list, ", "))
-    print(io, ')')
+    print(io, typeof(list), "(")
+    print(io, isnothing(list.head) ? nothing : join(list, ", "))
+    print(io, ")")
 end
 
 function Base.show(io::IO, m::MIME"text/plain", list::DoublyLinkedList)
-    print(io, typeof(list), "(\n   ")
-    print(io, join(list, ",\n   "))
-    print(io, "\n)")
+    if isnothing(list.head)
+        print(io, typeof(list), "(", nothing, ")")
+    else
+        print(io, typeof(list), "(\n   ")
+        print(io, join(list, ",\n   "))
+        print(io, "\n)")
+    end
 end
 
 function Base.length(list::DoublyLinkedList)
