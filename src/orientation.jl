@@ -6,9 +6,9 @@
 Determine orientation of three points.
 """
 function get_orientation(p::Point2D, q::Point2D, r::Point2D; atol=1e-6)
-    cross_product = (q[2] - p[2]) * (r[1] - q[1]) - (r[2] - q[2]) * (q[1] - p[1])    
+    cross_product = (q[2] - p[2]) * (r[1] - q[1]) - (r[2] - q[2]) * (q[1] - p[1]) 
     orientation = abs(cross_product) < atol ? COLINEAR : 
-        cross_product > 0 ?  CLOCKWISE : 
+        cross_product >= 0 ?  CLOCKWISE : 
         COUNTER_CLOCKWISE
     orientation
 end
@@ -104,4 +104,36 @@ end
 function in_half_plane(edge::Segment2D, x::Point2D, is_counter_clockwise::Bool=true; on_border_is_inside=true)
     c = cross_product(edge, (edge[1], x))
     (c == 0.0 && on_border_is_inside) || (is_counter_clockwise ? c > 0 : c < 0)
+end
+
+"""
+    is_above_or_on(point, segment)
+
+Is `point` above or on `segment`?
+
+In the general case, checks if the point `(xp, yp)` is above or on the line through the segment
+`((x₁, y₁), (x₂, y₂))`:
+```
+yp ≥ (y₂-y₁)/(x₂-x₁) * (xp-x₁) + y₁
+```
+
+Note: it is possible that `yp>y₁` but the result is `false`. 
+For example, a point far to the left of `segment` where `segment` has a negative slope:
+```
+ ̇  \\
+```
+
+In the special case of a vertical segment (`x₂=x₁`), this is equivalent to
+```
+(y₁ > y₂) && (xp > x₁) # downward facing segment, above is to the right
+(y₁ < y₂) && (xp < x₁) # upward facing segment, above is to the left
+```
+"""
+function is_above_or_on(point::Point2D, segment::Segment2D; atol::Float64=1e-6)
+    # if abs(segment[2][1] - segment[1][1]) < atol # vertical segment
+    #     return point[2] >= max(segment[1][2], segment[2][2])
+    # end
+    cmp = (point[2] - segment[1][2]) * (segment[2][1] - segment[1][1]) - 
+          (segment[2][2] - segment[1][2]) * (point[1] - segment[1][1])
+    cmp >= 0
 end

@@ -4,6 +4,7 @@ using PolygonAlgorithms: translate, PointSet
     PolygonAlgorithms.PointSearchAlg(),
     PolygonAlgorithms.ChasingEdgesAlg(),
     PolygonAlgorithms.WeilerAthertonAlg(),
+    #PolygonAlgorithms.MartinezRueda(),
 ]
 
 @testset "one inside the other" begin

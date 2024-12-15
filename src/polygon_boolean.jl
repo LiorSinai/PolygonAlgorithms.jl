@@ -1,41 +1,81 @@
 include("boolean/weiler_atherton.jl")
 include("boolean/chasing_edges.jl")
-#include("martinez_rueda.jl")
+include("boolean/martinez_rueda.jl")
 
 abstract type PolygonIntersectionAlgorithm end
 
 struct PointSearchAlg <: PolygonIntersectionAlgorithm end
 struct ChasingEdgesAlg <: PolygonIntersectionAlgorithm end
 struct WeilerAthertonAlg <: PolygonIntersectionAlgorithm end
-#struct MartinezRueda <: PolygonIntersectionAlgorithm end
+struct MartinezRuedaAlg <: PolygonIntersectionAlgorithm end
 
 # General
 
+"""
+    intersect_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=WeilerAthertonAlg())
+
+General case of polygon intersection. 
+
+`alg` can either be `MartinezRuedaAlg()` or `WeilerAthertonAlg()`. There are slight differences in the result depending on the algorithm.
+
+For `n` and `m` vertices on polygon 1 and 2 respectively:
+- `MartinezRuedaAlg`:
+    - Time complexity: `O((n+m+k)log(n+m))` where `k` is the total number of intersections.
+    - Returns regions of intersection only.
+    - Works for convex and concave polygons including with holes and self-intersections.
+    - Limitations:
+        1. It can fail for improper polygons: polygons with lines sticking out.
+- `WeilerAthertonAlg`:
+    - Time complexity: `O(nm)`. 
+    - Returns regions, edges and single points of intersection. Only returns the larger type if one is within another e.g. an edge is also part of a region.
+    - Limitations
+        1. This version does not cater for holes.
+        2. It can fail completely for self-intersecting polygons.
+
+Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
+"""
 intersect_geometry(polygon1::Polygon2D, polygon2::Polygon2D) = intersect_geometry(polygon1, polygon2, WeilerAthertonAlg())
 
-"""
-    intersect_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg)
-
-Returns multiple regions, edges and single points of intersection. 
-Only returns the larger type if one is within another e.g. an edge is also part of a region.
-
-This uses the Weiler-Atherton algorithm.
-It runs in `O(nm)` time where `n` and `m` are the number of vertices of polygon1 and polygon2 respectively.
-Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
-
-Limitations
-1. This version does not cater for holes.
-2. It can fail completely for self-intersecting polygons.
-
-For a more general algorithm see the Martinez-Rueda polygon clipping algorithm.
-"""
 function intersect_geometry(polygon1::Polygon2D, polygon2::Polygon2D, alg::WeilerAthertonAlg)
     weiler_atherton_algorithm(polygon1, polygon2)
 end
 
-# function intersect_geometry(polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRueda)
-#     martinez_rueda_algorithm(polygon1, polygon2)
-# end
+function intersect_geometry(polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg)
+    martinez_rueda_algorithm(polygon1, polygon2, INTERSECTION_CRITERIA)
+end
+
+"""
+    difference_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=WeilerAthertonAlg())
+
+General case of polygon difference: points in `polygon1` that are not in `polygon2`.
+
+`alg` can only be `MartinezRuedaAlg()`. Runs in `O((n+m+k)log(n+m))`.
+"""
+function difference_geometry(polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg=MartinezRuedaAlg())
+    martinez_rueda_algorithm(polygon1, polygon2, DIFFERENCE_CRITERIA)
+end
+
+"""
+    union_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=WeilerAthertonAlg())
+
+General case of polygon union: in both polygons.
+
+`alg` can only be `MartinezRuedaAlg()`. Runs in `O((n+m+k)log(n+m))`. Possibly returns holes but does not classify them as holes.
+"""
+function union_geometry(polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg=MartinezRuedaAlg())
+    martinez_rueda_algorithm(polygon1, polygon2, UNION_CRITERIA)
+end
+
+"""
+    xor_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=WeilerAthertonAlg())
+
+General case of polygon xor: in one polygon or the other but not both. 
+
+`alg` can only be `MartinezRuedaAlg()`. Runs in `O((n+m+k)log(n+m))`. Possibly returns holes but does not classify them as holes.
+"""
+function xor_geometry(polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg=MartinezRuedaAlg())
+    martinez_rueda_algorithm(polygon1, polygon2, XOR_CRITERIA)
+end
 
 #### Convex
 """
@@ -48,13 +88,17 @@ A major assumption is that convex polygons only have one area of intersection.
 This fails in the general case with non-convex polygons. 
 See `intersect_geometry` for a more general `O(nm)` algorithm.
 
-`alg` can either be `ChasingEdgesAlg()`, `PointSearchAlg()` or `WeilerAthertonAlg()`.
+`alg` can either be `ChasingEdgesAlg()`, `MartinezRuedaAlg()`, `PointSearchAlg()` or `WeilerAthertonAlg()`.`
 
 For `n` and `m` vertices on polygon 1 and 2 respectively:
-- `ChasingEdgesAlg`:
+- `ChasingEdgesAlg` (default):
     - Time complexity: `O(n+m)`. 
     - Algorithm is from "A New Linear Algorithm for Intersecting Convex Polygons" (1981) by Joseph O'Rourke et. al.
     - Reference: https://www.cs.jhu.edu/~misha/Spring16/ORourke82.pdf
+- `MartinezRuedaAlg`:
+    - Time complexity: `O((n+m+k)log(n+m))` where `k` is the total number of intersections.
+    - Works for convex and concave polygons including with holes and self-intersections.
+    - Will throw an error if there is more than one region of intersection.
 - `PointSearchAlg`:
     - Time complexity: `O(nm)`. 
     - Algorithm: (1) Intersect all edge pairs. (2) Check all points in the other polygon. (3) Sort results counter-clockwise. 
@@ -71,7 +115,16 @@ function intersect_convex(polygon1::Polygon2D, polygon2::Polygon2D, ::ChasingEdg
 end
 
 function intersect_convex(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::WeilerAthertonAlg) where T
-    regions = intersect_geometry(polygon1, polygon2)
+    regions = weiler_atherton_algorithm(polygon1, polygon2)
+    if isempty(regions)
+        return Point2D{T}[]
+    end
+    @assert length(regions) == 1 "Convex polygons can only have one region of intersection; $(length(regions)) found"
+    regions[1]
+end
+
+function intersect_convex(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::MartinezRuedaAlg) where T
+    regions = martinez_rueda_algorithm(polygon1, polygon2, INTERSECTION_CRITERIA)
     if isempty(regions)
         return Point2D{T}[]
     end
