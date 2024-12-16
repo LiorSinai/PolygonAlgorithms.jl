@@ -1,10 +1,10 @@
 using PolygonAlgorithms: translate, PointSet
 
-@testset "convex intersections -$alg" for alg in [
+@testset "convex intersections $alg" for alg in [
     PolygonAlgorithms.PointSearchAlg(),
     PolygonAlgorithms.ChasingEdgesAlg(),
     PolygonAlgorithms.WeilerAthertonAlg(),
-    #PolygonAlgorithms.MartinezRueda(),
+    PolygonAlgorithms.MartinezRuedaAlg(), # Some results are different
 ]
 
 @testset "one inside the other" begin
@@ -36,7 +36,7 @@ end
     @test PointSet(points) == PointSet(expected)
 
     # no intersection
-    poly2 = translate(poly1, (3.0, 3.0))
+    poly2 = translate(poly1, (4.0, 3.0))
     expected = []
     points = intersect_convex(poly1, poly2, alg)
     @test isempty(points)
@@ -84,7 +84,8 @@ end
     ]
     # single point of itersection
     poly2 = translate(poly1, (2.0, 2.0))
-    expected = [(2.0, 2.0)]
+    expected = (typeof(alg) == PolygonAlgorithms.MartinezRuedaAlg) ?
+        Tuple{Float64, Float64}[] : [(2.0, 2.0)]
     points = intersect_convex(poly1, poly2, alg)
     @test PointSet(points) == PointSet(expected)
 
@@ -170,7 +171,8 @@ end
     ]
 
     # single point
-    expected = [(0.5, 1.0)]
+    expected = (typeof(alg) == PolygonAlgorithms.MartinezRuedaAlg) ?
+        Tuple{Float64, Float64}[] : [(0.5, 1.0)]
     points = intersect_convex(poly1, poly2, alg)
     @test PointSet(points) == PointSet(expected)
     points = intersect_convex(poly2, poly1, alg)

@@ -4,7 +4,7 @@
     martinez_rueda_algorithm(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D})
 
 This uses the Martinez-Rueda-Feito polygon clipping algorithm.
-It runs in `O(nm)` time where `n` and `m` are the number of vertices of `polygon1`` and `polygon2` respectively.
+It runs in `O((n+m+k)log(n+m))` time where `n` and `m` are the number of vertices of `polygon1`` and `polygon2` respectively.
 Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
 
 Limitations
@@ -39,7 +39,13 @@ function martinez_rueda_algorithm(
         end
     end
     selected = apply_selection_criteria(annotated_segments3, selection_criteria)
-    chain_segments(selected; atol=atol)
+    empty_segments, regions_segments = separate(is_empty_segment, selected)
+    regions = chain_segments(regions_segments; atol=atol, check_closes=true)
+    segment_chains = chain_segments(empty_segments; atol=atol, check_closes=false)
+    # It is also possible to attach some segment_chains to regions.
+    # This will give consistent results with the Weiler-Atherton implementation.
+    # For now, skipping this step.
+    vcat(regions, segment_chains)
 end
 
 function insert_in_order!(vec::Vector{T}, data::T; lt=isless, rev=false) where T
@@ -542,8 +548,8 @@ Table
 
 INTERSECTION_CRITERIA = [
     BLANK, BLANK, BLANK, BLANK,
-    BLANK, BELOW, BLANK, BELOW,
-    BLANK, BLANK, ABOVE, ABOVE,
+    BLANK, BELOW, EMPTY, BELOW,
+    BLANK, EMPTY, ABOVE, ABOVE,
     BLANK, BELOW, ABOVE, BLANK,
 ] # both below, both above, but not all 4
 
@@ -598,6 +604,7 @@ end
 ##                 Segment Chaining                        ##
 #############################################################
 
+is_empty_segment(ev::SegmentEvent) = (ev.self_annotations.fill_above == false) && (ev.self_annotations.fill_below == false)
 struct SegmentChainCandidate{T}
     chain_idx::Int
     match_chain_start::Bool
@@ -606,10 +613,10 @@ struct SegmentChainCandidate{T}
     other_point::Point2D{T}
 end
 
-function chain_segments(segments::Vector{SegmentEvent{T}}; atol::Float64=1e-6) where T
+function chain_segments(segments::AbstractVector{SegmentEvent{T}}; atol::Float64=1e-6, check_closes::Bool=true) where T
     # Note: if any of the regions intersect at a vertex, than this is not guaranteed to give consistent results
     # They might be joined into one region or presented as separate regions.
-    # This algorithm can fal if the polygon is improper (it has lines jutting out)
+    # This algorithm can fail if the polygon is improper (it has lines jutting out)
     chains = Vector{Point2D{T}}[] # this is the same type as regions
     regions = Vector{Point2D{T}}[]
     processed = Set{Segment2D{T}}()
@@ -632,7 +639,7 @@ function chain_segments(segments::Vector{SegmentEvent{T}}; atol::Float64=1e-6) w
         elseif length(candidates) == 1 # check if it closes else append to chain
             candidate = candidates[1]
             chain = chains[candidate.chain_idx]
-            if closes_chain(chain, candidate; atol=atol)
+            if check_closes && closes_chain(chain, candidate; atol=atol)
                 popat!(chains, candidate.chain_idx)
                 push!(regions, chain)
                 #println("   closed chain: $chain")
@@ -657,8 +664,12 @@ function chain_segments(segments::Vector{SegmentEvent{T}}; atol::Float64=1e-6) w
     end
     # TODO: it might be possible to close some open chains
     # - it is improper: the beginning and end is a segment(s) jutting out, so it can be closed with a segment in processing
-    @assert isempty(chains) "There are still open chains at the end of processing all segments."
-    regions
+    if check_closes
+        @assert isempty(chains) "There are still open chains at the end of processing all segments."
+        return regions
+    else
+        return chains
+    end
 end
 
 function insert_matching_candidate!(

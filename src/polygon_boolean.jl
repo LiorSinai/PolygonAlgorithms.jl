@@ -21,7 +21,7 @@ General case of polygon intersection.
 For `n` and `m` vertices on polygon 1 and 2 respectively:
 - `MartinezRuedaAlg`:
     - Time complexity: `O((n+m+k)log(n+m))` where `k` is the total number of intersections.
-    - Returns regions of intersection only.
+    - Returns regions and edges of intersection. Does not return single points of intersection.
     - Works for convex and concave polygons including with holes and self-intersections.
     - Limitations:
         1. It can fail for improper polygons: polygons with lines sticking out.

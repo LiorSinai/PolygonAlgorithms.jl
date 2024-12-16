@@ -63,3 +63,10 @@ x_coords(points::Polygon2D) = [p[1] for p in points]
 x_coords(points::Polygon2D, idxs::AbstractVector{Int}) = [p[1] for p in points[idxs]]
 y_coords(points::Polygon2D) = [p[2] for p in points]
 y_coords(points::Polygon2D, idxs::AbstractVector{Int}) = [p[2] for p in points[idxs]]
+
+function separate(f, v::Vector)
+    idxs = findall(f, v)
+    other_idxs = setdiff(eachindex(v), idxs)
+    (@view(v[idxs]), @view(v[other_idxs]))
+end
+  

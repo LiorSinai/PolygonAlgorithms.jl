@@ -2,17 +2,8 @@ using PolygonAlgorithms: translate, PointSet
 
 @testset "intersect-concave $alg" for alg in [
     PolygonAlgorithms.WeilerAthertonAlg(),
-    #PolygonAlgorithms.MartinezRueda(),
+    PolygonAlgorithms.MartinezRuedaAlg(),
 ]
-
-function are_regions_equal(r1::Vector{<:Vector{<:Point2D}}, r2::Vector{<:Vector{<:Point2D}})
-    if length(r1) != length(r2)
-        return false
-    end
-    r1_sets = [PointSet(r) for r in r1]
-    r2_sets = [PointSet(r) for r in r2]
-    issetequal(r1_sets, r2_sets)
-end
 
 @testset "rectangle jagged" begin 
     poly1 = [
@@ -152,6 +143,30 @@ end
     regions = intersect_geometry(poly2, poly1, alg)
     @test are_regions_equal(regions, expected)
 end
+
+@testset "stars - numeric test" begin 
+    poly1 = [
+        (0.0, 18.0), (3.0, 5.0), (15.0, 5.0), (5.0, 0.0), (10.0, -12.0), (0.0, -2.0),
+        (-10.0, -12.0), (-5.0, 0.0), (-15.0, 5.0), (-3.0, 5.0)
+    ]
+    ;
+    poly2 = PolygonAlgorithms.rotate(poly1, π/1.0, (0.0, 0.0));
+    expected = [[
+        (-3.0, -5.0), (-7.083333333333333, -5.0), (-5.0, 0.0), (-7.083333333333333, 5.0), (-3.0, 5.0), 
+        (0.0, 2.0), (3.0, 5.0), (7.083333333333333, 5.0), (5.0, 0.0), 
+        (7.083333333333333, -5.0), (3.0, -5.0), (0.0, -2.0), (-3.0, -5.0)
+    ]]
+
+    regions = intersect_geometry(poly1, poly2, alg)
+    @test are_regions_equal(regions, expected)
+    regions = intersect_geometry(poly2, poly1, alg)
+    @test are_regions_equal(regions, expected)
+end
+
+end
+
+@testset "intersect-concave only PolygonAlgorithms.WeilerAthertonAlg()" begin
+alg = PolygonAlgorithms.WeilerAthertonAlg()
 
 @testset "concave outer share portion" begin 
     poly1 = [
@@ -338,6 +353,47 @@ end
     regions = intersect_geometry(poly1, poly2, alg)
     @test are_regions_equal(regions, expected)
     regions = intersect_geometry(poly2, poly1, alg)
+    @test are_regions_equal(regions, expected)
+end
+
+end
+
+@testset "intersect-concave only PolygonAlgorithms.MartinezRuedaAlg()" begin
+alg = PolygonAlgorithms.MartinezRuedaAlg()
+
+@testset "self-intersect rectangle" begin
+    self_intersect = [
+        (0.0, 0.0), (2.0, 2.0), (6.0, -2.0), (11.0, 2.0), (11.0, 0.0)
+    ]
+    rectangle_horiz = [
+        (-1.0, 0.0), (-1.0, 3.0), (12.0, 3.0), (12.0, 0.0)
+    ];
+    poly1 = self_intersect
+    poly2 = rectangle_horiz
+    expected = [
+        [(4.0, 0.0), (0.0, 0.0), (2.0, 2.0)],
+        [(8.5, -0.0), (11.0, 0.0), (11.0, 2.0)],
+        [(4.0, 0.0), (8.5, -0.0)], # straight line
+    ]
+    regions = intersect_geometry(poly1, poly2, alg)
+    @test are_regions_equal(regions, expected)
+end
+
+@testset "self-intersect star" begin
+    self_intersect_star = [
+        (-3.0, 2.0), (3.0, 2.0), (-2.0, -2.0), (0.0, 5.0), (2.0, -2.0)
+    ]
+    box = [
+        (-2.0, 3.0), (2.0, 3.0), (2.0, -1.0), (-2.0, -1.0)
+    ];
+    poly1 = self_intersect_star
+    poly2 = box
+    expected= [
+        [(-0.0, -0.4), (-0.75, -1.0), (-1.7142857142857144, -1.0), (-1.255813953488372, 0.6046511627906979), (-1.255813953488372, 0.6046511627906979), (-2.0, 1.2000000000000002), (-2.0, 2.0), (-0.857142857142857, 2.0), (-0.857142857142857, 2.0), (-1.255813953488372, 0.6046511627906979)],
+        [(0.8571428571428572, 2.0), (-0.857142857142857, 2.0), (-0.5714285714285712, 3.0), (0.5714285714285715, 2.9999999999999996)],
+        [(0.8571428571428572, 2.0), (1.255813953488372, 0.6046511627906976), (-0.0, -0.4), (0.7499999999999999, -1.0), (1.7142857142857142, -1.0), (1.255813953488372, 0.6046511627906976), (2.0, 1.2000000000000002), (2.0, 2.0)],
+    ]
+    regions = intersect_geometry(poly1, poly2, alg)
     @test are_regions_equal(regions, expected)
 end
 

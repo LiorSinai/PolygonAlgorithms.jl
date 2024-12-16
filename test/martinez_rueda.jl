@@ -3,7 +3,7 @@ using PolygonAlgorithms: SegmentEvent, SegmentAnnotations
 using PolygonAlgorithms: add_annotated_segment!, convert_to_event_queue, check_and_divide_intersection!, event_loop!, find_transition
 using PolygonAlgorithms: chain_segments
 
-@testset "Martinez-Rueda algorithm" verbose=true begin
+@testset "Martinez-Rueda algorithm" begin
     @testset "rectangle" begin
         rectangle = [
             (3.0, 3.0), (7.0, -1.0), (4.0, -4.0), (0.0, 0.0)
