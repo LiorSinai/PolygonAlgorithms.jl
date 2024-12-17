@@ -1,66 +1,5 @@
 @enum AnnotationFill BLANK=0 ABOVE=1 BELOW=2 EMPTY=3
 
-"""
-    martinez_rueda_algorithm(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D})
-
-This uses the Martinez-Rueda-Feito polygon clipping algorithm.
-It runs in `O((n+m+k)log(n+m))` time where `n` and `m` are the number of vertices of `polygon1`` and `polygon2` respectively.
-Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
-
-Limitations
-1. It can fail for improper polygons: polygons with lines sticking out.
-
-References 
-- paper: https://www.researchgate.net/publication/220163820_A_new_algorithm_for_computing_Boolean_operations_on_polygons
-- article: https://sean.fun/a/polygon-clipping-pt2/
-- article source code: https://github.com/velipso/polybooljs
-"""
-function martinez_rueda_algorithm(
-    polygon1::Polygon2D{T},
-    polygon2::Polygon2D{T},
-    selection_criteria::Vector{AnnotationFill}
-    ; atol::Float64=1e-6
-    ) where T
-    event_queue1 = convert_to_event_queue(polygon1; primary=true, atol=atol)
-    annotated_segments1 = event_loop!(event_queue1, self_intersection=true)
-    event_queue2 = convert_to_event_queue(polygon2; primary=false, atol=atol)
-    annotated_segments2 = event_loop!(event_queue2, self_intersection=true)
-    queue = SegmentEvent{T}[]
-    for ev in vcat(annotated_segments1, annotated_segments2)
-        add_annotated_segment!(queue, ev)
-    end
-    annotated_segments3 = event_loop!(queue, self_intersection=false)
-    # for consistent reporting, swap annotations so that self annotations are always the primary
-    for ev in annotated_segments3
-        if !ev.primary
-            temp = ev.self_annotations
-            ev.self_annotations = ev.other_annotations
-            ev.other_annotations = temp
-        end
-    end
-    selected = apply_selection_criteria(annotated_segments3, selection_criteria)
-    empty_segments, regions_segments = separate(is_empty_segment, selected)
-    regions = chain_segments(regions_segments; atol=atol, check_closes=true)
-    segment_chains = chain_segments(empty_segments; atol=atol, check_closes=false)
-    # It is also possible to attach some segment_chains to regions.
-    # This will give consistent results with the Weiler-Atherton implementation.
-    # For now, skipping this step.
-    vcat(regions, segment_chains)
-end
-
-function insert_in_order!(vec::Vector{T}, data::T; lt=isless, rev=false) where T
-    idx = searchsortedfirst(vec, data; lt=lt, rev=rev)
-    insert!(vec, idx, data)
-end
-
-function pop_key!(vec::Vector{T}, key::T) where T
-    idx = findfirst(x->x===key, vec)
-    if isnothing(idx)
-        throw(KeyError(key))
-    end
-    popat!(vec, idx)
-end
-
 #############################################################
 ##                     SegmentEvent                        ##
 #############################################################
@@ -129,6 +68,76 @@ function Base.show(io::IO, event::SegmentEvent)
     #print(io, ", ", event.point)
     #print(io, ", ", event.other_point)
     print(io, ")")
+end
+
+"""
+    martinez_rueda_algorithm(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D})
+
+This uses the Martinez-Rueda-Feito polygon clipping algorithm.
+It runs in `O((n+m+k)log(n+m))` time where `n` and `m` are the number of vertices of `polygon1`` and `polygon2` respectively.
+Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
+
+Limitations
+1. It can fail for improper polygons: polygons with lines sticking out.
+
+References 
+- paper: https://www.researchgate.net/publication/220163820_A_new_algorithm_for_computing_Boolean_operations_on_polygons
+- article: https://sean.fun/a/polygon-clipping-pt2/
+- article source code: https://github.com/velipso/polybooljs
+"""
+function martinez_rueda_algorithm(
+    polygon1::Polygon2D{T},
+    polygon2::Polygon2D{T},
+    selection_criteria::Vector{AnnotationFill}
+    ; atol::Float64=1e-6
+    ) where T
+    event_queue1 = convert_to_event_queue(polygon1; primary=true, atol=atol)
+    event_queue2 = convert_to_event_queue(polygon2; primary=false, atol=atol)
+    martinez_rueda_algorithm(event_queue1, event_queue2, selection_criteria; atol=atol)
+end
+
+function martinez_rueda_algorithm(
+    event_queue1::Vector{<:SegmentEvent{T}},
+    event_queue2::Vector{<:SegmentEvent{T}},
+    selection_criteria::Vector{AnnotationFill}
+    ; atol::Float64=1e-6
+    ) where T
+    annotated_segments1 = event_loop!(event_queue1, self_intersection=true)
+    annotated_segments2 = event_loop!(event_queue2, self_intersection=true)
+    queue = SegmentEvent{T}[]
+    for ev in vcat(annotated_segments1, annotated_segments2)
+        add_annotated_segment!(queue, ev)
+    end
+    annotated_segments3 = event_loop!(queue, self_intersection=false)
+    # for consistent reporting, swap annotations so that self annotations are always the primary
+    for ev in annotated_segments3
+        if !ev.primary
+            temp = ev.self_annotations
+            ev.self_annotations = ev.other_annotations
+            ev.other_annotations = temp
+        end
+    end
+    selected = apply_selection_criteria(annotated_segments3, selection_criteria)
+    empty_segments, regions_segments = separate(is_empty_segment, selected)
+    regions = chain_segments(regions_segments; atol=atol, check_closes=true)
+    segment_chains = chain_segments(empty_segments; atol=atol, check_closes=false)
+    # It is also possible to attach some segment_chains to regions.
+    # This will give consistent results with the Weiler-Atherton implementation.
+    # For now, skipping this step.
+    vcat(regions, segment_chains)
+end
+
+function insert_in_order!(vec::Vector{T}, data::T; lt=isless, rev=false) where T
+    idx = searchsortedfirst(vec, data; lt=lt, rev=rev)
+    insert!(vec, idx, data)
+end
+
+function pop_key!(vec::Vector{T}, key::T) where T
+    idx = findfirst(x->x===key, vec)
+    if isnothing(idx)
+        throw(KeyError(key))
+    end
+    popat!(vec, idx)
 end
 
 #############################################################
