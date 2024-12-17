@@ -1,5 +1,5 @@
 """
-    intersect_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D})
+    weiler_atherton_algorithm(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D})
 
 Returns multiple regions, edges and single points of intersection. 
 Only returns the larger type if one is within another e.g. an edge is also part of a region.
@@ -14,7 +14,7 @@ Limitations
 
 For a more general algorithm see the Martinez-Rueda polygon clipping algorithm.
 """
-function intersect_geometry(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}) where T
+function weiler_atherton_algorithm(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}) where T
     if polygon1 == polygon2
         return [polygon1]
     end

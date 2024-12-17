@@ -39,12 +39,20 @@ function intersect_geometry(
         return nothing
     end
     
-    on_segment1 = on_segment(point, segment1; atol=atol, on_line=true)
-    on_segment2 = on_segment(point, segment2; atol=atol, on_line=true)
+    on_segment1 = on_segment(point, segment1, true; atol=atol)
+    on_segment2 = on_segment(point, segment2, true; atol=atol)
     if on_segment1 && on_segment2
         return point 
     end
     nothing        
+end
+
+function classify_intersection(segment::Segment2D, point::Point2D; atol::Float64=1e-6)
+    # assumes point is on segment
+    at_start = is_same_point(segment[1], point; atol=atol)
+    at_end = is_same_point(segment[2], point; atol=atol)
+    along = !(at_start || at_end)
+    (at_start, at_end, along)
 end
 
 """
