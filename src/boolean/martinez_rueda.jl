@@ -161,6 +161,8 @@ function add_segment_event!(
     shared_self_annotations::SegmentAnnotations=SegmentAnnotations(),
     shared_other_annotations::SegmentAnnotations=SegmentAnnotations(),
     )
+    forward = _compare_points(segment[1], segment[2])
+    @assert forward < 0 "invalid segment $(segment). Require start to be to the left or directly below the end."
     start_event = SegmentEvent(segment, true, primary, shared_self_annotations, shared_other_annotations)
     end_event = SegmentEvent(segment, false, primary, shared_self_annotations, shared_other_annotations)
     start_event.other = end_event
@@ -205,6 +207,7 @@ end
 Smaller events are to the left or bottom. Otherwise, end events come before the start  
 """
 function compare_events(event::SegmentEvent, here::SegmentEvent) # eventCompare
+    # Assumes events are left to right
     comp = _compare_points(event.point, here.point)
     if comp != 0
         return comp < 0
@@ -256,7 +259,7 @@ function event_loop!(queue::Vector{SegmentEvent{T}}; self_intersection::Bool) wh
             insert!(sweep_status, idx, head)
         else # event is ending, so remove it from the status
             idx = findfirst(x->x===head.other, sweep_status)
-            @assert !isnothing(idx) "$(head.other) is missing from the event queue"
+            @assert !isnothing(idx) "$(head.other) is missing from the sweep_status. The start event should always be processed before the end event."
             if (idx != 1) && (idx != length(sweep_status))
                 # there will be 2 new adjacent edges, so check the intersection between them
                 check_and_divide_intersection!(queue, sweep_status[idx - 1], sweep_status[idx + 1], self_intersection)
@@ -276,17 +279,17 @@ function find_transition(list::Vector{<:SegmentEvent}, event::SegmentEvent)
     idx, above, below
 end
 
-function is_above(ev::SegmentEvent, other::SegmentEvent) # statusCompare
+function is_above(ev::SegmentEvent, other::SegmentEvent; atol::AbstractFloat=1e-6) # statusCompare
     # Critical function. May be source of errors that only emerge later.
     # Assumes segments always go left to right.
-    # Project other's point on to the line through the segment and compare y values.
+    # Project right most segment's start point on to the line through the segment and compare y values.
     seg1 = ev.segment
     seg2 = other.segment
     ori_start = get_orientation(seg1[1], seg2[1], seg1[2])
-    if ori_start == COLINEAR 
+    if ori_start == COLINEAR
         return !is_above_or_on(seg2[2], seg1)
     end
-    !is_above_or_on(seg2[1], seg1)
+    !is_above_or_on(seg2[1], seg1; atol=atol)
 end
 
 function check_and_divide_intersection!(queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::Nothing, self_intersection::Bool; atol=1e-6)
@@ -303,8 +306,8 @@ function check_and_divide_intersection!(
     pt = intersect_geometry(ev1.segment, ev2.segment)
     if isnothing(pt)
         # Lines need to be exactly on top of each other 
-        ori2_start = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[1];) # strict
-        ori2_end = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[2];) # strict
+        ori2_start = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[1])
+        ori2_end = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[2])
         if (ori2_start == COLINEAR) && (ori2_end == COLINEAR)
             divide_coincident_intersection!(queue, ev1, ev2, self_intersection; atol=atol)
         end
@@ -353,12 +356,9 @@ function divide_coincident_intersection!(
     queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::SegmentEvent, self_intersection::Bool
     ; atol::Float64=1e-6
     )
-    # Because events are processed left to right, this function assumes that
-    # ev1 is on top of or to the right of ev2.
-    # Also assumes that at least one point of ev2 is colinear with ev1 .
-    #println("divide_coincident_intersection $(ev1.segment) -- $(ev2.segment)")
-    #println("   ev1=$ev1")
-    #println("   ev2=$ev2")
+    # This assumes:
+    # - ev1 is on top of or to the right of ev2, because events are processed left to right.
+    # - both points of ev2 are colinear with ev1 .
     start1_on_end2 = is_same_point(ev1.segment[1], ev2.segment[2]; atol=atol)
     end1_on_start2 = is_same_point(ev1.segment[2], ev2.segment[1]; atol=atol)
     if start1_on_end2 || end1_on_start2
@@ -372,19 +372,20 @@ function divide_coincident_intersection!(
         # segments are equal. Keep the second one
         return merge_same_segments!(queue, ev1, ev2, self_intersection)
     end
-    start1_between = !starts_equal && on_segment(ev1.segment[1], ev2.segment)
-    end1_between = !ends_equal && on_segment(ev1.segment[2], ev2.segment)
-    #println("   start1_between=$start1_between")
-    #println("   end1_between=$end1_between")
+    start1_between = !starts_equal && on_segment(ev1.segment[1], ev2.segment; atol=atol)
+    end1_between = !ends_equal && on_segment(ev1.segment[2], ev2.segment; atol=atol)
+    end2_between = !ends_equal && on_segment(ev2.segment[2], ev1.segment; atol=atol)
     if starts_equal
         if end1_between
             # (a1)---(a2)
             # (b1)----x------(b2)
             divide_event!(queue, ev2, ev1.segment[2])
-        else
+        elseif end2_between
             # (a1)----x-----(a2)
             # (b1)---(b2)
             divide_event!(queue, ev1, ev2.segment[2])
+        else # are these segment colinear?
+            return queue
         end
         # duplicate a1->x, so remove ev1
         return merge_same_segments!(queue, ev1, ev2, self_intersection)
@@ -394,10 +395,12 @@ function divide_coincident_intersection!(
                 #         (a1)---(a2)
                 #  (b1)-----------x-----(b2)
                 divide_event!(queue, ev2, ev1.segment[2])
-            else
+            elseif end2_between
                 #         (a1)----x-----(a2)
                 #  (b1)----------(b2)
                 divide_event!(queue, ev1, ev2.segment[2]);
+            else # are these segments colinear?
+                return queue
             end
         end
         #         (a1)---(a2)

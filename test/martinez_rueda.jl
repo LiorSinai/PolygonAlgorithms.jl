@@ -75,6 +75,52 @@ using PolygonAlgorithms: chain_segments
         @test prev == status[1] && isnothing(next)
     end
 
+    @testset "sweep status rand lines" begin
+        # lines originally from the intersection of two randomly generated spiky polygon
+        segments = [
+            SegmentEvent(((0.5824, 0.5157), (0.9235, 0.39180)), true)
+            SegmentEvent(((0.5824, 0.5157), (0.9756, 0.3288)), true)
+            SegmentEvent(((0.5732, 0.7060), (0.7169, 0.6187)), true)
+            SegmentEvent(((0.5658, 0.6475), (0.6321, 0.6197)), true)
+            SegmentEvent(((0.5658, 0.6475), (0.7169, 0.6187)), true)
+            SegmentEvent(((0.5480, 0.9443), (0.7438, 0.6878)), true)
+            SegmentEvent(((0.5480, 0.9443), (0.7455, 0.8477)), true)
+            SegmentEvent(((0.5334, 0.9450), (0.7438, 0.6878)), true)
+            SegmentEvent(((0.5218, 0.2095), (0.5839, 0.1114)), true)
+            SegmentEvent(((0.5122, 0.9013), (0.6366, 0.9417)), true)
+            SegmentEvent(((0.4867, 0.5998), (0.6095, 0.6079)), true)
+            SegmentEvent(((0.4771, 0.4543), (0.5913, 0.4110)), true)
+            SegmentEvent(((0.4767, 0.5368), (0.6615, 0.5250)), true)
+            SegmentEvent(((0.4544, 0.0837), (0.6762, 0.4073)), true)
+            SegmentEvent(((0.4544, 0.0837), (0.7364, 0.3326)), true)
+            SegmentEvent(((0.4127, 0.4774), (0.6615, 0.5250)), true)
+        ]
+        sweep_status = SegmentEvent{Float64}[]
+        for event in segments
+            idx, above, below = find_transition(sweep_status, event)
+            insert!(sweep_status, idx, event)
+        end
+        expected = [
+            SegmentEvent(((0.5480, 0.9443), (0.7455, 0.8477)), true),
+            SegmentEvent(((0.5480, 0.9443), (0.7438, 0.6878)), true),
+            SegmentEvent(((0.5334, 0.9450), (0.7438, 0.6878)), true),
+            SegmentEvent(((0.5122, 0.9013), (0.6366, 0.9417)), true),
+            SegmentEvent(((0.5732, 0.7060), (0.7169, 0.6187)), true),
+            SegmentEvent(((0.5658, 0.6475), (0.7169, 0.6187)), true),
+            SegmentEvent(((0.5658, 0.6475), (0.6321, 0.6197)), true),
+            SegmentEvent(((0.4867, 0.5998), (0.6095, 0.6079)), true),
+            SegmentEvent(((0.5824, 0.5157), (0.9235, 0.3918)), true),
+            SegmentEvent(((0.5824, 0.5157), (0.9756, 0.3288)), true),
+            SegmentEvent(((0.4767, 0.5368), (0.6615, 0.525)), true),
+            SegmentEvent(((0.4771, 0.4543), (0.5913, 0.411)), true),
+            SegmentEvent(((0.4127, 0.4774), (0.6615, 0.525)), true),
+            SegmentEvent(((0.5218, 0.2095), (0.5839, 0.1114)), true),
+            SegmentEvent(((0.4544, 0.0837), (0.6762, 0.4073)), true),
+            SegmentEvent(((0.4544, 0.0837), (0.7364, 0.3326)), true),
+        ]
+        @test sweep_status == expected
+    end
+
     @testset "divide no intersection" begin
         # setup
         ev1_start = SegmentEvent(((3.0, 3.0), (7.0, -1.0)), true)
