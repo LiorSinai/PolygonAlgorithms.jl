@@ -291,16 +291,21 @@ function find_transition(list::Vector{<:SegmentEvent}, event::SegmentEvent)
 end
 
 function is_above(ev::SegmentEvent, other::SegmentEvent; atol::AbstractFloat=1e-6) # statusCompare
-    # Critical function. May be source of errors that only emerge later.
+    # !!!!! Critical function. May be source of errors that only emerge later.
     # Assumes segments always go left to right.
-    # Project right most segment's start point on to the line through the segment and compare y values.
+    # For symmetry, always project right most segment's start point on to the line
+    # through the other segment and compare y values.
     seg1 = ev.segment
     seg2 = other.segment
     ori_start = get_orientation(seg1[1], seg2[1], seg1[2])
     if ori_start == COLINEAR
         return !is_above_or_on(seg2[2], seg1)
     end
-    !is_above_or_on(seg2[1], seg1; atol=atol)
+    if (seg2[1][1] < seg1[1][1])
+        is_above_or_on(seg1[1], seg2; atol=atol)
+    else
+        !is_above_or_on(seg2[1], seg1; atol=atol)
+    end
 end
 
 function check_and_divide_intersection!(queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::Nothing, self_intersection::Bool; atol=1e-6)
