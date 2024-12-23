@@ -1,13 +1,20 @@
 @enum Orientation COLINEAR=0 CLOCKWISE=1 COUNTER_CLOCKWISE=2
 
 """
-    get_orientation(p, q, r)
+    get_orientation(p, q, r; rtol=1e-4, atol=1e-6)
 
-Determine orientation of three points.
+Determine orientation of three points. `rtol` is the angle ``θ``:
+``cross(pq, qr) = |pq||qr|sin(θ)`` where ``sin(θ)≈θ`` for small ``θ``. `atol` is used if the magnitudes are too small.
 """
-function get_orientation(p::Point2D, q::Point2D, r::Point2D; atol=1e-6)
-    cross_product = (q[2] - p[2]) * (r[1] - q[1]) - (r[2] - q[2]) * (q[1] - p[1]) 
-    orientation = abs(cross_product) < atol ? COLINEAR : 
+function get_orientation(p::Point2D, q::Point2D, r::Point2D; rtol::AbstractFloat=1e-4,  atol::AbstractFloat=1e-6)
+    pq = (q[1] - p[1], q[2] - p[2])
+    qr = (r[1] - q[1], r[2] - q[2])
+    cross_product = pq[2] * qr[1] - qr[2] * pq[1]
+    mag_pq = sqrt(pq[1] * pq[1] + pq[2] * pq[2])
+    mag_qr = sqrt(qr[1] * qr[1] + qr[2] * qr[2])
+    cmp = (mag_qr >= atol && mag_pq >= atol) ? abs(cross_product) /(mag_pq * mag_qr) <= rtol :
+        abs(cross_product) <= atol
+    orientation = cmp ? COLINEAR : 
         cross_product >= 0 ?  CLOCKWISE : 
         COUNTER_CLOCKWISE
     orientation
