@@ -102,6 +102,7 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill}
     ; atol::Float64=1e-6
     ) where T
+    @debug("[martinez_rueda_algorithm]: start martinez_rueda_algorithm")
     annotated_segments1 = event_loop!(event_queue1, self_intersection=true)
     annotated_segments2 = event_loop!(event_queue2, self_intersection=true)
     queue = SegmentEvent{T}[]
@@ -245,13 +246,14 @@ function event_loop!(queue::Vector{SegmentEvent{T}}; self_intersection::Bool) wh
     sweep_status = SegmentEvent{T}[] # current events in a vertical line, top to bottom.
     while !(isempty(queue))
         head = queue[1]
-        #queue_length = length(queue)
-        #status_length = length(sweep_status)
-        #println("\nevent_loop ($(queue_length), $(status_length)): $(head)")
-        #println("   sweep_status=$sweep_status")
+        queue_length = length(queue)
+        status_length = length(sweep_status)
+        @debug("[event_loop!] ($(queue_length), $(status_length)): $(head)")
         if head.is_start # then check for intersections and add to sweep status
             idx, above, below = find_transition(sweep_status, head)
-            #println("   transition idx=$idx")
+            @debug("[event_loop!] transition idx=$idx")
+            @debug("[event_loop!] above=$above")
+            @debug("[event_loop!] below=$below")
             check_and_divide_intersection!(queue, head, above, self_intersection)
             if queue[1] != head
                 continue # either head was removed or something was inserted ahead of it
@@ -337,11 +339,11 @@ function divide_intersection!(
     pt::Point2D
     ; atol::Float64=1e-6
     ) # checkIntersection
-    #println("   divide_intersection: $(ev1.segment) -- $(ev2.segment) at $(pt)")
+    @debug("[divide_intersection!] $(ev1.segment) -- $(ev2.segment) at $(pt)")
     at_start1, at_end1, along1 = classify_intersection(ev1.segment, pt; atol=atol)
     at_start2, at_end2, along2 = classify_intersection(ev2.segment, pt; atol=atol)
-    #println("   ", at_start1, " ", at_end1, " ", along1)
-    #println("   ", at_start2, " ", at_end2, " ", along2)
+    @debug("[divide_intersection!] $at_start1 $at_end1 $along1")
+    @debug("[divide_intersection!] $at_start2 $at_end2 $along2")
     if along1 && along2
         divide_event!(queue, ev1, pt)
         divide_event!(queue, ev2, pt)
@@ -368,6 +370,7 @@ function divide_coincident_intersection!(
     # This assumes:
     # - ev1 is on top of or to the right of ev2, because events are processed left to right.
     # - both points of ev2 are colinear with ev1 .
+    @debug("[divide_coincident_intersection!] $(ev1) -- $ev2")
     start1_on_end2 = is_same_point(ev1.segment[1], ev2.segment[2]; atol=atol)
     end1_on_start2 = is_same_point(ev1.segment[2], ev2.segment[1]; atol=atol)
     if start1_on_end2 || end1_on_start2
@@ -375,8 +378,8 @@ function divide_coincident_intersection!(
     end
     starts_equal = is_same_point(ev1.segment[1], ev2.segment[1]; atol=atol)
     ends_equal = is_same_point(ev1.segment[2], ev2.segment[2]; atol=atol)
-    #println("   starts_equal=$starts_equal")
-    #println("   ends_equal=$ends_equal")
+    @debug("[divide_coincident_intersection!] starts_equal=$starts_equal")
+    @debug("[divide_coincident_intersection!] ends_equal=$ends_equal")
     if starts_equal && ends_equal
         # segments are equal. Keep the second one
         return merge_same_segments!(queue, ev1, ev2, self_intersection)
@@ -431,7 +434,7 @@ Divide an event `ev` and `ev.other` in `queue` into 4:
 function divide_event!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent, pt::Point2D) # eventDivide
     # assumes pt lies on ev.segment
     new_segment = (pt, ev.segment[2])
-    # println("   divide_event: $(new_segment)")
+    @debug("[divide_event!] new_segment=$(new_segment)")
     e1, e2 = update_end!(ev, pt)
     # fix position of end in queue
     pop_key!(queue, e2)
@@ -450,7 +453,7 @@ Slides an end backwards.
 ```
 """
 function update_end!(ev::SegmentEvent, end_point::Point2D)
-    # Assumes ev is a start event.
+    # Assumes ev is a start event.        
     @assert ev.is_start
     ev.segment = (ev.segment[1], end_point)
     ev.other_point = end_point
@@ -461,6 +464,8 @@ function update_end!(ev::SegmentEvent, end_point::Point2D)
 end
 
 function merge_same_segments!(queue::Vector{<:SegmentEvent}, discard::SegmentEvent, survive::SegmentEvent, self_intersection::Bool)
+    @debug("[merge_same_segments!] discard=$discard")
+    @debug("[merge_same_segments!] survive=$survive")
     pop_key!(queue, discard)
     pop_key!(queue, discard.other)
     if self_intersection
@@ -481,13 +486,14 @@ function merge_same_segments!(queue::Vector{<:SegmentEvent}, discard::SegmentEve
             survive.other_annotations = discard.other_annotations
         end
     end
+    @debug("[merge_same_segments!] survive=$survive")
     queue
 end
 
 function calculate_self_annotations!(ev::SegmentEvent, below::Union{Nothing, SegmentEvent})
     # if a new segment, than toggle, else use existing knowledge
-    #println("   event: $(ev)")
-    #println("   below: $(below)")
+    @debug("[calculate_self_annotations!] event: $(ev)")
+    @debug("[calculate_self_annotations!] below: $(below)")
     toggle = isnothing(ev.self_annotations.fill_below) ? true : ev.self_annotations.fill_above != ev.self_annotations.fill_below
     if isnothing(below)
         ev.self_annotations.fill_below = false # TODO primaryPolyInverted
@@ -500,28 +506,26 @@ function calculate_self_annotations!(ev::SegmentEvent, below::Union{Nothing, Seg
     else
         ev.self_annotations.fill_above = ev.self_annotations.fill_below
     end
-    # println("   self_annotations: ", ev.self_annotations)
+    @debug("[calculate_self_annotations!] self_annotations: $(ev.self_annotations)")
     ev.self_annotations
 end
 
 function calculate_other_annotations!(ev::SegmentEvent, below::Nothing)
-    #println("calculate_other_annotations")
-    #println("   ev=$ev")
-    #println("   below=$below")
+    @debug("[calculate_other_annotations!] ev=$ev")
+    @debug("[calculate_other_annotations!] below=$below")
     if isnothing(ev.other_annotations.fill_above)
         # if nothing is below ev, only inside if the other polygon is inverted
         inside = false # TODO is_primary ? secondaryPolyInverted : primaryPolyInverted
         ev.other_annotations.fill_above = inside
         ev.other_annotations.fill_below = inside
     end
-    #println("   ev.other_annotations=$(ev.other_annotations)")
+    @debug("[calculate_other_annotations!] ev.other_annotations=$(ev.other_annotations)")
     ev.other_annotations
 end
     
 function calculate_other_annotations!(ev::SegmentEvent, below::SegmentEvent)
-    #println("calculate_other_annotations")
-    #println("   ev=$ev")
-    #println("   below=$below")
+    @debug("[calculate_other_annotations!] ev=$ev")
+    @debug("[calculate_other_annotations!] below=$below")
     if isnothing(ev.other_annotations.fill_above)
         # something is below ev, so copy the below segment's other polygon's above
         inside = (ev.primary == below.primary) ? 
@@ -529,7 +533,7 @@ function calculate_other_annotations!(ev::SegmentEvent, below::SegmentEvent)
         ev.other_annotations.fill_above = inside
         ev.other_annotations.fill_below = inside
     end
-    #println("   ev.other_annotations=$(ev.other_annotations)")
+    @debug("[calculate_other_annotations!] ev.other_annotations=$(ev.other_annotations)")
     ev.other_annotations
 end
 
@@ -634,19 +638,18 @@ function chain_segments(segments::AbstractVector{SegmentEvent{T}}; atol::Float64
     processed = Set{Segment2D{T}}()
     for event in segments
         if event.segment in processed
-            #println("processed")
             continue
         end
         push!(processed, event.segment)
         candidates = SegmentChainCandidate{T}[]
-        #println("\nevent=$event")
-        #println("candidates=$candidates")
+        @debug("[chain_segment]: event=$event")
+        @debug("[chain_segment]: candidates=$candidates")
         for (chain_idx, chain) in enumerate(chains)
             insert_matching_candidate!(candidates, chain, chain_idx, event.segment; atol=atol)
         end
         if length(candidates) == 0 # start a new open chain
             chain = [event.segment[1], event.segment[2]]
-            #println("   new chain: $chain")
+            @debug("[chain_segment]: new chain")
             push!(chains, chain)
         elseif length(candidates) == 1 # check if it closes else append to chain
             candidate = candidates[1]
@@ -654,10 +657,10 @@ function chain_segments(segments::AbstractVector{SegmentEvent{T}}; atol::Float64
             if check_closes && closes_chain(chain, candidate; atol=atol)
                 popat!(chains, candidate.chain_idx)
                 push!(regions, chain)
-                #println("   closed chain: $chain")
+                @debug("[chain_segment]: closed chain")
             else
                 append_candidate!(chain, candidate)
-                #println("   appended chain: $chain")
+                @debug("[chain_segment]: appended chain")
             end
         elseif length(candidates) == 2 # join two chains together
             cand1 = candidates[1]
@@ -668,7 +671,7 @@ function chain_segments(segments::AbstractVector{SegmentEvent{T}}; atol::Float64
             append_candidate!(chain1, cand1)
             new_chain = join_chains!(chain1, chain2, cand1.match_chain_start, cand2.match_chain_start)
             chains[cand1.chain_idx] = new_chain
-            #println("   combined chains: $new_chain")
+            @debug("[chain_segment]: combined chains")
             deleteat!(chains, cand2.chain_idx)
         else # confused
             throw("Matched segment $(candidate.segment) to more than 2 chains.")
