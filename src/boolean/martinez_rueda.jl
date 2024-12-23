@@ -293,7 +293,7 @@ end
 function is_above(ev::SegmentEvent, other::SegmentEvent; atol::AbstractFloat=1e-6) # statusCompare
     # !!!!! Critical function. May be source of errors that only emerge later.
     # Assumes segments always go left to right.
-    # For symmetry, always project right most segment's start point on to the line
+    # For symmetry, always project right most segment's start point on to the line 
     # through the other segment and compare y values.
     seg1 = ev.segment
     seg2 = other.segment
@@ -685,6 +685,9 @@ function chain_segments(segments::AbstractVector{SegmentEvent{T}}; atol::Float64
     # TODO: it might be possible to close some open chains
     # - it is improper: the beginning and end is a segment(s) jutting out, so it can be closed with a segment in processing
     if check_closes
+        if !isempty(chains)
+            fuzzy_close!(chains, regions; atol=atol)
+        end
         @assert isempty(chains) "There are still open chains at the end of processing all segments."
         return regions
     else
@@ -743,6 +746,29 @@ function closes_chain(chain::Vector{<:Point2D}, candidate::SegmentChainCandidate
     else
         return is_same_point(chain[1], candidate.other_point; atol=atol)
     end
+end
+
+function fuzzy_close!(chains::Vector{<:Vector{<:Point2D}}, regions::Vector{<:Vector{<:Point2D}}; atol)
+    for idx in reverse(eachindex(chains))
+        if is_fuzzy_closed(chains[idx], length(regions) + 1; atol=atol)
+            push!(regions, popat!(chains, idx))
+        end
+    end
+    regions
+end
+
+function is_fuzzy_closed(chain::Vector{<:Point2D}, idx::Int; atol::Float64, rtol::AbstractFloat=1.0)
+    if is_same_point(chain[1], chain[end]; atol=atol)
+        return true
+    end
+    gap = norm(chain[1], chain[end])
+    gaps = norm.(chain[1:(end-1)], chain[2:end])
+    mean_gap = sum(gaps) / length(gaps)
+    if gap / mean_gap <= rtol
+        @warn("Region $idx was not closed, but it has a relatively small gap and will be considered closed.")
+        return true
+    end
+    false
 end
 
 function join_chains!(chain1::Vector{<:Point2D}, chain2::Vector{<:Point2D}, match_chain1_start, match_chain2_start)
