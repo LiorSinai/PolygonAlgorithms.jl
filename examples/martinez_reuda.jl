@@ -40,10 +40,10 @@ end
 function plot_segment!(
     canvas,
     segment::Segment2D
-    ; 
-    col::Union{Colorant, Symbol},
+    ;
+    col::Union{Colorant, Symbol}, options...
     )
-    plot!(canvas, [segment[1][1], segment[2][1]], [segment[1][2], segment[2][2]], label="", color=col)
+    plot!(canvas, [segment[1][1], segment[2][1]], [segment[1][2], segment[2][2]]; label="", color=col, options...)
 end
 
 function calc_annotation_distance(canvas, polygon)
@@ -71,7 +71,7 @@ queue = SegmentEvent{Float64}[]
 for ev in vcat(annotated_segments1, annotated_segments2)
     add_annotated_segment!(queue, ev)
 end
-annotated_segments3 = event_loop!(queue, self_intersection=false)
+annotated_segments3 = event_loop!(deepcopy(queue), self_intersection=false)
 # for consistent reporting, swap annotations so that self annotations are always the primary
 for ev in annotated_segments3
     if !ev.primary
@@ -83,26 +83,32 @@ end
 
 # plot
 colors = palette(:default)
-canvas = plot(aspect_ratio=:equal)
-d = calc_annotation_distance(canvas, polygon2)
-for (i, event) in enumerate(annotated_segments1)
-    plot_segment_event!(canvas, event; col=colors[1], d=d, self_col=colors[1], other_col=colors[2])
-end
-for (i, event) in enumerate(annotated_segments2)
-    plot_segment_event!(canvas, event; col=colors[2], d=d, self_col=colors[2], other_col=colors[2])
-end
-canvas
-
-## Selections
-selected = apply_selection_criteria(annotated_segments3, PolygonAlgorithms.INTERSECTION_CRITERIA)
 idxs1 = vcat(1:length(polygon1), 1)
 canvas_shapes = plot(x_coords(polygon1[idxs1]), y_coords(polygon1[idxs1]), aspectratio=:equal, arrow=true, fill=(0, 0.5))
 idxs2 = vcat(1:length(polygon2), 1)
 plot!(canvas_shapes, x_coords(polygon2[idxs2]), y_coords(polygon2[idxs2]), arrow=true, fill=(0, 0.5))
+
+canvas_annotations = plot(aspect_ratio=:equal)
+d = calc_annotation_distance(canvas_annotations, polygon2)
+# for (i, event) in enumerate(annotated_segments1)
+#     plot_segment_event!(canvas_annotations, event; col=colors[1], d=d, self_col=colors[1], other_col=colors[2])
+# end
+# for (i, event) in enumerate(annotated_segments2)
+#     plot_segment_event!(canvas_annotations, event; col=colors[2], d=d, self_col=colors[2], other_col=colors[2])
+# end
+for (i, event) in enumerate(annotated_segments3)
+    col = event.primary ? colors[1] : colors[2]
+    plot_segment_event!(canvas_annotations, event; col=col, d=d, self_col=colors[1], other_col=colors[2])
+end
+canvas_annotations
+
+## Selections
+selected = apply_selection_criteria(annotated_segments3, PolygonAlgorithms.INTERSECTION_CRITERIA)
+
 canvas_selected = deepcopy(canvas_shapes)
 for (i, event) in enumerate(selected)
     plot_segment_event!(canvas_selected, event; col=:red, self_col=:red, other_col=colors[2], d=d)
 end
 canvas_selected
 
-plot(canvas, canvas_selected)
+plot(canvas_annotations, canvas_selected)

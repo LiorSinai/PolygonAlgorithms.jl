@@ -2,15 +2,20 @@ using Plots
 using PolygonAlgorithms
 using PolygonAlgorithms: x_coords, y_coords
 
-function plot_regions!(canvas, regions)
+function plot_regions!(canvas, regions; options...)
     for region in regions
         if length(region) == 1
             scatter!(canvas, x_coords(region), y_coords(region), color=:black, marker=:xcross, label="")
         else
-            idxs = vcat(1:length(region), 1)
-            plot!(canvas, x_coords(region[idxs]), y_coords(region[idxs]), fill=(0, 0.4, :green), label="", color=:black)
+            plot_region!(canvas, region; options...)
         end
     end
+    canvas
+end
+
+function plot_region!(canvas, region; fill=(0, 0.4, :green), options...)
+    idxs = vcat(1:length(region), 1)
+    plot!(canvas, x_coords(region[idxs]), y_coords(region[idxs]), fill=fill, label="", color=:black, options...)
 end
 
 θs = 0.0:0.01:6π
@@ -52,8 +57,6 @@ plot_regions!(canvas_xor, regions_xor)
 
 plot(canvas_base, canvas_difference12, canvas_difference21, canvas_intersect, canvas_union, canvas_xor,
     layout = (2, 3), 
-    #xlims=(-0.1, 1.1),
-    #ylims=(-0.1, 1.1), 
     size=(900, 600),
     margin=5Plots.mm,
 )
