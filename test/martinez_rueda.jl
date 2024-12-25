@@ -37,6 +37,34 @@ using PolygonAlgorithms: chain_segments
             SegmentEvent(((0.0, 0.0), (3.0, 3.0)), false),        
         ]
         @test event_queue == expected
+
+        lowered_triangle = [
+            (3.0, 3.0), (3.0, -4.0), (0.0, -5.0)
+        ]
+        event_queue = convert_to_event_queue(lowered_triangle)
+        expected = [
+            SegmentEvent(((0.0, -5.0), (3.0, -4.0)), true),
+            SegmentEvent(((0.0, -5.0), (3.0, 3.0)), true),
+            SegmentEvent(((0.0, -5.0), (3.0, -4.0)), false),
+            SegmentEvent(((3.0, -4.0), (3.0, 3.0)), true),
+            SegmentEvent(((3.0, -4.0), (3.0, 3.0)), false),
+            SegmentEvent(((0.0, -5.0), (3.0, 3.0)), false),        
+        ]
+        @test event_queue == expected
+
+        mirror_triangle = [
+            (0.0, -4.0), (0.0, 3.0), (3.0, -5.0)
+        ]
+        event_queue = convert_to_event_queue(mirror_triangle)
+        expected = [
+            SegmentEvent(((0.0, -4.0), (3.0, -5.0)), true),   
+            SegmentEvent(((0.0, -4.0), (0.0, 3.0)), true),    
+            SegmentEvent(((0.0, -4.0), (0.0, 3.0)), false),   
+            SegmentEvent(((0.0, 3.0), (3.0, -5.0)), true),
+            SegmentEvent(((0.0, -4.0), (3.0, -5.0)), false),  
+            SegmentEvent(((0.0, 3.0), (3.0, -5.0)), false),        
+        ]
+        @test event_queue == expected
     end
 
     @testset "almost vertical" begin
@@ -174,6 +202,30 @@ using PolygonAlgorithms: chain_segments
         # with rtol=1e-3, this is linear
         idx, above, below = find_transition(sweep_status, ev)
         @test idx == 4
+    end
+
+    @testset "sweep status steps" begin
+        # lines originally from the intersection of two randomly generated spiky polygon
+        segments = [
+            SegmentEvent(((0.0, 4.0), (3.0, 4.0)), true),
+            SegmentEvent(((0.0, 2.0), (3.0, 2.0)), true),
+            SegmentEvent(((3.0, 2.0), (3.0, -2.0)), true),
+            SegmentEvent(((3.0, -2.0), (6.0, -2.0)), true),
+            SegmentEvent(((3.0, -4.0), (6.0, -4.0)), true),
+        ]
+        sweep_status = SegmentEvent{Float64}[]
+        for event in segments
+            idx, above, below = find_transition(sweep_status, event)
+            insert!(sweep_status, idx, event)
+        end
+        expected = [
+            SegmentEvent(((0.0, 4.0), (3.0, 4.0)), true),
+            SegmentEvent(((0.0, 2.0), (3.0, 2.0)), true),
+            SegmentEvent(((3.0, 2.0), (3.0, -2.0)), true),
+            SegmentEvent(((3.0, -2.0), (6.0, -2.0)), true),
+            SegmentEvent(((3.0, -4.0), (6.0, -4.0)), true),
+        ]
+        @test sweep_status == expected
     end
 
     @testset "divide no intersection" begin

@@ -214,9 +214,10 @@ end
 """
     compare_events(event, here)
 
-Smaller events are to the left or bottom. Otherwise, end events come before the start  
+Smaller events are to the left or bottom. Otherwise, end events come before the start.
+Returns true if smaller.
 """
-function compare_events(event::SegmentEvent, here::SegmentEvent) # eventCompare
+function compare_events(event::SegmentEvent, here::SegmentEvent; atol::AbstractFloat=1e-6) # eventCompare
     # Assumes events are left to right
     comp = _compare_points(event.point, here.point)
     if comp != 0
@@ -234,6 +235,11 @@ function compare_events(event::SegmentEvent, here::SegmentEvent) # eventCompare
     end
     # share a common start point ⋅< or a common end point >⋅
     # Manually calculate if the other point is above
+    if abs(here.segment[1][1] - here.segment[2][1]) < atol # vertical
+        # projecting the point won't work.
+        # instead, assume smaller segment leans towards the right
+        return event.other_point[1] > here.segment[1][1]
+    end
     is_above_or_on(event.other_point, here.segment) ? false : true
 end
 

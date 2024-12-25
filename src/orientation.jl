@@ -130,16 +130,15 @@ For example, a point far to the left of `segment` where `segment` has a negative
  ̇  \\
 ```
 
-In the special case of a vertical segment (`x₂=x₁`), this is equivalent to
+In the special case of a vertical segment (`x₂=x₁`), this compares `y` values:
 ```
-(y₁ > y₂) && (xp > x₁) # downward facing segment, above is to the right
-(y₁ < y₂) && (xp < x₁) # upward facing segment, above is to the left
+yp ≥ max(y₂, y₁)
 ```
 """
 function is_above_or_on(point::Point2D, segment::Segment2D; atol::Float64=1e-6)
-    # if abs(segment[2][1] - segment[1][1]) < atol # vertical segment
-    #     return point[2] >= max(segment[1][2], segment[2][2])
-    # end
+    if abs(segment[2][1] - segment[1][1]) <= atol # vertical segment
+        return point[2] >= max(segment[1][2], segment[2][2])
+    end
     cmp = (point[2] - segment[1][2]) * (segment[2][1] - segment[1][1]) - 
           (segment[2][2] - segment[1][2]) * (point[1] - segment[1][1])
     cmp >= 0
