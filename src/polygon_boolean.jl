@@ -34,14 +34,21 @@ For `n` and `m` vertices on polygon 1 and 2 respectively:
 
 Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
 """
-intersect_geometry(polygon1::Polygon2D, polygon2::Polygon2D) = intersect_geometry(polygon1, polygon2, WeilerAthertonAlg())
+intersect_geometry(polygon1::Polygon2D, polygon2::Polygon2D; options...) = 
+    intersect_geometry(polygon1, polygon2, WeilerAthertonAlg(); options...)
 
-function intersect_geometry(polygon1::Polygon2D, polygon2::Polygon2D, alg::WeilerAthertonAlg)
-    weiler_atherton_algorithm(polygon1, polygon2)
+function intersect_geometry(
+    polygon1::Polygon2D, polygon2::Polygon2D, alg::WeilerAthertonAlg
+    ; options...
+    )
+    weiler_atherton_algorithm(polygon1, polygon2; options...)
 end
 
-function intersect_geometry(polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg)
-    martinez_rueda_algorithm(polygon1, polygon2, INTERSECTION_CRITERIA)
+function intersect_geometry(
+    polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg
+    ; options...
+    )
+    martinez_rueda_algorithm(polygon1, polygon2, INTERSECTION_CRITERIA; options...)
 end
 
 """
@@ -51,7 +58,10 @@ General case of polygon difference: points in `polygon1` that are not in `polygo
 
 `alg` can only be `MartinezRuedaAlg()`. Runs in `O((n+m+k)log(n+m))`.
 """
-function difference_geometry(polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg=MartinezRuedaAlg())
+function difference_geometry(
+    polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg=MartinezRuedaAlg()
+    ; options...
+    )
     martinez_rueda_algorithm(polygon1, polygon2, DIFFERENCE_CRITERIA)
 end
 
@@ -62,8 +72,11 @@ General case of polygon union: in both polygons.
 
 `alg` can only be `MartinezRuedaAlg()`. Runs in `O((n+m+k)log(n+m))`. Possibly returns holes but does not classify them as holes.
 """
-function union_geometry(polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg=MartinezRuedaAlg())
-    martinez_rueda_algorithm(polygon1, polygon2, UNION_CRITERIA)
+function union_geometry(
+    polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg=MartinezRuedaAlg()
+    ; options...
+    )
+    martinez_rueda_algorithm(polygon1, polygon2, UNION_CRITERIA; options...)
 end
 
 """
@@ -73,8 +86,11 @@ General case of polygon xor: in one polygon or the other but not both.
 
 `alg` can only be `MartinezRuedaAlg()`. Runs in `O((n+m+k)log(n+m))`. Possibly returns holes but does not classify them as holes.
 """
-function xor_geometry(polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg=MartinezRuedaAlg())
-    martinez_rueda_algorithm(polygon1, polygon2, XOR_CRITERIA)
+function xor_geometry(
+    polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg=MartinezRuedaAlg()
+    ; options...
+    )
+    martinez_rueda_algorithm(polygon1, polygon2, XOR_CRITERIA; options...)
 end
 
 #### Convex
@@ -108,14 +124,18 @@ For `n` and `m` vertices on polygon 1 and 2 respectively:
     - Designed for more complex concave polygons with multiple areas of intersection.
     - Will throw an error if there is more than one region of intersection.
 """
-intersect_convex(polygon1::Polygon2D, polygon2::Polygon2D) = intersect_convex(polygon1, polygon2, ChasingEdgesAlg())
+intersect_convex(polygon1::Polygon2D, polygon2::Polygon2D; options...) = 
+    intersect_convex(polygon1, polygon2, ChasingEdgesAlg(); options...)
 
-function intersect_convex(polygon1::Polygon2D, polygon2::Polygon2D, ::ChasingEdgesAlg)
-    chasing_edges_algorithm(polygon1, polygon2)
+function intersect_convex(polygon1::Polygon2D, polygon2::Polygon2D, ::ChasingEdgesAlg; options...)
+    chasing_edges_algorithm(polygon1, polygon2; options...)
 end
 
-function intersect_convex(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::WeilerAthertonAlg) where T
-    regions = weiler_atherton_algorithm(polygon1, polygon2)
+function intersect_convex(
+    polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::WeilerAthertonAlg
+    ; options...
+    ) where T
+    regions = weiler_atherton_algorithm(polygon1, polygon2; options...)
     if isempty(regions)
         return Point2D{T}[]
     end
@@ -123,8 +143,11 @@ function intersect_convex(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::Weil
     regions[1]
 end
 
-function intersect_convex(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::MartinezRuedaAlg) where T
-    regions = martinez_rueda_algorithm(polygon1, polygon2, INTERSECTION_CRITERIA)
+function intersect_convex(
+    polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::MartinezRuedaAlg
+    ; options...
+    ) where T
+    regions = martinez_rueda_algorithm(polygon1, polygon2, INTERSECTION_CRITERIA; options...)
     if isempty(regions)
         return Point2D{T}[]
     end
@@ -132,9 +155,12 @@ function intersect_convex(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::Mart
     regions[1]
 end
 
-function intersect_convex(polygon1::Polygon2D, polygon2::Polygon2D, ::PointSearchAlg)
+function intersect_convex(
+    polygon1::Polygon2D, polygon2::Polygon2D, ::PointSearchAlg
+    ; atol::AbstractFloat=1e-6
+    )
     #https://www.swtestacademy.com/intersection-convex-polygons-algorithm/
-    intersection_points = intersect_edges(polygon1, polygon2)
+    intersection_points = intersect_edges(polygon1, polygon2; atol=atol)
     
     i1_in_2 = [contains(polygon2, p) for p in polygon1]
     p1_in_2 = polygon1[i1_in_2]

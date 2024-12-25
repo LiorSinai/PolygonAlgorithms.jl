@@ -3,18 +3,22 @@
 """
     get_orientation(p, q, r; rtol=1e-4, atol=1e-6)
 
-Determine orientation of three points. `rtol` is the angle ``θ``:
-``cross(pq, qr) = |pq||qr|sin(θ)`` where ``sin(θ)≈θ`` for small ``θ``. `atol` is used if the magnitudes are too small.
+Determine orientation of three points. 
+
+Colinear is returned if `cross(pq, qr) <= tol`, where `tol` is the 
+- `atol` if either magnitude is less than `atol`.
+- `rtol * |pq||qr|` otherwise, where `cross(pq, qr) ≈ |pq||qr|θ` for small `θ`.
+
+Clockwise is returned if `cross(pq, qr)` is positive, else counter-clockwise.
 """
-function get_orientation(p::Point2D, q::Point2D, r::Point2D; rtol::AbstractFloat=1e-4,  atol::AbstractFloat=1e-6)
+function get_orientation(p::Point2D, q::Point2D, r::Point2D; rtol::AbstractFloat=1e-4, atol::AbstractFloat=1e-6)
     pq = (q[1] - p[1], q[2] - p[2])
     qr = (r[1] - q[1], r[2] - q[2])
     cross_product = pq[2] * qr[1] - qr[2] * pq[1]
     mag_pq = sqrt(pq[1] * pq[1] + pq[2] * pq[2])
     mag_qr = sqrt(qr[1] * qr[1] + qr[2] * qr[2])
-    cmp = (mag_qr >= atol && mag_pq >= atol) ? abs(cross_product) /(mag_pq * mag_qr) <= rtol :
-        abs(cross_product) <= atol
-    orientation = cmp ? COLINEAR : 
+    tol = (mag_qr >= atol && mag_pq >= atol) ? (mag_pq * mag_qr) * rtol : atol
+    orientation = abs(cross_product) <= tol ? COLINEAR : 
         cross_product >= 0 ?  CLOCKWISE : 
         COUNTER_CLOCKWISE
     orientation
@@ -26,7 +30,7 @@ end
 Determine if a point lies on the segment. 
 """
 function on_segment(q::Point2D, segment::NTuple{2, Point2D};
-    atol::Float64=1e-6, on_line::Union{Nothing, Bool}=nothing
+    atol::AbstractFloat=1e-6, on_line::Union{Nothing, Bool}=nothing
     )
     Base.depwarn("`on_segment(q, segment; on_line)` is deprecated, use `on_segment(q, segment, on_line)` instead.", :on_segment)
     p, r = segment
@@ -38,7 +42,7 @@ end
 
 function on_segment(
     q::Point2D, segment::NTuple{2, Point2D}, on_line::Bool
-    ; atol::Float64=1e-6
+    ; atol::AbstractFloat=1e-6
     )
     p, r = segment
     return on_line && (
@@ -49,12 +53,12 @@ function on_segment(
         )
 end
 
-function isless_orientation(p::Point2D, q::Point2D, p0::Point2D)
+function isless_orientation(p::Point2D, q::Point2D, p0::Point2D; rtol::AbstractFloat=1e-4)
     # a point p is "less than" another if it has a smaller angle from p0 in a counter-clockwise direction
     # or if the angle is the same, if is closer
     # instead of calculating the angle atan(p[2]-p0[2], p[1]-p0[1]), determine if (p0, p, q) is counter-clockwise
     # doesn't seem to work properly for on a circle
-    ori = get_orientation(p0, p, q)
+    ori = get_orientation(p0, p, q; rtol=rtol)
     if ori == COLINEAR
         dp = norm2(p, p0)
         dq = norm2(q, p0)
@@ -135,11 +139,11 @@ In the special case of a vertical segment (`x₂=x₁`), this compares `y` value
 yp ≥ max(y₂, y₁)
 ```
 """
-function is_above_or_on(point::Point2D, segment::Segment2D; atol::Float64=1e-6)
+function is_above_or_on(point::Point2D, segment::Segment2D; atol::AbstractFloat=1e-6)
     if abs(segment[2][1] - segment[1][1]) <= atol # vertical segment
         return point[2] >= max(segment[1][2], segment[2][2])
     end
     cmp = (point[2] - segment[1][2]) * (segment[2][1] - segment[1][1]) - 
           (segment[2][2] - segment[1][2]) * (point[1] - segment[1][1])
-    cmp >= 0
+    cmp >= 0.0
 end

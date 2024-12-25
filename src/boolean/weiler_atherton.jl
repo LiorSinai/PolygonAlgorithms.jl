@@ -1,5 +1,5 @@
 """
-    weiler_atherton_algorithm(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D})
+    weiler_atherton_algorithm(polygon1, polygon2; atol=1e-6)
 
 Returns multiple regions, edges and single points of intersection. 
 Only returns the larger type if one is within another e.g. an edge is also part of a region.
@@ -14,7 +14,10 @@ Limitations
 
 For a more general algorithm see the Martinez-Rueda polygon clipping algorithm.
 """
-function weiler_atherton_algorithm(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}) where T
+function weiler_atherton_algorithm(
+    polygon1::Polygon2D{T}, polygon2::Polygon2D{T}
+    ; atol::AbstractFloat=1e-6
+    ) where T
     if polygon1 == polygon2
         return [polygon1]
     end
@@ -29,7 +32,7 @@ function weiler_atherton_algorithm(polygon1::Polygon2D{T}, polygon2::Polygon2D{T
     end
     list1 = convert_to_linked_list(polygon1)
     list2 = convert_to_linked_list(polygon2)
-    find_and_insert_intersections!(list1, list2)
+    find_and_insert_intersections!(list1, list2; atol=atol)
     regions, visited = walk_linked_lists(list2)
     # special cases
     if isempty(regions)
@@ -78,7 +81,7 @@ end
 function find_and_insert_intersections!(
         polygon1::DoublyLinkedList{PointInfo{T}}, 
         polygon2::DoublyLinkedList{PointInfo{T}};
-        atol::Float64=1e-6
+        atol::AbstractFloat=1e-6
         ) where T
     ## collect original nodes before mutating in place
     vec1 = collect_nodes(polygon1)
@@ -88,7 +91,7 @@ function find_and_insert_intersections!(
         edge2 = (node2.data.point, next2.data.point)
         for (node1, next1) in zip(vec1, vcat(vec1[2:end], vec1[1]))
             edge1 = (node1.data.point, next1.data.point) 
-            p = intersect_geometry(edge1, edge2)
+            p = intersect_geometry(edge1, edge2; atol=atol)
             if !isnothing(p)
                 i1 = insert_intersection_in_order!(p, node1, next1; atol=atol)
                 i2 = insert_intersection_in_order!(p, node2, next2; atol=atol)
@@ -100,7 +103,7 @@ end
 
 function insert_intersection_in_order!(
     point::Point2D, tail::Node{<:PointInfo}, head::Node{<:PointInfo}
-    ; atol::Float64=1e-6
+    ; atol::AbstractFloat=1e-6
     )
     node = tail
     while node != head.next
@@ -126,7 +129,7 @@ function link_intersections!(
         inter2::Node{<:PointInfo}, 
         edge1::Segment2D, 
         edge2::Segment2D; 
-        atol::Float64=1e-6
+        atol::AbstractFloat=1e-6
     )
     point = inter1.data.point
     on_edge1 = (is_same_point(point, edge1[1]; atol=atol) || is_same_point(point, edge1[2]; atol=atol))

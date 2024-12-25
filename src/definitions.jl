@@ -42,7 +42,7 @@ end
 norm2(p::Point2D, q::Point2D) = (p[1] - q[1]) * (p[1] - q[1]) + (p[2] - q[2]) * (p[2] - q[2])
 norm(p::Point2D, q::Point2D) = sqrt(norm2(p, q))
 
-is_same_point(p::Point2D, q::Point2D; atol=1e-6) = norm(p, q) < atol
+is_same_point(p::Point2D, q::Point2D; atol::AbstractFloat=1e-6) = norm(p, q) <= atol
 translate(points::Vector{<:Point2D}, t::Point2D) = [(p[1] + t[1], p[2] + t[2]) for p in points]
 
 """

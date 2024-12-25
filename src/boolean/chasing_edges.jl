@@ -1,4 +1,7 @@
-function chasing_edges_algorithm(polygon1::Polygon2D{T}, polygon2::Polygon2D{T}) where T
+function chasing_edges_algorithm(
+    polygon1::Polygon2D{T}, polygon2::Polygon2D{T}
+    ; atol::AbstractFloat=1e-6
+    ) where T
     n = length(polygon1)
     m = length(polygon2)
     points = Point2D{T}[]
@@ -17,8 +20,8 @@ function chasing_edges_algorithm(polygon1::Polygon2D{T}, polygon2::Polygon2D{T})
         j_prev = j == 1 ? m : j - 1
         edge1 = (polygon1[i_prev], polygon1[i])
         edge2 = (polygon2[j_prev], polygon2[j])
-        inter = intersect_geometry(edge1, edge2)
-        is_colinear = cross_product(edge1, edge2) ≈ 0.0
+        inter = intersect_geometry(edge1, edge2; atol)
+        is_colinear = isapprox(cross_product(edge1, edge2), 0.0; atol=atol)
         if !isnothing(inter) && !is_colinear
             is_second_iter = k > (m + n)
             if length(points) > 1 && (all(inter .≈ points[1]) && is_second_iter)
