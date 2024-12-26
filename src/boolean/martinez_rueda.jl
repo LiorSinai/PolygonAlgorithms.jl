@@ -280,10 +280,14 @@ function event_loop!(
             insert!(sweep_status, idx, head)
         else # event is ending, so remove it from the status
             idx = find_transition(sweep_status, head.other; atol=atol, rtol=rtol)
-            @assert(
-                0 < idx <= length(sweep_status) && sweep_status[idx] === head.other,
-                "$(head.other) is missing from the sweep_status. The start event should always be processed before the end event."
-            )
+            if !(0 < idx <= length(sweep_status) && sweep_status[idx] === head.other)
+                @warn "Falling back to linear search through the sweep status. This might result in incorrect annotations and hence open chains."
+                idx = findfirst(x -> x === head.other, sweep_status)
+                @assert(
+                    !isnothing(idx),
+                    "$(head.other) is missing from the sweep_status. The start event should always be processed before the end event."
+                )
+            end
             if (idx != 1) && (idx != length(sweep_status))
                 # there will be 2 new adjacent edges, so check the intersection between them
                 check_and_divide_intersection!(
