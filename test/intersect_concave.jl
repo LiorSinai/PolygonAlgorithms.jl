@@ -25,23 +25,23 @@ using PolygonAlgorithms: translate, PointSet
     # now vertix intersects edge
     # creates cycle
     poly2_ = translate(poly2, (-1.0, 0.0))
-    expected = [
-        [(3.0, 1.0), (1.0, 1.0), (3.0, 2.0),(1.0, 3.0), (3.0, 3.0)]
-    ]
+    expected = (typeof(alg) == PolygonAlgorithms.MartinezRuedaAlg) ?
+        [ [(1.0, 1.0), (3.0, 1.0), (3.0, 2.0)], [(1.0, 3.0), (3.0, 2.0), (3.0, 3.0)]] :
+        [[(3.0, 1.0), (1.0, 1.0), (3.0, 2.0),(1.0, 3.0), (3.0, 3.0)]]
 
-    regions = intersect_geometry(poly1, poly2_)
+    regions = intersect_geometry(poly1, poly2_, alg)
     @test are_regions_equal(regions, expected)
-    regions = intersect_geometry(poly2_, poly1)
+    regions = intersect_geometry(poly2_, poly1, alg)
     @test are_regions_equal(regions, expected)
 
     # only points intercept
     poly2_ = translate(poly2, (1.0, 0.0))
-    expected = [
-        [(3.0, 3.0)], [(3.0, 1.0)]
-    ]
-    regions = intersect_geometry(poly1, poly2_)
+    expected = (typeof(alg) == PolygonAlgorithms.MartinezRuedaAlg) ?
+        Vector{Tuple{Float64, Float64}}[] :
+        [[(3.0, 3.0)], [(3.0, 1.0)]]
+    regions = intersect_geometry(poly1, poly2_, alg)
     @test are_regions_equal(regions, expected)
-    regions = intersect_geometry(poly2_, poly1)
+    regions = intersect_geometry(poly2_, poly1, alg)
     @test are_regions_equal(regions, expected)
 end
 
