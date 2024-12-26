@@ -374,19 +374,19 @@ function divide_intersection!(
     @debug("[divide_intersection!] $at_start1 $at_end1 $along1")
     @debug("[divide_intersection!] $at_start2 $at_end2 $along2")
     if along1 && along2
-        divide_event!(queue, ev1, pt)
-        divide_event!(queue, ev2, pt)
+        divide_event!(queue, ev1, pt; atol=atol)
+        divide_event!(queue, ev2, pt; atol=atol)
     elseif along1
         if at_start2
-            divide_event!(queue, ev1, ev2.segment[1])
+            divide_event!(queue, ev1, ev2.segment[1]; atol=atol)
         elseif at_end2
-            divide_event!(queue, ev1, ev2.segment[2])
+            divide_event!(queue, ev1, ev2.segment[2]; atol=atol)
         end
     elseif along2
         if at_start1
-            divide_event!(queue, ev2, ev1.segment[1])
+            divide_event!(queue, ev2, ev1.segment[1]; atol=atol)
         elseif at_end1
-            divide_event!(queue, ev2, ev1.segment[2])
+            divide_event!(queue, ev2, ev1.segment[2]; atol=atol)
         end
     end
     queue
@@ -420,11 +420,11 @@ function divide_coincident_intersection!(
         if end1_between
             # (a1)---(a2)
             # (b1)----x------(b2)
-            divide_event!(queue, ev2, ev1.segment[2])
+            divide_event!(queue, ev2, ev1.segment[2]; atol=atol)
         elseif end2_between
             # (a1)----x-----(a2)
             # (b1)---(b2)
-            divide_event!(queue, ev1, ev2.segment[2])
+            divide_event!(queue, ev1, ev2.segment[2]; atol=atol)
         else # are these segment colinear?
             return queue
         end
@@ -435,11 +435,11 @@ function divide_coincident_intersection!(
             if end1_between
                 #         (a1)---(a2)
                 #  (b1)-----------x-----(b2)
-                divide_event!(queue, ev2, ev1.segment[2])
+                divide_event!(queue, ev2, ev1.segment[2]; atol=atol)
             elseif end2_between
                 #         (a1)----x-----(a2)
                 #  (b1)----------(b2)
-                divide_event!(queue, ev1, ev2.segment[2]);
+                divide_event!(queue, ev1, ev2.segment[2]; atol=atol);
             else # are these segments colinear?
                 return queue
             end
@@ -447,24 +447,24 @@ function divide_coincident_intersection!(
         #         (a1)---(a2)
         #  (b1)----x-----(b2)
         # equal segment a1-b2 isn't in the status stack yet, so don't return it
-        divide_event!(queue, ev2, ev1.segment[1]);
+        divide_event!(queue, ev2, ev1.segment[1]; atol=atol);
     end
     queue
 end
 
 """
-    divide_event!(queue, ev, pt)
+    divide_event!(queue, ev, pt; atol=1e-6)
 
 Divide an event `ev` and `ev.other` in `queue` into 4:
 ```
 --x-->  to  --> x-->
 ```
 """
-function divide_event!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent, pt::Point2D) # eventDivide
+function divide_event!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent, pt::Point2D; atol::AbstractFloat=1e-6) # eventDivide
     # assumes pt lies on ev.segment
     new_segment = (pt, ev.segment[2])
     @debug("[divide_event!] new_segment=$(new_segment)")
-    e1, e2 = update_end!(ev, pt)
+    e1, e2 = update_end!(ev, pt; atol=atol)
     # fix position of end in queue
     pop_key!(queue, e2)
     insert_in_order!(queue, e2; lt=compare_events)
@@ -473,7 +473,7 @@ function divide_event!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent, pt::Poin
 end
 
 """
-    update_end!(queue, ev, pt)
+    update_end!(queue, ev, pt; atol=1e-6)
 
 Slides an end backwards.
 ```
@@ -481,7 +481,7 @@ Slides an end backwards.
     (start)---(end)
 ```
 """
-function update_end!(ev::SegmentEvent, end_point::Point2D)
+function update_end!(ev::SegmentEvent, end_point::Point2D; atol::AbstractFloat=1e-6)
     # Assumes ev is a start event.        
     @assert ev.is_start
     ev.segment = (ev.segment[1], end_point)
@@ -489,6 +489,12 @@ function update_end!(ev::SegmentEvent, end_point::Point2D)
     other = ev.other
     other.segment = (ev.segment[1], end_point)
     other.point = end_point
+    if abs(ev.segment[1][1] - end_point[1]) <= atol &&
+        (ev.segment[1][2] > end_point[2]) && ev.is_start
+        @warn "Reversing direction for new vertical segment: $(ev.segment)."
+        ev.is_start = false
+        other.is_start = true
+    end
     ev, other
 end
 
