@@ -16,7 +16,9 @@ struct MartinezRuedaAlg <: PolygonIntersectionAlgorithm end
 
 General case of polygon intersection. 
 
-`alg` can either be `MartinezRuedaAlg()` or `WeilerAthertonAlg()`. There are slight differences in the result depending on the algorithm.
+`alg` can either be `MartinezRuedaAlg()` or `WeilerAthertonAlg()`.
+There are slight differences in the result depending on the algorithm.
+The `WeilerAthertonAlg` tends to be more robust to numeric inaccuracies.
 
 For `n` and `m` vertices on polygon 1 and 2 respectively:
 - `MartinezRuedaAlg`:
@@ -25,6 +27,7 @@ For `n` and `m` vertices on polygon 1 and 2 respectively:
     - Works for convex and concave polygons including with holes and self-intersections.
     - Limitations:
         1. It can fail for improper polygons: polygons with lines sticking out.
+        2. It is sensitive to numeric inaccuracies e.g. a line that is almost vertical or tiny regions of intersection.
 - `WeilerAthertonAlg`:
     - Time complexity: `O(nm)`. 
     - Returns regions, edges and single points of intersection. Only returns the larger type if one is within another e.g. an edge is also part of a region.
