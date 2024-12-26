@@ -1,12 +1,17 @@
 """
     weiler_atherton_algorithm(polygon1, polygon2; atol=1e-6)
 
-Returns multiple regions, edges and single points of intersection. 
+The Weiler-Atherton polygon clipping algorithm.
+Returns regions, edges and single points of intersection. 
 Only returns the larger type if one is within another e.g. an edge is also part of a region.
 
-This uses the Weiler-Atherton algorithm.
-It runs in `O(nm)` time where `n` and `m` are the number of vertices of polygon1 and polygon2 respectively.
+It runs in `O(nm)` time where `n` and `m` are the number of vertices of `polygon1` and `polygon2` respectively.
 Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
+
+Description: operates at a point level. Walks from point to point along `polygon2`. 
+It starts recording loops at "entry points" - crossings from `polygon2` to `polygon1` - and 
+stops recording when it gets back to the same entry point. Then it continues walking along `polygon2`
+until it reaches the start point.
 
 Limitations
 1. This version does not cater for holes.
