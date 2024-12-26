@@ -92,20 +92,20 @@ using PolygonAlgorithms: chain_segments
         ]
         # test
         ev6 = SegmentEvent(((0.0, 6.0), (5.0, 6.0)), true)
-        idx, prev, next = find_transition(status, ev6)
-        @test isnothing(prev) && next == status[1]
+        idx = find_transition(status, ev6)
+        @test idx == 1
         ev34 = SegmentEvent(((0.0, 3.0), (5.0, 4.0)), true)
-        idx, prev, next = find_transition(status, ev34)
-        @test prev == status[1] && next == status[2]
+        idx = find_transition(status, ev34)
+        @test idx == 2
         ev32 = SegmentEvent(((0.0, 3.0), (5.0, 2.0)), true)
-        idx, prev, next = find_transition(status, ev32)
-        @test prev == status[2] && next == status[3]
+        idx = find_transition(status, ev32)
+        @test idx == 3
         ev2 = SegmentEvent(((0.0, 2.0), (5.0, 2.0)), true)
-        idx, prev, next = find_transition(status, ev2)
-        @test prev == status[2] && next == status[3]
+        idx = find_transition(status, ev2)
+        @test idx == 3
         ev0 = SegmentEvent(((0.0, 0.0), (5.0, 0.0)), true)
-        idx, prev, next = find_transition(status, ev0)
-        @test prev == status[3] && isnothing(next)
+        idx = find_transition(status, ev0)
+        @test idx == 4
     end
 
     @testset "sweep status head" begin
@@ -113,11 +113,11 @@ using PolygonAlgorithms: chain_segments
         status = [SegmentEvent(((0.0, 5.0), (5.0, 5.0)), true)]
         # test
         ev6 = SegmentEvent(((0.0, 6.0), (5.0, 6.0)), true)
-        idx, prev, next = find_transition(status, ev6)
-        @test isnothing(prev) && next == status[1]
+        idx = find_transition(status, ev6)
+        @test idx == 1
         ev2 = SegmentEvent(((0.0, 2.0), (5.0, 2.0)), true)
-        idx, prev, next = find_transition(status, ev2)
-        @test prev == status[1] && isnothing(next)
+        idx = find_transition(status, ev2)
+        @test idx == 2
     end
 
     @testset "sweep status rand lines" begin
@@ -142,7 +142,7 @@ using PolygonAlgorithms: chain_segments
         ]
         sweep_status = SegmentEvent{Float64}[]
         for event in segments
-            idx, above, below = find_transition(sweep_status, event)
+            idx = find_transition(sweep_status, event)
             insert!(sweep_status, idx, event)
         end
         expected = [
@@ -177,7 +177,7 @@ using PolygonAlgorithms: chain_segments
         ]
         sweep_status = SegmentEvent{Float64}[]
         for event in segments
-            idx, above, below = find_transition(sweep_status, event)
+            idx = find_transition(sweep_status, event)
             insert!(sweep_status, idx, event)
         end
         expected =[
@@ -200,7 +200,7 @@ using PolygonAlgorithms: chain_segments
         ]
         ev = SegmentEvent(((0.7692174020749689, 0.1749860342238233), (0.8076322984621129, 0.25945610393589347)), true)
         # with rtol=1e-3, this is linear
-        idx, above, below = find_transition(sweep_status, ev)
+        idx = find_transition(sweep_status, ev)
         @test idx == 4
     end
 
@@ -215,7 +215,7 @@ using PolygonAlgorithms: chain_segments
         ]
         sweep_status = SegmentEvent{Float64}[]
         for event in segments
-            idx, above, below = find_transition(sweep_status, event)
+            idx = find_transition(sweep_status, event)
             insert!(sweep_status, idx, event)
         end
         expected = [

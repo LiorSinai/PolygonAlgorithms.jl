@@ -258,7 +258,9 @@ function event_loop!(
         status_length = length(sweep_status)
         @debug("[event_loop!] ($(queue_length), $(status_length)): $(head)")
         if head.is_start # then check for intersections and add to sweep status
-            idx, above, below = find_transition(sweep_status, head)
+            idx = find_transition(sweep_status, head; atol=atol, rtol=rtol)
+            above = idx == 1 ? nothing : sweep_status[idx - 1]
+            below = (idx > length(sweep_status)) ? nothing : sweep_status[idx]
             @debug("[event_loop!] transition idx=$idx")
             @debug("[event_loop!] above=$above")
             @debug("[event_loop!] below=$below")
@@ -277,7 +279,7 @@ function event_loop!(
             end
             insert!(sweep_status, idx, head)
         else # event is ending, so remove it from the status
-            idx = searchsortedfirst(sweep_status, head.other; lt=is_above)
+            idx = find_transition(sweep_status, head.other; atol=atol, rtol=rtol)
             @assert(
                 0 < idx <= length(sweep_status) && sweep_status[idx] === head.other,
                 "$(head.other) is missing from the sweep_status. The start event should always be processed before the end event."
@@ -300,10 +302,7 @@ function find_transition(
     list::Vector{<:SegmentEvent}, event::SegmentEvent
     ; atol::AbstractFloat=1e-6, rtol::AbstractFloat=1e-4
     )
-    idx = searchsortedfirst(list, event; lt=(x, y) -> is_above(x, y; atol=atol, rtol=rtol))
-    above = idx == 1 ? nothing : list[idx - 1]
-    below = (idx > length(list)) ? nothing : list[idx]
-    idx, above, below
+    searchsortedfirst(list, event; lt=(x, y) -> is_above(x, y; atol=atol, rtol=rtol))
 end
 
 function is_above(
