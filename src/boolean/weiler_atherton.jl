@@ -51,25 +51,25 @@ end
 
 @enum IntersectionType NONE ENTRY EXIT VERTEX
 
-mutable struct PointInfo{T}
+mutable struct PointEvent{T}
     point::Point2D{T}
     intersection::Bool
-    link::Union{Nothing,Node{PointInfo{T}}}
+    link::Union{Nothing,Node{PointEvent{T}}}
     type::IntersectionType
 end
 
 function convert_to_linked_list(polygon::Polygon2D{T}) where T
-    data = PointInfo{T}(polygon[1], false, nothing, NONE)
+    data = PointEvent{T}(polygon[1], false, nothing, NONE)
     head = Node(data)
     list = DoublyLinkedList(head)
     for point in polygon[2:end]
-        data = PointInfo{T}(point, false, nothing, NONE)
+        data = PointEvent{T}(point, false, nothing, NONE)
         push!(list, data)
     end
     list
 end
 
-function get_first_non_intersection_point(polygon::DoublyLinkedList{<:PointInfo})
+function get_first_non_intersection_point(polygon::DoublyLinkedList{<:PointEvent})
     start = polygon.head
     node = start
     while node.data.intersection && node.next != start
@@ -79,8 +79,8 @@ function get_first_non_intersection_point(polygon::DoublyLinkedList{<:PointInfo}
 end
 
 function find_and_insert_intersections!(
-        polygon1::DoublyLinkedList{PointInfo{T}}, 
-        polygon2::DoublyLinkedList{PointInfo{T}};
+        polygon1::DoublyLinkedList{PointEvent{T}}, 
+        polygon2::DoublyLinkedList{PointEvent{T}};
         atol::AbstractFloat=1e-6
         ) where T
     ## collect original nodes before mutating in place
@@ -102,7 +102,7 @@ function find_and_insert_intersections!(
 end
 
 function insert_intersection_in_order!(
-    point::Point2D, tail::Node{<:PointInfo}, head::Node{<:PointInfo}
+    point::Point2D, tail::Node{<:PointEvent}, head::Node{<:PointEvent}
     ; atol::AbstractFloat=1e-6
     )
     node = tail
@@ -120,13 +120,13 @@ function insert_intersection_in_order!(
         end
         node = node.next
     end
-    info = PointInfo(point, true, nothing, NONE)
+    info = PointEvent(point, true, nothing, NONE)
     insert!(node, info)
 end
 
 function link_intersections!(
-        inter1::Node{<:PointInfo}, 
-        inter2::Node{<:PointInfo}, 
+        inter1::Node{<:PointEvent}, 
+        inter2::Node{<:PointEvent}, 
         edge1::Segment2D, 
         edge2::Segment2D; 
         atol::AbstractFloat=1e-6
@@ -168,7 +168,7 @@ function link_intersections!(
     inter1, inter2
 end
 
-function set_link!(inter1::Node{<:PointInfo}, inter2::Node{<:PointInfo}, entering_1_from_2::Bool)
+function set_link!(inter1::Node{<:PointEvent}, inter2::Node{<:PointEvent}, entering_1_from_2::Bool)
     if entering_1_from_2 # edge of polygon 2 is entering poylgon 1 
         inter1.data.link = inter2
         inter2.data.type = ENTRY
@@ -178,14 +178,14 @@ function set_link!(inter1::Node{<:PointInfo}, inter2::Node{<:PointInfo}, enterin
     end 
 end
 
-function set_vertex_intercept!(inter1::Node{<:PointInfo}, inter2::Node{<:PointInfo})
+function set_vertex_intercept!(inter1::Node{<:PointEvent}, inter2::Node{<:PointEvent})
     inter1.data.link = inter2
     inter2.data.link = inter1
     inter2.data.type = VERTEX
     inter1.data.type = VERTEX
 end
 
-function walk_linked_lists(polygon::DoublyLinkedList{PointInfo{T}}) where T
+function walk_linked_lists(polygon::DoublyLinkedList{PointEvent{T}}) where T
     regions = Vector{Point2D{T}}[]
     node = polygon.head
     visited = PointSet()
@@ -203,9 +203,9 @@ function walk_linked_lists(polygon::DoublyLinkedList{PointInfo{T}}) where T
     regions, visited
 end
 
-function walk_loop(start::Node{PointInfo{T}}) where T
+function walk_loop(start::Node{PointEvent{T}}) where T
     loop = Point2D{T}[]
-    visited = Set{Node{PointInfo{T}}}()
+    visited = Set{Node{PointEvent{T}}}()
     push!(loop, start.data.point)
     push!(visited, start)
     node = start.next
@@ -233,12 +233,12 @@ function walk_loop(start::Node{PointInfo{T}}) where T
     loop, visited
 end
 
-function is_vertex_intercept(node::Node{<:PointInfo})
+function is_vertex_intercept(node::Node{<:PointEvent})
     node2 = node.data.link
     !isnothing(node2) && !isnothing(node2.data.link) && node2.data.link == node
 end
 
-function get_unvisited_intercepts(polygon::DoublyLinkedList{PointInfo{T}}, visited::PointSet{T}) where T
+function get_unvisited_intercepts(polygon::DoublyLinkedList{PointEvent{T}}, visited::PointSet{T}) where T
     regions = Vector{Point2D{T}}[]
     node = polygon.head
     while !isnothing(node)
