@@ -75,10 +75,22 @@ For all of the the following `n` and `m` are the number of vertices of the polyg
         - Combines point in polygon algorithm with intersection of edges.
         - Time complexity: `O(nm)`.
         - For general non-self-intersecting polygons, the intersection points are valid but the order is not.
+    - Martinez-Rueda algorithm:
+        - See point 5.
     - Weiler-Atherton algorithm:
         - Concave and convex but not self-intersecting.
         - Time complexity: `O(nm)`. 
         - For a full explanation, see my [blog post](https://liorsinai.github.io/mathematics/2023/09/30/polygon-clipping.html).
+5. Difference, intersection, union and XOR of polygons.
+    - Martinez-Rueda algorithm:
+        - Concave, convex and self-intersecting.
+        - Annotates each segments with 4 fill criteria: filled by itself above and/or below, and filled by the other polygon above and/or below. Once this has been accomplished, it is trivial to select segments which match the given operation.
+        - Time complexity: `O((n+m+k)log(n+m))`. 
+        - Reference: https://www.researchgate.net/publication/220163820_A_new_algorithm_for_computing_Boolean_operations_on_polygons
+        - Blog post: https://sean.fun/a/polygon-clipping-pt2/
+    <p align="center">
+    <img src="images/martinez_reuda.png" width="80%" style="padding:5px"/>
+   </p>
 
 ## Installation
 

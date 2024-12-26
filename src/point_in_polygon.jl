@@ -1,5 +1,5 @@
 """
-    contains(vertices, point; on_border_is_inside=true)
+    contains(vertices, point; on_border_is_inside=true; rtol=1e-10)
 
 Runs in `O(n)` time where `n=length(vertices)`.
 
@@ -8,8 +8,10 @@ It is based on "A Simple and Correct Even-Odd Algorithm for the Point-in-Polygon
 by Michael Galetzka and Patrick Glauner (2017). 
 It skips vertices that are on the ray. To compensate, the ray is projected backwards (to the left) so that an 
 intersection can be found for a skipped vertix if needed.
+
+`rtol` should be small because of the extreme points used in the algorithm.
 """
-function contains(vertices::Polygon2D, point::Point2D{T}; on_border_is_inside::Bool=true) where T
+function contains(vertices::Polygon2D, point::Point2D{T}; on_border_is_inside::Bool=true, rtol::AbstractFloat=1e-10) where T
     n = length(vertices)
     num_intersections = 0
 
@@ -50,9 +52,9 @@ function contains(vertices::Polygon2D, point::Point2D{T}; on_border_is_inside::B
         edge = (vertices[s], vertices[next_s])
         intersect = 0
         if (next_s - s) == 1 || (s == n && next_s ==1) # 3b.i
-            intersect = do_intersect(edge, (point, extreme_right))
+            intersect = do_intersect(edge, (point, extreme_right); rtol=rtol)
         elseif skipped_right # 3b.ii
-            intersect = do_intersect(edge, (extreme_left, extreme_right))
+            intersect = do_intersect(edge, (extreme_left, extreme_right); rtol=rtol)
         end
         num_intersections += intersect
         if next_s <= s  # gone in a full loop

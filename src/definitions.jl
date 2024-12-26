@@ -42,7 +42,7 @@ end
 norm2(p::Point2D, q::Point2D) = (p[1] - q[1]) * (p[1] - q[1]) + (p[2] - q[2]) * (p[2] - q[2])
 norm(p::Point2D, q::Point2D) = sqrt(norm2(p, q))
 
-is_same_point(p::Point2D, q::Point2D; atol=1e-6) = norm(p, q) < atol
+is_same_point(p::Point2D, q::Point2D; atol::AbstractFloat=1e-6) = norm(p, q) <= atol
 translate(points::Vector{<:Point2D}, t::Point2D) = [(p[1] + t[1], p[2] + t[2]) for p in points]
 
 """
@@ -63,3 +63,10 @@ x_coords(points::Polygon2D) = [p[1] for p in points]
 x_coords(points::Polygon2D, idxs::AbstractVector{Int}) = [p[1] for p in points[idxs]]
 y_coords(points::Polygon2D) = [p[2] for p in points]
 y_coords(points::Polygon2D, idxs::AbstractVector{Int}) = [p[2] for p in points[idxs]]
+
+function separate(f, v::Vector)
+    idxs = findall(f, v)
+    other_idxs = setdiff(eachindex(v), idxs)
+    (@view(v[idxs]), @view(v[other_idxs]))
+end
+  
