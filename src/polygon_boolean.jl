@@ -12,7 +12,7 @@ struct MartinezRuedaAlg <: PolygonIntersectionAlgorithm end
 # General
 
 """
-    intersect_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=WeilerAthertonAlg())
+    intersect_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=MartinezRuedaAlg())
 
 General case of polygon intersection. 
 
@@ -38,7 +38,7 @@ For `n` and `m` vertices on polygon 1 and 2 respectively:
 Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
 """
 intersect_geometry(polygon1::Polygon2D, polygon2::Polygon2D; options...) = 
-    intersect_geometry(polygon1, polygon2, WeilerAthertonAlg(); options...)
+    intersect_geometry(polygon1, polygon2, MartinezRuedaAlg(); options...)
 
 function intersect_geometry(
     polygon1::Polygon2D, polygon2::Polygon2D, alg::WeilerAthertonAlg
