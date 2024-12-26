@@ -17,11 +17,8 @@ For indexing use `x_coords` and `y_coords`.
 Common broadcasting operations are supplied such as `translate` and `rotate`.
 
 An alternative representation for polygons is as 2&times;N matrices. 
-This form is more natural for indexing and broadcasting operations such as translation and rotation.
-Otherwise the algorithms here do not make use of matrix operations. 
-For example, inverting a matrix has no meaning.
-
-To convert between the forms, use `matrix_to_points` or `points_to_matrix`.
+This is not used here, but can be more efficient for indexing and broadcasting operations such as translation and rotation.
+To convert to this representation and back, use `matrix_to_points` or `points_to_matrix`.
 
 ### Example
 

@@ -71,14 +71,28 @@ function Base.show(io::IO, event::SegmentEvent)
 end
 
 """
-    martinez_rueda_algorithm(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D})
+    martinez_rueda_algorithm(polygon1, polygon2, selection_criteria)
 
-This uses the Martinez-Rueda-Feito polygon clipping algorithm.
-It runs in `O((n+m+k)log(n+m))` time where `n` and `m` are the number of vertices of `polygon1`` and `polygon2` respectively.
+The Martinez-Rueda-Feito polygon clipping algorithm.
+Returns regions and edges of intersection.
+It runs in `O((n+m+k)log(n+m))` time where `n` and `m` are the number of vertices of `polygon1` 
+and `polygon2` respectively.
 Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
+
+Description:
+Operates at a segment level and is an extension of the Bentley-Ottman line intersection algorithm.
+Segments are scanned from left to right, bottom to top. 
+The key assumption is that intersections are only found between the segments above and
+below the current segment.
+(This makes the algorithm fast but also sensitive to determining these segments correctly.)
+In addition, the below segment is used to determine the fill annotations for the current segment 
+(or empty space if nothing is below it.)
+Once the annotations are done, it is trivial to pick out segments that match the given criteria.
 
 Limitations
 1. It can fail for improper polygons: polygons with lines sticking out.
+2. It is sensitive to numeric inaccuracies e.g. a line that is almost vertical or tiny regions 
+of intersection.
 
 References 
 - paper: https://www.researchgate.net/publication/220163820_A_new_algorithm_for_computing_Boolean_operations_on_polygons
