@@ -144,7 +144,7 @@ end;
     @test contains(skew_H[1], (7.0, 2.0))
 end;
 
-@testset "vertix intersections" begin
+@testset "vertex intersections" begin
     @test !contains(pentagon[1], (2.0, 10.0))
     @test contains(pentagon[1], (5.0, 10.0))
     @test !contains(pentagon[1], (8.0, 10.0))
