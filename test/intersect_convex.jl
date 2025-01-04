@@ -67,7 +67,7 @@ end
     points = intersect_convex(poly2, poly1, alg)
     @test PointSet(points) == PointSet(expected)
 
-    # edge + vertix overlap
+    # edge + vertex overlap
     poly2 = translate(poly1, (1.0, 0.0))
     expected = [
         (1.0, 2.0), (2.0, 2.0), (2.0, 0.0), (1.0, 0.0)
@@ -78,7 +78,7 @@ end
     @test PointSet(points) == PointSet(expected)
 end
 
-@testset "rectangles - vertix overlap" begin
+@testset "rectangles - vertex overlap" begin
     poly1 = [
         (0.0, 0.0), (0.0, 2.0), (2.0, 2.0), (2.0, 0.0)
     ]
@@ -93,7 +93,7 @@ end
     @test PointSet(points) == PointSet(expected)
 end
 
-@testset "edge intersect vertix inner" begin 
+@testset "edge intersect vertex inner" begin 
     poly1 = [
         (0.0, 0.0), (0.0, 3.0), (2.0, 5.0), (5.0, 0.0)
     ]
@@ -113,7 +113,7 @@ end
     @test PointSet(points) == PointSet(expected)
 end
 
-@testset "edge-vertix pass through" begin 
+@testset "edge-vertex pass through" begin 
     poly1 = [
         (0.0, 0.4),
         (0.3, 0.2),
@@ -142,7 +142,7 @@ end
     @test issetequal(answer, expected)
 end
 
-@testset "vertix intersect vertix" begin 
+@testset "vertex intersect vertex" begin 
     poly1 = [
         (0.0, 0.0), (0.0, 3.0), (2.0, 5.0), (5.0, 0.0)
     ]
@@ -162,7 +162,7 @@ end
     @test PointSet(points) == PointSet(expected)
 end
 
-@testset "vertix intersections" begin 
+@testset "vertex intersections" begin 
     poly1 = [
         (0.0, 0.0), (0.5, 1.0), (1.0, 0.0)
     ]
@@ -195,7 +195,7 @@ end
     @test PointSet(points) == PointSet(expected)
 end
 
-@testset "quads single vertix intersect" begin 
+@testset "quads single vertex intersect" begin 
     poly1 = [
         (1.0, 1.0), (2.0, 4.0), (5.0, 5.0), (4.0, 2.0)
     ]
@@ -276,7 +276,7 @@ end
     @test PointSet(points) == PointSet(expected)
 end
 
-@testset "multiple pockets + edge-vertix" begin 
+@testset "multiple pockets + edge-vertex" begin 
     poly1 = [
         (1.0, 3.0),
         (1.0, 5.5),

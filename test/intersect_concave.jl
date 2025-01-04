@@ -22,7 +22,7 @@ using PolygonAlgorithms: translate, PointSet
     regions = intersect_geometry(poly2, poly1, alg)
     @test are_regions_equal(regions, expected)
 
-    # now vertix intersects edge
+    # now vertex intersects edge
     # creates cycle
     poly2_ = translate(poly2, (-1.0, 0.0))
     expected = (typeof(alg) == PolygonAlgorithms.MartinezRuedaAlg) ?
@@ -83,7 +83,7 @@ end
     @test are_regions_equal(regions, expected)
 end
 
-@testset "concave arrows vertix intercepts" begin 
+@testset "concave arrows vertex intercepts" begin 
     poly1 = [
         (-2.0, 2.0), (2.0, 2.0), (-1.0, 0.0), (-0.5, 1.5)
     ]
@@ -273,7 +273,7 @@ end
     @test are_regions_equal(regions, expected)
 end
 
-@testset "concave saw + vertix intercepts" begin 
+@testset "concave saw + vertex intercepts" begin 
     poly1 = [
         (0.0, 1.0), (0.0, 2.0), (3.0, 2.0), (3.0, 1.0)
     ]
