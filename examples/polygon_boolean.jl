@@ -3,19 +3,37 @@ using PolygonAlgorithms
 using PolygonAlgorithms: x_coords, y_coords
 
 function plot_regions!(canvas, regions; options...)
-    for region in regions
+    holes = classify_holes(regions)
+    idxs = 1:length(regions)
+    idxs = vcat(idxs[.!holes], idxs[holes]) # holes must be plotted after regions
+    for idx in idxs
+        region = regions[idx]
         if length(region) == 1
             scatter!(canvas, x_coords(region), y_coords(region), color=:black, marker=:xcross, label="")
-        else
-            plot_region!(canvas, region; options...)
+        else 
+            fill = holes[idx] ? (0, 1.0, :grey70) : (0, 0.4, :green)
+            plot_region!(canvas, region; fill=fill, label="", color=:black, options...)
         end
     end
     canvas
 end
 
-function plot_region!(canvas, region; fill=(0, 0.4, :green), options...)
+function plot_region!(canvas, region; options...)
     idxs = vcat(1:length(region), 1)
-    plot!(canvas, x_coords(region[idxs]), y_coords(region[idxs]), fill=fill, label="", color=:black, options...)
+    plot!(canvas, x_coords(region[idxs]), y_coords(region[idxs]); options...)
+end
+
+function classify_holes(regions::Vector{<:Vector{<:Tuple}})
+    holes = fill(false, length(regions))
+    for (idx, region) in enumerate(regions)
+        others = vcat(1:(idx-1), (idx+1):length(regions))
+        holes[idx] = any(x->fully_contains(x, region), regions[others])
+    end
+    holes
+end
+
+function fully_contains(polygon1::Vector{<:Tuple{T, T}}, polygon2::Vector{<:Tuple{T, T}}) where T <: AbstractFloat
+   all(contains(polygon1, point) for point in polygon2) 
 end
 
 θs = 0.0:0.01:6π
@@ -26,21 +44,21 @@ star = [
     (0.0, 18.0), (3.0, 5.0), (15.0, 5.0), (5.0, 0.0), (10.0, -12.0), (0.0, -2.0),
     (-10.0, -12.0), (-5.0, 0.0), (-15.0, 5.0), (-3.0, 5.0)
 ]
-poly1 = spiral
-poly2 = star
+polygon1 = spiral
+polygon2 = star
 
-idxs1 = vcat(1:length(poly1), 1)
-idxs2 = vcat(1:length(poly2), 1)
-canvas_base = plot(x_coords(poly1[idxs1]), y_coords(poly1[idxs1]),
+idxs1 = vcat(1:length(polygon1), 1)
+idxs2 = vcat(1:length(polygon2), 1)
+canvas_base = plot(x_coords(polygon1[idxs1]), y_coords(polygon1[idxs1]),
     fill=(0, 0.5), aspectratio=:equal, xlabel="base", legend=:none)
-plot!(canvas_base, x_coords(poly2[idxs2]), y_coords(poly2[idxs2]),
+plot!(canvas_base, x_coords(polygon2[idxs2]), y_coords(polygon2[idxs2]),
     fill=(0, 0.3))
 
-regions_difference12 = difference_geometry(poly1, poly2, PolygonAlgorithms.MartinezRuedaAlg());
-regions_difference21 = difference_geometry(poly2, poly1, PolygonAlgorithms.MartinezRuedaAlg());
-regions_intersect = intersect_geometry(poly1, poly2, PolygonAlgorithms.MartinezRuedaAlg());
-regions_union = union_geometry(poly1, poly2, PolygonAlgorithms.MartinezRuedaAlg());
-regions_xor = xor_geometry(poly1, poly2, PolygonAlgorithms.MartinezRuedaAlg());
+regions_difference12 = difference_geometry(polygon1, polygon2, PolygonAlgorithms.MartinezRuedaAlg());
+regions_difference21 = difference_geometry(polygon2, polygon1, PolygonAlgorithms.MartinezRuedaAlg());
+regions_intersect = intersect_geometry(polygon1, polygon2, PolygonAlgorithms.MartinezRuedaAlg());
+regions_union = union_geometry(polygon1, polygon2, PolygonAlgorithms.MartinezRuedaAlg());
+regions_xor = xor_geometry(polygon1, polygon2, PolygonAlgorithms.MartinezRuedaAlg());
 
 canvas_difference12 = plot(aspectratio=:equal, xlabel="difference 1-2", xlims=xlims(canvas_base), ylims=ylims(canvas_base))
 plot_regions!(canvas_difference12, regions_difference12)
