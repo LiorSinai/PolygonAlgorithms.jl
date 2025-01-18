@@ -56,18 +56,6 @@ function classify_intersection(segment::Segment2D, point::Point2D; atol::Abstrac
 end
 
 """
-    line_from_segment(segment::Tuple{Point2D,Point2D})
-
-Equation of line is `ax + by = c`.
-"""
-function line_from_segment(segment::Segment2D)
-    a = segment[1][2] - segment[2][2]
-    b = segment[2][1] - segment[1][1] 
-    c = a * segment[1][1] + b * segment[1][2]
-    Line2D(a, b, c)
-end
-
-"""
     intersect_geometry(line1::Line2D, line2::Line2D; atol=1e-6)
 
 Returns the intersection point if it exists or nothing if they are parallel or coincident.

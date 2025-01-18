@@ -20,22 +20,16 @@ function Base.getindex(line::Line2D, ind::Int)
     ind == 1 ? line.a : ind == 2 ? line.b : line.c
 end
 
-function points_to_matrix(v::Vector{<:Point2D{T}}) where {T}
-    X = Matrix{T}(undef, 2, length(v))
-    for i in 1:length(v)
-        X[1, i] = v[i][1]
-        X[2, i] = v[i][2]
-    end
-    X
-end
+"""
+    line_from_segment(segment)
 
-function matrix_to_points(m::AbstractMatrix{T}) where {T}
-    N = size(m, 1)
-    points = NTuple{N,T}[]
-    for col in eachcol(m)
-        push!(points, tuple(col...))
-    end
-    points
+Equation of line is `ax + by = c`.
+"""
+function line_from_segment(segment::Segment2D)
+    a = segment[1][2] - segment[2][2]
+    b = segment[2][1] - segment[1][1] 
+    c = a * segment[1][1] + b * segment[1][2]
+    Line2D(a, b, c)
 end
 
 ### basic operations on points
@@ -50,23 +44,16 @@ translate(points::Vector{<:Point2D}, t::Point2D) = [(p[1] + t[1], p[2] + t[2]) f
 
 Rotate a set of points `θ` radians about `p0`.
 """
-function rotate(points::Vector{<:Point2D}, θ::Float64)
+function rotate(points::Vector{<:Point2D}, θ::AbstractFloat)
     s = sin(θ)
     c = cos(θ)
     [(p[1] * c - p[2] * s, p[1] * s + p[2] * c) for p in points]
 end
 
-rotate(points::Vector{<:Point2D}, θ::Float64, p0::Point2D) = 
+rotate(points::Vector{<:Point2D}, θ::AbstractFloat, p0::Point2D) = 
     translate(rotate(translate(points, (-p0[1], -p0[2])), θ), p0)
 
 x_coords(points::Polygon2D) = [p[1] for p in points]
 x_coords(points::Polygon2D, idxs::AbstractVector{Int}) = [p[1] for p in points[idxs]]
 y_coords(points::Polygon2D) = [p[2] for p in points]
 y_coords(points::Polygon2D, idxs::AbstractVector{Int}) = [p[2] for p in points[idxs]]
-
-function separate(f, v::Vector)
-    idxs = findall(f, v)
-    other_idxs = setdiff(eachindex(v), idxs)
-    (@view(v[idxs]), @view(v[other_idxs]))
-end
-  

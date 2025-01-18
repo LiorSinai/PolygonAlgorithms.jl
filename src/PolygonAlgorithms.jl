@@ -4,9 +4,10 @@ import Base: contains, insert!, iterate, merge!, push!, ==
 import Base: length, show
 
 include("definitions.jl")
+include("utils.jl")
 include("orientation.jl")
-include("linked_list.jl")
-include("point_set.jl")
+include("data_structures/linked_list.jl")
+include("data_structures/point_set.jl")
 
 include("bounds.jl")
 include("convex_hull.jl")
