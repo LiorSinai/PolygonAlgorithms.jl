@@ -1,5 +1,9 @@
 """
-    contains(vertices, point; on_border_is_inside=true; rtol=1e-4, atol=1e-6)
+    contains(vertices, point;
+        on_border_is_inside=true,
+        rtol=PolygonAlgorithms.default_rtol, 
+        atol=PolygonAlgorithms.default_atol
+    )
 
 Runs in `O(n)` time where `n=length(vertices)`.
 
@@ -11,7 +15,7 @@ intersection can be found for a skipped vertex if needed.
 """
 function contains(
     vertices::Polygon2D, point::Point2D{T}
-    ; on_border_is_inside::Bool=true, rtol::AbstractFloat=1e-4, atol::AbstractFloat=1e-6
+    ; on_border_is_inside::Bool=true, rtol::AbstractFloat=default_rtol, atol::AbstractFloat=default_atol
     ) where T
     n = length(vertices)
     num_intersections = 0
