@@ -25,14 +25,8 @@ end
 
 Determine if a point lies on the segment. 
 """
-function on_segment(q::Point2D, segment::NTuple{2, Point2D};
-    atol::AbstractFloat=1e-6, on_line::Union{Nothing, Bool}=nothing
-    )
-    Base.depwarn("`on_segment(q, segment; on_line)` is deprecated, use `on_segment(q, segment, on_line)` instead.", :on_segment)
-    p, r = segment
-    if isnothing(on_line)
-        on_line = get_orientation(p, q, r) == COLINEAR
-    end
+function on_segment(q::Point2D, segment::NTuple{2, Point2D}; atol::AbstractFloat=1e-6)
+    on_line = get_orientation(q, segment[1], segment[2]) == COLINEAR
     on_segment(q, segment, on_line; atol=atol)
 end
 
