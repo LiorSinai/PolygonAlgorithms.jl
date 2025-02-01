@@ -72,15 +72,19 @@ function isless_polar_angle(p::Point2D, q::Point2D, p0::Point2D)
     val
 end
 
-function sort_counter_clockwise(points::Vector{<:Point2D})
+function sort_counter_clockwise!(points::Vector{<:Point2D})
     middle = reduce(.+, points, init=(0.0, 0.0)) ./ length(points)
-    sort(points, lt=(p, q) -> isless_polar_angle(p, q, middle))
+    sort!(points, lt=(p, q) -> isless_polar_angle(p, q, middle))
 end
 
-function sort_clockwise(points::Vector{<:Point2D})
+sort_counter_clockwise(points::Vector{<:Point2D}) = sort_counter_clockwise!(copy(points))
+
+function sort_clockwise!(points::Vector{<:Point2D})
     middle = reduce(.+, points, init=(0.0, 0.0)) ./ length(points)
-    sort(points, lt=(p, q) -> !isless_polar_angle(p, q, middle))
+    sort!(points, lt=(p, q) -> !isless_polar_angle(p, q, middle))
 end
+
+sort_clockwise(points::Vector{<:Point2D}) = sort_clockwise!(copy(points))
 
 # orientation between two lines
 function cross_product(edge1::Segment2D, edge2::Segment2D)
