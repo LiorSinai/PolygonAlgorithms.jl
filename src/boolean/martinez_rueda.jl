@@ -680,7 +680,7 @@ end
 
 function chain_segments(
     segments::AbstractVector{SegmentEvent{T}}
-    ; atol::AbstractFloat=1e-6, check_closes::Bool=true
+    ; atol::AbstractFloat=1e-6, rtol::AbstractFloat=1e-4, check_closes::Bool=true
     ) where T
     # Note: if any of the regions intersect at a vertex, than this is not guaranteed to give consistent results
     # They might be joined into one region or presented as separate regions.
@@ -711,7 +711,7 @@ function chain_segments(
                 push!(regions, chain)
                 @debug("[chain_segment]: closed chain")
             else
-                append_candidate!(chain, candidate)
+                append_candidate!(chain, candidate; atol=atol, rtol=rtol)
                 @debug("[chain_segment]: appended chain")
             end
         elseif length(candidates) == 2 # join two chains together
@@ -720,7 +720,7 @@ function chain_segments(
             @assert cand1.match_segment_start != cand2.match_segment_start "Same point of segment $(cand1.segment) linked to two open chains"
             chain1 = chains[cand1.chain_idx]
             chain2 = chains[cand2.chain_idx]
-            append_candidate!(chain1, cand1)
+            append_candidate!(chain1, cand1; atol=atol, rtol=rtol)
             new_chain = join_chains!(chain1, chain2, cand1.match_chain_start, cand2.match_chain_start)
             chains[cand1.chain_idx] = new_chain
             @debug("[chain_segment]: combined chains")
@@ -779,10 +779,19 @@ function insert_matching_candidate!(
     end
 end
 
-function append_candidate!(chain::Vector{<:Point2D}, candidate::SegmentChainCandidate)
+function append_candidate!(chain::Vector{<:Tuple}, candidate::SegmentChainCandidate
+    ; atol::AbstractFloat=1e-6, rtol::AbstractFloat=1e-4)
     if candidate.match_chain_start
+        if length(chain) > 1 && 
+            get_orientation(candidate.other_point, chain[1], chain[2]; atol=atol, rtol=rtol) == COLINEAR
+            popfirst!(chain)
+        end
         insert!(chain, 1, candidate.other_point)
     else
+        if length(chain) > 1 && 
+            get_orientation(chain[end-1], chain[end], candidate.other_point; atol=atol, rtol=rtol) == COLINEAR
+            pop!(chain)
+        end
         push!(chain, candidate.other_point)
     end
 end
