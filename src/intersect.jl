@@ -1,9 +1,9 @@
 """
-    do_intersect(segment1, segment2; rtol=1e-4, atol=1e-6)
+    do_intersect(segment1, segment2; rtol=PolygonAlgorithms.default_rtol, atol=PolygonAlgorithms.default_atol)
 
 Determine if the segments intersect. For the intersection point, use `intersect_geometry`. 
 """
-function do_intersect(segment1::Segment2D, segment2::Segment2D; rtol::AbstractFloat=1e-4, atol::AbstractFloat=1e-6)
+function do_intersect(segment1::Segment2D, segment2::Segment2D; rtol::AbstractFloat=default_rtol, atol::AbstractFloat=default_atol)
     o1 = get_orientation(segment1[1], segment1[2], segment2[1]; rtol=rtol)
     o2 = get_orientation(segment1[1], segment1[2], segment2[2]; rtol=rtol)
     o3 = get_orientation(segment2[1], segment2[2], segment1[1]; rtol=rtol)
@@ -23,7 +23,7 @@ function do_intersect(segment1::Segment2D, segment2::Segment2D; rtol::AbstractFl
 end
     
 """
-    intersect_geometry(segment1, segment2; atol=1e-6)
+    intersect_geometry(segment1, segment2; atol=PolygonAlgorithms.default_atol)
 
 Returns the intersection point if it exists or nothing otherwise.
 Use `do_intersect` for a quicker boolean test.
@@ -44,7 +44,7 @@ where both `0≤ t ≤1` and `0≤ u ≤1`. This can be solved as a linear equat
 ```
 """
 function intersect_geometry(
-    segment1::Segment2D, segment2::Segment2D; atol::AbstractFloat=1e-6
+    segment1::Segment2D, segment2::Segment2D; atol::AbstractFloat=default_atol
     )
     A11 = segment1[2][1] - segment1[1][1]
     A12 = segment2[1][1] - segment2[2][1]
@@ -68,7 +68,7 @@ function intersect_geometry(
     end
 end
 
-function classify_intersection(segment::Segment2D, point::Point2D; atol::AbstractFloat=1e-6)
+function classify_intersection(segment::Segment2D, point::Point2D; atol::AbstractFloat=default_atol)
     # assumes point is on segment
     at_start = is_same_point(segment[1], point; atol=atol)
     at_end = is_same_point(segment[2], point; atol=atol)
@@ -77,7 +77,7 @@ function classify_intersection(segment::Segment2D, point::Point2D; atol::Abstrac
 end
 
 """
-    intersect_geometry(line1::Line2D, line2::Line2D; atol=1e-6)
+    intersect_geometry(line1::Line2D, line2::Line2D; atol=PolygonAlgorithms.default_atol)
 
 Returns the intersection point if it exists or nothing if they are parallel or coincident.
 
@@ -89,7 +89,7 @@ Intersection is then the solution of:
 |a2 b2 | | y |   | c2 |
 ```
 """
-function intersect_geometry(line1::Line2D, line2::Line2D; atol::AbstractFloat=1e-6)
+function intersect_geometry(line1::Line2D, line2::Line2D; atol::AbstractFloat=default_atol)
     a1, b1, c1 = line1.a, line1.b, line1.c
     a2, b2, c2 = line2.a, line2.b, line2.c
     determinant = a1 * b2 - a2 * b1
@@ -102,7 +102,7 @@ function intersect_geometry(line1::Line2D, line2::Line2D; atol::AbstractFloat=1e
 end
 
 """
-    intersect_edges(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D})
+    intersect_edges(polygon1, polygon2; atol=PolygonAlgorithms.default_atol)
 
 Find all points which lie on the intersection of the edges of the vertices given by `polygon1` and `polygon2`.
 
@@ -110,7 +110,7 @@ Time complexity is `O(nm)` where `n` and `m` are the number of vertices of polyg
 """
 function intersect_edges(
     polygon1::Polygon2D{T}, polygon2::Polygon2D{T}
-    ; atol::AbstractFloat=1e-6
+    ; atol::AbstractFloat=default_atol
     ) where T
     points = Point2D{T}[]
     n = length(polygon1)
