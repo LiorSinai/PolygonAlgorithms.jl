@@ -224,14 +224,15 @@ end
     points = intersect_convex(poly2, poly1, alg)
     @test PointSet(points) == PointSet(expected)
 
-    # shared point
+    # extra shared point on line
     poly1 = [
         (5.0, 8.0), (9.0, 4.0), (5.0, 4.0), (1.0, 4.0),
     ]
     poly2 = [
         (5.0, 1.0), (1.0, 4.0), (5.0, 4.0), (9.0, 4.0)
     ]
-    expected = [(1.0, 4.0), (5.0, 4.0), (9.0, 4.0), (5.0, 4.0),]
+    expected = (typeof(alg) == PolygonAlgorithms.MartinezRuedaAlg) ?
+        [(1.0, 4.0), (9.0, 4.0)] : [(1.0, 4.0), (5.0, 4.0), (9.0, 4.0), (5.0, 4.0),]
     points = intersect_convex(poly1, poly2, alg)
     @test PointSet(points) == PointSet(expected)
     points = intersect_convex(poly2, poly1, alg)
