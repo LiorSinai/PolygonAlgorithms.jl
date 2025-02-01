@@ -201,6 +201,5 @@ function intersect_convex(
     end
 
     points = vcat(intersection_points, p1_in_2, p2_in_1)
-    points = sort_counter_clockwise(points)
-    points
+    sort_counter_clockwise!(points)
 end
