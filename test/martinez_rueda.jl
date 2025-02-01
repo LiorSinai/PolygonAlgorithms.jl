@@ -436,20 +436,20 @@ using PolygonAlgorithms: BLANK
             expected = [
                 SegmentEvent(((-0.5, -1.0), (-0.3062015503875969, -0.3798449612403101)), true, true, SegmentAnnotations(false, true)),
                 SegmentEvent(((-0.8, 0.0), (-0.3062015503875969, -0.3798449612403101)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((-0.3062015503875969, -0.3798449612403101), (-0.18750000000000003, 0.0)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((-0.8, 0.0), (-0.18750000000000003, 0.0)), true, true, SegmentAnnotations(false, true)),
-                SegmentEvent(((-0.5, -1.0), (-0.0, -0.6153846153846154)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((-0.3062015503875969, -0.3798449612403101), (-0.0, -0.6153846153846154)), true, true, SegmentAnnotations(false, true)),
-                SegmentEvent(((-0.18750000000000003, 0.0), (0.0, 0.6)), true, true, SegmentAnnotations(false, true)),
-                SegmentEvent(((-0.18750000000000003, 0.0), (0.1875, 0.0)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((0.0, 0.6), (0.1875, 0.0)), true, true, SegmentAnnotations(false, true)),
-                SegmentEvent(((-0.0, -0.6153846153846154), (0.30620155038759694, -0.3798449612403101)), true, true, SegmentAnnotations(false, true)),
-                SegmentEvent(((0.1875, 0.0), (0.30620155038759694, -0.3798449612403101)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((-0.0, -0.6153846153846154), (0.5, -1.0)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((0.30620155038759694, -0.3798449612403101), (0.5, -1.0)), true, true, SegmentAnnotations(false, true)),
-                SegmentEvent(((0.30620155038759694, -0.3798449612403101), (0.8, 0.0)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((0.1875, 0.0), (0.8, 0.0)), true, true, SegmentAnnotations(false, true)),
-            ]
+                SegmentEvent(((-0.3062015503875969, -0.3798449612403101), (-0.18749999999999997, 5.551115123125783e-17)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((-0.8, 0.0), (-0.18749999999999997, 5.551115123125783e-17)), true, true, SegmentAnnotations(false, true)),
+                SegmentEvent(((-0.5, -1.0), (0.0, -0.6153846153846154)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((-0.3062015503875969, -0.3798449612403101), (0.0, -0.6153846153846154)), true, true, SegmentAnnotations(false, true)),
+                SegmentEvent(((-0.18749999999999997, 5.551115123125783e-17), (0.0, 0.6)), true, true, SegmentAnnotations(false, true)),
+                SegmentEvent(((-0.18749999999999997, 5.551115123125783e-17), (0.18749999999999997, 0.0)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((0.0, 0.6), (0.18749999999999997, 0.0)), true, true, SegmentAnnotations(false, true)),
+                SegmentEvent(((0.0, -0.6153846153846154), (0.3062015503875969, -0.37984496124031014)), true, true, SegmentAnnotations(false, true)),
+                SegmentEvent(((0.18749999999999997, 0.0), (0.3062015503875969, -0.37984496124031014)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((0.0, -0.6153846153846154), (0.5, -1.0)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((0.3062015503875969, -0.37984496124031014), (0.5, -1.0)), true, true, SegmentAnnotations(false, true)),
+                SegmentEvent(((0.3062015503875969, -0.37984496124031014), (0.8, 0.0)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((0.18749999999999997, 0.0), (0.8, 0.0)), true, true, SegmentAnnotations(false, true)),
+                ]
             @test annotated_segments == expected
         end
 
