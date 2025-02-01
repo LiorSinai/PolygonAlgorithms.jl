@@ -1,5 +1,5 @@
 """
-    contains(vertices, point; on_border_is_inside=true; rtol=1e-10)
+    contains(vertices, point; on_border_is_inside=true; rtol=1e-4, atol=1e-6)
 
 Runs in `O(n)` time where `n=length(vertices)`.
 
@@ -8,16 +8,17 @@ It is based on "A Simple and Correct Even-Odd Algorithm for the Point-in-Polygon
 by Michael Galetzka and Patrick Glauner (2017). 
 It skips vertices that are on the ray. To compensate, the ray is projected backwards (to the left) so that an 
 intersection can be found for a skipped vertex if needed.
-
-`rtol` should be small because of the extreme points used in the algorithm.
 """
-function contains(vertices::Polygon2D, point::Point2D{T}; on_border_is_inside::Bool=true, rtol::AbstractFloat=1e-10) where T
+function contains(
+    vertices::Polygon2D, point::Point2D{T}
+    ; on_border_is_inside::Bool=true, rtol::AbstractFloat=1e-4, atol::AbstractFloat=1e-6
+    ) where T
     n = length(vertices)
     num_intersections = 0
 
     x = x_coords(vertices)
-    extreme_left =  (minimum(x) - T(1e3), point[2])
-    extreme_right = (maximum(x) + T(1e3), point[2])
+    extreme_left =  (minimum(x) - one(T), point[2])
+    extreme_right = (maximum(x) + one(T), point[2])
 
     # step 1: point intersects a vertex or edge
     for i in 1:n
@@ -43,8 +44,8 @@ function contains(vertices::Polygon2D, point::Point2D{T}; on_border_is_inside::B
         skipped_right = false
         for i in 0:n
             next_s = (next_s) % n + 1
-            if (vertices[next_s][2] != point[2]) && 
-                (vertices[s] != vertices[next_s]) # TODO tolerance
+            if abs(vertices[next_s][2] - point[2]) > atol && 
+                !is_same_point(vertices[s], vertices[next_s]; atol=atol)
                 break
             end
             skipped_right = skipped_right || (vertices[next_s][1] > point[1])
