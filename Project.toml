@@ -1,7 +1,7 @@
 name = "PolygonAlgorithms"
 uuid = "32a0d02f-32d9-4438-b5ed-3a2932b48f96"
 authors = ["Lior Sinai <sinailior@gmail.com>"]
-version = "0.3.4"
+version = "0.4.0"
 
 [compat]
 julia = "1.2"
