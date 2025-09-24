@@ -97,7 +97,7 @@ function intersect_geometry(
 end
 
 """
-    difference_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=WeilerAthertonAlg())
+    difference_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=MartinezRuedaAlg())
 
 General case of polygon difference: points in `polygon1` that are not in `polygon2`.
 
@@ -111,7 +111,7 @@ function difference_geometry(
 end
 
 """
-    union_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=WeilerAthertonAlg())
+    union_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=MartinezRuedaAlg())
 
 General case of polygon union: in both polygons. 
 Possibly returns holes but does not classify them as holes.
@@ -126,7 +126,7 @@ function union_geometry(
 end
 
 """
-    xor_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=WeilerAthertonAlg())
+    xor_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=MartinezRuedaAlg())
 
 General case of polygon xor: in one polygon or the other but not both.
 Possibly returns holes but does not classify them as holes.
