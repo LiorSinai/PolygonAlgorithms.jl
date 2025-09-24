@@ -33,7 +33,7 @@ function classify_holes(regions::Vector{<:Vector{<:Tuple}})
 end
 
 function fully_contains(polygon1::Vector{<:Tuple{T, T}}, polygon2::Vector{<:Tuple{T, T}}) where T <: AbstractFloat
-   all(contains(polygon1, point) for point in polygon2) 
+   all(contains(polygon1, point; rtol=1e-8) for point in polygon2) 
 end
 
 θs = 0.0:0.01:6π

@@ -5,7 +5,7 @@ struct GiftWrappingAlg <: ConvexHullAlgorithm end
 struct GrahamScanAlg   <: ConvexHullAlgorithm end
 
 """
-    convex_hull(points, alg=GiftWrappingAlg())
+    convex_hull(points, alg=GiftWrappingAlg(); rtol=PolygonAlgorithms.default_rtol)
 
 Determine the indices of the convex hull for a set of points.
 
@@ -17,7 +17,7 @@ For  `n` input vertices and `h` resultant vertices on the convex hull:
 """
 convex_hull(points::Polygon2D; options...) = convex_hull(points, GiftWrappingAlg(); options...)
 
-function convex_hull(points::Polygon2D, ::GiftWrappingAlg; rtol::AbstractFloat=1e-4)
+function convex_hull(points::Polygon2D, ::GiftWrappingAlg; rtol::AbstractFloat=default_rtol)
     # https://www.geeksforgeeks.org/convex-hull-using-jarvis-algorithm-or-wrapping/    
     topleft = left_topmost(points)
     hull_idxs = Int[]
@@ -68,7 +68,7 @@ function left_topmost(points::Polygon2D)
     idx
 end
 
-function convex_hull(points::Polygon2D, ::GrahamScanAlg; rtol::AbstractFloat=1e-4)
+function convex_hull(points::Polygon2D, ::GrahamScanAlg; rtol::AbstractFloat=default_rtol)
     # https://www.geeksforgeeks.org/convex-hull-using-graham-scan/
     idx = bottom_leftmost(points)
     p0 = points[idx]

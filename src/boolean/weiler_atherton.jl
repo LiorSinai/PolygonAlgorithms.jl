@@ -1,5 +1,5 @@
 """
-    weiler_atherton_algorithm(polygon1, polygon2; atol=1e-6)
+    weiler_atherton_algorithm(polygon1, polygon2; atol=PolygonAlgorithms.default_atol)
 
 The Weiler-Atherton polygon clipping algorithm.
 Returns regions, edges and single points of intersection. 
@@ -21,7 +21,7 @@ For a more general algorithm see the Martinez-Rueda polygon clipping algorithm.
 """
 function weiler_atherton_algorithm(
     polygon1::Polygon2D{T}, polygon2::Polygon2D{T}
-    ; atol::AbstractFloat=1e-6
+    ; atol::AbstractFloat=default_atol
     ) where T
     if polygon1 == polygon2
         return [polygon1]
@@ -86,7 +86,7 @@ end
 function find_and_insert_intersections!(
         polygon1::DoublyLinkedList{PointEvent{T}}, 
         polygon2::DoublyLinkedList{PointEvent{T}};
-        atol::AbstractFloat=1e-6
+        atol::AbstractFloat=default_atol
         ) where T
     ## collect original nodes before mutating in place
     vec1 = collect_nodes(polygon1)
@@ -108,7 +108,7 @@ end
 
 function insert_intersection_in_order!(
     point::Point2D, tail::Node{<:PointEvent}, head::Node{<:PointEvent}
-    ; atol::AbstractFloat=1e-6
+    ; atol::AbstractFloat=default_atol
     )
     node = tail
     while node != head.next
@@ -134,7 +134,7 @@ function link_intersections!(
         inter2::Node{<:PointEvent}, 
         edge1::Segment2D, 
         edge2::Segment2D; 
-        atol::AbstractFloat=1e-6
+        atol::AbstractFloat=default_atol
     )
     point = inter1.data.point
     on_edge1 = (is_same_point(point, edge1[1]; atol=atol) || is_same_point(point, edge1[2]; atol=atol))

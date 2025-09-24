@@ -1,4 +1,4 @@
-using PolygonAlgorithms: PointSet
+using PolygonAlgorithms: PointSet, translate
 
 @testset "edge intersections" begin
 
@@ -56,6 +56,25 @@ end;
 
     @test do_intersect(seg1, seg2)
     @test all(intersect_geometry(seg1, seg2) .≈ (0.4, 0.25))
+end
+
+@testset "intersect segments almost" begin
+    # these don't intersect, but because of error tolerances they look like they do
+    seg1 = ((0.2182133588430426, 0.42855583950407183), (0.6180465602541201, 0.8984103075263743))
+    seg2 = ((0.830526104459048, 0.7943013174345828), (0.08723085309732159, 0.35031746510063355))
+    @test do_intersect(seg1, seg2)
+    @test all(intersect_geometry(seg1, seg2) .≈ (0.21821313839369444, 0.42855558044826847))
+
+    # these give conflicting answers (they don't intersect)
+    seg1 = ((0.950520984763203, 0.9955447269810986), (0.8147603032908444, 0.0733985670511772))
+    seg2 = ((0.9238819633881898, 0.8146036454030574), (0.7570281114911228, 0.8580955127719763))
+    @test !do_intersect(seg1, seg2; rtol=1e-7) # fails with bigger rtol
+    @test isnothing(intersect_geometry(seg1, seg2))
+
+    seg1 = ((0.4856517528012627, 0.8793324264376292), (0.5066211310466722, 0.03827488541514157))
+    seg2 = ((0.6514230424916896, 0.8877275468529608), (0.5042397387902877, 0.13379459881948708))
+    @test !do_intersect(seg1, seg2; rtol=1e-6) # fails with bigger rtol
+    @test isnothing(intersect_geometry(seg1, seg2))
 end
 
 @testset "intersect rectangles" begin
