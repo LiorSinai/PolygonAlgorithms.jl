@@ -330,13 +330,16 @@ end
 
 !!!!! Critical function. May be source of errors that only emerge later.
 
-Return `true` if `event` is above `other`.
+Return `true` if `event` is strictly above `other`.
 
-A segment is considered above another if its start point is above the projection of the other segment.
-For symmetry, always project right most segment's start point on to the line 
-through the other segment and compare y values.
-- If `event` is to the right of `other`, its start point must be above the projection of `other`.
-- If `event` is to the left of `other`, `other` start point must be below the projection of `event`.
+A segment is considered above another if:
+    1. It is to the left of the other segment.
+    2. And the start point of the other segment is orientated clockwise from it.
+    3. Or the segment is a vertical line and the end point in the other segment is lower than its top.
+Or symmetrically:
+    1. It is to the right of the other segment.
+    2. And its start point segment is orientated counter-clockwise from the other segment.
+    3. Or the other segment is a vertical line and the end point of this segment is higher than that top.
 
 Assumes segments always go left to right.
 """
@@ -346,14 +349,24 @@ function is_above(
     ) # statusCompare
     seg1 = ev.segment
     seg2 = other.segment
-    ori_start = get_orientation(seg1[1], seg2[1], seg1[2]; rtol=rtol)
-    if ori_start == COLINEAR
-        return !is_above_or_on(seg2[2], seg1)
-    end
-    if (seg2[1][1] < seg1[1][1])
-        is_above_or_on(seg1[1], seg2; atol=atol)
+    if (seg1[1][1] <= seg2[1][1])
+        if abs(seg1[2][1] - seg1[1][1]) <= atol # vertical segment
+            return seg2[2][2] < max(seg1[1][2], seg1[2][2]) # true if seg2 below seg1
+        end
+        orient = get_orientation(seg1[1], seg1[2], seg2[1]; rtol=rtol, atol=atol)
+        if orient == COLINEAR
+            orient = get_orientation(seg1[1], seg1[2], seg2[2]; rtol=rtol, atol=atol)
+        end
+        return orient == CLOCKWISE
     else
-        !is_above_or_on(seg2[1], seg1; atol=atol)
+        if abs(seg2[2][1] - seg2[1][1]) <= atol # vertical segment
+            return seg1[2][2] > max(seg2[1][2], seg2[2][2]) # true if seg1 above seg2
+        end
+        orient = get_orientation(seg2[1], seg2[2], seg1[1]; rtol=rtol, atol=atol)
+        if orient == COLINEAR
+            orient = get_orientation(seg2[1], seg2[2], seg1[2]; rtol=rtol, atol=atol)
+        end
+        return orient == COUNTER_CLOCKWISE
     end
 end
 

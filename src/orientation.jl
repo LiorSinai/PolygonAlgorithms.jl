@@ -140,11 +140,10 @@ In the special case of a vertical segment (`x₂=x₁`), this compares `y` value
 yp ≥ max(y₂, y₁)
 ```
 """
-function is_above_or_on(point::Point2D, segment::Segment2D; atol::AbstractFloat=1e-6)
+function is_above_or_on(point::Point2D, segment::Segment2D; atol::AbstractFloat=1e-6, rtol::AbstractFloat=1e-4)
     if abs(segment[2][1] - segment[1][1]) <= atol # vertical segment
         return point[2] >= max(segment[1][2], segment[2][2])
     end
-    cmp = (point[2] - segment[1][2]) * (segment[2][1] - segment[1][1]) - 
-          (segment[2][2] - segment[1][2]) * (point[1] - segment[1][1])
-    cmp >= 0.0
+    cmp = get_orientation(segment[1], segment[2], point; atol=atol, rtol=rtol)
+    cmp != CLOCKWISE # is counter-clockwise or co-linear
 end
