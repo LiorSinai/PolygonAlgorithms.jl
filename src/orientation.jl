@@ -131,6 +131,7 @@ yp ≥ (y₂-y₁)/(x₂-x₁) * (xp-x₁) + y₁
 Note: it is possible that `yp>y₁` but the result is `false`. 
 For example, a point far to the left of `segment` where `segment` has a negative slope:
 ```
+  \\
  ̇  \\
 ```
 

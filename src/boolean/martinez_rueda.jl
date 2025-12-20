@@ -323,14 +323,27 @@ function find_transition(
     searchsortedfirst(list, event; lt=(x, y) -> is_above(x, y; atol=atol, rtol=rtol))
 end
 
+
+"""
+    is_above(event, other, [atol, rtol])
+
+
+!!!!! Critical function. May be source of errors that only emerge later.
+
+Return `true` if `event` is above `other`.
+
+A segment is considered above another if its start point is above the projection of the other segment.
+For symmetry, always project right most segment's start point on to the line 
+through the other segment and compare y values.
+- If `event` is to the right of `other`, its start point must be above the projection of `other`.
+- If `event` is to the left of `other`, `other` start point must be below the projection of `event`.
+
+Assumes segments always go left to right.
+"""
 function is_above(
     ev::SegmentEvent, other::SegmentEvent
     ; atol::AbstractFloat=1e-6, rtol::AbstractFloat=1e-4
     ) # statusCompare
-    # !!!!! Critical function. May be source of errors that only emerge later.
-    # Assumes segments always go left to right.
-    # For symmetry, always project right most segment's start point on to the line 
-    # through the other segment and compare y values.
     seg1 = ev.segment
     seg2 = other.segment
     ori_start = get_orientation(seg1[1], seg2[1], seg1[2]; rtol=rtol)
