@@ -1,8 +1,9 @@
 using PolygonAlgorithms: translate, PointSet
+using PolygonAlgorithms: WeilerAthertonAlg, MartinezRuedaAlg
 
-@testset "intersect-concave $alg" for alg in [
-    PolygonAlgorithms.WeilerAthertonAlg(),
-    PolygonAlgorithms.MartinezRuedaAlg(),
+@testset "intersections concave - $alg" for alg in [
+    WeilerAthertonAlg(),
+    MartinezRuedaAlg(),
 ]
 
 @testset "rectangle jagged" begin 
@@ -165,8 +166,12 @@ end
 
 end
 
-@testset "intersect-concave only PolygonAlgorithms.WeilerAthertonAlg()" begin
-alg = PolygonAlgorithms.WeilerAthertonAlg()
+@testset "intersections concave - only WeilerAthertonAlg()" begin
+#=
+    The other algorithms can handle these cases, but may give slightly different results.
+    E.g. exclude line/point intersections.
+=#
+alg = WeilerAthertonAlg()
 
 @testset "concave outer share portion" begin 
     poly1 = [
@@ -358,8 +363,11 @@ end
 
 end
 
-@testset "intersect-concave only PolygonAlgorithms.MartinezRuedaAlg()" begin
-alg = PolygonAlgorithms.MartinezRuedaAlg()
+@testset "intersections concave - only MartinezRuedaAlg()" begin
+#=
+    Only the MartinezRuedaAlg can handle self intersecting polygons.
+=#
+alg = MartinezRuedaAlg()
 
 @testset "self-intersect rectangle" begin
     self_intersect = [
