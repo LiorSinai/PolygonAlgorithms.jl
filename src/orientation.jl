@@ -128,11 +128,9 @@ In the general case, checks if the point `(xp, yp)` is above or on the line thro
 yp ≥ (y₂-y₁)/(x₂-x₁) * (xp-x₁) + y₁
 ```
 
-Note: it is possible that `yp>y₁` but the result is `false`. 
-For example, a point far to the left of `segment` where `segment` has a negative slope:
+This is equivalent to checking if the three points `((x₁, y₁), (x₂, y₂), (xp, yp))` are orientated counter-clockwise or are co-linear:
 ```
-  \\
- ̇  \\
+0  ≥ (y₂-y₁) * (xp-x₁) - (yp-y₁) * (x₂-x₁)
 ```
 
 In the special case of a vertical segment (`x₂=x₁`), this compares `y` values:
