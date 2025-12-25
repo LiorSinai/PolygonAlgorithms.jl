@@ -637,6 +637,8 @@ Table
 16. Yes     Yes    Yes    Yes
 =#
 
+# For the 16 rows, indicate if (1) in the output shape (non-blank) and (2) which side is filled in that output shape
+
 INTERSECTION_CRITERIA = [
     BLANK, BLANK, BLANK, BLANK,
     BLANK, BELOW, EMPTY, BELOW,
@@ -645,7 +647,7 @@ INTERSECTION_CRITERIA = [
 ] # both below, both above, but not all 4
 
 INTERSECTION_SEGMENT_CRITERIA = [
-    BLANK, BLANK, ABOVE, BLANK,
+    BLANK, BLANK, BLANK, BLANK,
     BLANK, BLANK, EMPTY, BLANK,
     BLANK, EMPTY, BLANK, BLANK,
     BLANK, BLANK, BLANK, BLANK,
@@ -656,21 +658,21 @@ UNION_CRITERIA = [
     BELOW, BELOW, BLANK, BLANK,
     ABOVE, BLANK, ABOVE, BLANK,
     BLANK, BLANK, BLANK, BLANK,
-] # filled at once or twice on only 1 side
+] # filled only above/only below. (above1 | above2) ⊻ (below1 | below2)
 
 DIFFERENCE_CRITERIA = [
     BLANK, BLANK, BLANK, BLANK,
     BELOW, BLANK, BELOW, BLANK,
     ABOVE, ABOVE, BLANK, BLANK,
     BLANK, ABOVE, BELOW, BLANK,
-] # primary - secondary. 
+] # primary - secondary. (above1 && !above2) ⊻  (below1 && !below2)
 
 XOR_CRITERIA = [
     BLANK, BELOW, ABOVE, BLANK,
     BELOW, BLANK, BLANK, ABOVE,
     ABOVE, BLANK, BLANK, BELOW,
     BLANK, ABOVE, BELOW, BLANK,
-]
+] # (above1 ⊻ above2) ⊻ (below1 ⊻ below2)
 
 function apply_selection_criteria(annotated_segments::Vector{<:SegmentEvent{T}}, criteria::Vector{AnnotationFill}) where T
     result = SegmentEvent{T}[]

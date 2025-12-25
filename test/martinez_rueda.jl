@@ -3,6 +3,7 @@ using PolygonAlgorithms: SegmentEvent, SegmentAnnotations
 using PolygonAlgorithms: add_annotated_segment!, compare_events, convert_to_event_queue
 using PolygonAlgorithms: check_and_divide_intersection!, event_loop!, find_transition
 using PolygonAlgorithms: chain_segments
+using PolygonAlgorithms: BLANK
 
 @testset "Martinez-Rueda algorithm" verbose=true begin
 
@@ -527,6 +528,54 @@ using PolygonAlgorithms: chain_segments
                 SegmentEvent(((-1.0, 3.0), (12.0, 3.0)), true, false, SegmentAnnotations(false, true), SegmentAnnotations(false, false)),
             ]
             @test annotated_segments == expected
+        end
+    end
+
+    @testset "selection criteria" begin
+        function check_selection_criteria(calc_criteria, criteria::Vector)
+            for idx in 0:15
+                above1 = idx > 7
+                below1 = (idx % 8) > 3
+                above2 = (idx % 4) > 1
+                below2 = (idx % 2) > 0
+                expect_filled = calc_criteria(above1, below1, above2, below2)
+                #println(idx + 1, " $above1 $below1 $above2 $below2 - ", expect_filled)
+                @assert expect_filled ? criteria[idx + 1] != BLANK : criteria[idx + 1] == BLANK
+            end
+            true
+        end
+
+        @testset "intersection" begin
+            function is_intersect(above1, below1, above2, below2)
+                is_intersect = ((above1 & above2) | (below1 & below2))
+                is_intersect_segments = (above1 & below2) | (below1 & above2)
+                (is_intersect || is_intersect_segments) & !(above1 & above2 & below1 & below2)
+            end
+
+            @test check_selection_criteria(
+                is_intersect,
+                PolygonAlgorithms.INTERSECTION_CRITERIA
+            )
+        end
+        @testset "union" begin
+            @test check_selection_criteria(
+                (above1, below1, above2, below2) -> (above1 | above2) ⊻ (below1 | below2),
+                PolygonAlgorithms.UNION_CRITERIA
+            )
+        end
+
+        @testset "difference" begin
+            @test check_selection_criteria(
+                (above1, below1, above2, below2) -> (above1 & !above2) ⊻ (below1 & !below2),
+                PolygonAlgorithms.DIFFERENCE_CRITERIA
+            )
+        end
+
+        @testset "xor" begin
+            @test check_selection_criteria(
+                (above1, below1, above2, below2) -> (above1 ⊻ above2)  ⊻ (below1 ⊻ below2),
+                PolygonAlgorithms.XOR_CRITERIA
+            )
         end
     end
 
