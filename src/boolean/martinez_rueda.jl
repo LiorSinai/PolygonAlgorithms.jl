@@ -72,8 +72,7 @@ end
 
 """
     martinez_rueda_algorithm(polygon1, polygon2, selection_criteria;
-        atol=PolygonAlgorithms.default_atol,
-        rtol=PolygonAlgorithms.default_rtol
+        atol=default_atol, rtol=default_rtol
     )
 
 The Martínez-Rueda-Feito polygon clipping algorithm.
@@ -209,7 +208,7 @@ function add_annotated_segment!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent)
 end
 
 """
-    _compare_points(pt1, pt2; atol=PolygonAlgorithms.default_atol)
+    _compare_points(pt1, pt2; atol=default_atol)
 Return:
 - -1 if pt1 is smaller
 - 0 if the same

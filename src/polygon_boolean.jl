@@ -140,7 +140,7 @@ end
 
 #### Convex
 """
-    intersect_convex(polygon1, polygon2, alg=ChasingEdgesAlg(); atol=PolygonAlgorithms.default_atol)
+    intersect_convex(polygon1, polygon2, alg=ChasingEdgesAlg(); atol=default_atol)
 
 Find the intersection points of convex polygons `polygon1` and `polygon2`.
 They are not guaranteed to be unique.
