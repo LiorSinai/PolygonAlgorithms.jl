@@ -5,7 +5,7 @@ struct GiftWrappingAlg <: ConvexHullAlgorithm end
 struct GrahamScanAlg   <: ConvexHullAlgorithm end
 
 """
-    convex_hull(points, alg=GiftWrappingAlg(); rtol=PolygonAlgorithms.default_rtol)
+    convex_hull(points, alg=GiftWrappingAlg(); rtol=default_rtol)
 
 Determine the indices of the convex hull for a set of points.
 

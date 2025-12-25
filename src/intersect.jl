@@ -1,5 +1,5 @@
 """
-    do_intersect(segment1, segment2; rtol=PolygonAlgorithms.default_rtol, atol=PolygonAlgorithms.default_atol)
+    do_intersect(segment1, segment2; rtol=default_rtol, atol=default_atol)
 
 Determine if the segments intersect. For the intersection point, use `intersect_geometry`. 
 """
@@ -23,7 +23,7 @@ function do_intersect(segment1::Segment2D, segment2::Segment2D; rtol::AbstractFl
 end
     
 """
-    intersect_geometry(segment1, segment2; atol=PolygonAlgorithms.default_atol)
+    intersect_geometry(segment1, segment2; atol=default_atol)
 
 Returns the intersection point if it exists or nothing otherwise.
 Use `do_intersect` for a quicker boolean test.
@@ -77,7 +77,7 @@ function classify_intersection(segment::Segment2D, point::Point2D; atol::Abstrac
 end
 
 """
-    intersect_geometry(line1::Line2D, line2::Line2D; atol=PolygonAlgorithms.default_atol)
+    intersect_geometry(line1::Line2D, line2::Line2D; atol=default_atol)
 
 Returns the intersection point if it exists or nothing if they are parallel or coincident.
 
@@ -102,7 +102,7 @@ function intersect_geometry(line1::Line2D, line2::Line2D; atol::AbstractFloat=de
 end
 
 """
-    intersect_edges(polygon1, polygon2; atol=PolygonAlgorithms.default_atol)
+    intersect_edges(polygon1, polygon2; atol=default_atol)
 
 Find all points which lie on the intersection of the edges of the vertices given by `polygon1` and `polygon2`.
 

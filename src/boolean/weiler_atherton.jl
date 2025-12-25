@@ -1,5 +1,5 @@
 """
-    weiler_atherton_algorithm(polygon1, polygon2; atol=PolygonAlgorithms.default_atol)
+    weiler_atherton_algorithm(polygon1, polygon2; atol=default_atol)
 
 The Weiler-Atherton polygon clipping algorithm.
 Returns regions, edges and single points of intersection. 

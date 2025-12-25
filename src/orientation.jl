@@ -1,10 +1,7 @@
 @enum Orientation COLINEAR=0 CLOCKWISE=1 COUNTER_CLOCKWISE=2
 
 """
-    get_orientation(p, q, r;
-        rtol=PolygonAlgorithms.default_rtol,
-        atol=PolygonAlgorithms.default_atol
-    )
+    get_orientation(p, q, r; rtol=default_rtol, atol=default_atol)
 
 Determine orientation of three points. 
 
@@ -28,9 +25,7 @@ function get_orientation(p::Point2D, q::Point2D, r::Point2D; rtol::AbstractFloat
 end
 
 """
-    on_segment(point, segment, [on_line];
-        atol=PolygonAlgorithms.default_atol
-    )
+    on_segment(point, segment, [on_line]; atol=default_atol)
 
 Determine if a point lies on the segment. 
 """
@@ -121,7 +116,7 @@ function in_half_plane(edge::Segment2D, x::Point2D, is_counter_clockwise::Bool=t
 end
 
 """
-    is_above_or_on(point, segment; atol=PolygonAlgorithms.default_atol)
+    is_above_or_on(point, segment; atol=default_atol)
 
 Is `point` above or on `segment`?
 

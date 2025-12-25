@@ -1,8 +1,8 @@
 """
     contains(vertices, point;
         on_border_is_inside=true,
-        rtol=PolygonAlgorithms.default_rtol, 
-        atol=PolygonAlgorithms.default_atol
+        rtol=default_rtol, 
+        atol=default_atol
     )
 
 Runs in `O(n)` time where `n=length(vertices)`.
