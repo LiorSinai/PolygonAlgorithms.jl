@@ -106,11 +106,10 @@ For all of the the following `n` and `m` are the number of vertices of the polyg
 
 ## Installation
 
-Download the GitHub repository (it is not registered). Then in the Julia REPL:
+In the Julia REPL:
 ```
 julia> ] #enter package mode
-(@v1.x) pkg> dev path\\to\\PolygonAlgorithms
-julia> using Revise # allows dynamic edits to code
+(@v1.x) pkg> add PolygonAlgorithms
 julia> using PolygonAlgorithms
 ```
 
