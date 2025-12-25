@@ -547,9 +547,9 @@ using PolygonAlgorithms: BLANK
 
         @testset "intersection" begin
             function is_intersect(above1, below1, above2, below2)
-                is_intersect = ((above1 & above2) | (below1 & below2))
-                is_intersect_segments = (above1 & below2) | (below1 & above2)
-                (is_intersect || is_intersect_segments) & !(above1 & above2 & below1 & below2)
+                is_intersect = ((above1 & above2) ⊻ (below1 & below2))
+                is_intersect_segments = (above1 & below2) ⊻ (below1 & above2)
+                (is_intersect || is_intersect_segments)
             end
 
             @test check_selection_criteria(
@@ -573,7 +573,7 @@ using PolygonAlgorithms: BLANK
 
         @testset "xor" begin
             @test check_selection_criteria(
-                (above1, below1, above2, below2) -> (above1 ⊻ above2)  ⊻ (below1 ⊻ below2),
+                (above1, below1, above2, below2) -> (above1 ⊻ above2) ⊻ (below1 ⊻ below2),
                 PolygonAlgorithms.XOR_CRITERIA
             )
         end
