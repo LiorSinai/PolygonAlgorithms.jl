@@ -73,21 +73,19 @@ end
 """
     martinez_rueda_algorithm(polygon1, polygon2, selection_criteria)
 
-The Martinez-Rueda-Feito polygon clipping algorithm.
+The Martínez-Rueda-Feito polygon clipping algorithm.
 Returns regions and edges of intersection.
 It runs in `O((n+m+k)log(n+m))` time where `n` and `m` are the number of vertices of `polygon1` 
-and `polygon2` respectively.
+and `polygon2` respectively and `k` is the total number of intersections between all segments.
 Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
 
 Description:
-Operates at a segment level and is an extension of the Bentley-Ottman line intersection algorithm.
+- Operates at a segment level and is an extension of the Bentley-Ottman line intersection algorithm.
 Segments are scanned from left to right, bottom to top. 
-The key assumption is that intersections are only found between the segments above and
-below the current segment.
-(This makes the algorithm fast but also sensitive to determining these segments correctly.)
-In addition, the below segment is used to determine the fill annotations for the current segment 
-(or empty space if nothing is below it.)
-Once the annotations are done, it is trivial to pick out segments that match the given criteria.
+- The key assumption is that only the segments immediately above and below the current segment need to be inspected for intersections.
+This makes the algorithm fast but also sensitive to determining these segments correctly.
+- The segment that is immediately below (or empty space) is used to determine the fill annotations for the current segment.
+- Once all annotations are done, the desired segments can be selected that match a given criteria.
 
 Limitations
 1. It can fail for improper polygons: polygons with lines sticking out.
@@ -295,7 +293,8 @@ function event_loop!(
         else # event is ending, so remove it from the status
             idx = find_transition(sweep_status, head.other; atol=atol, rtol=rtol)
             if !(0 < idx <= length(sweep_status) && sweep_status[idx] === head.other)
-                @warn "Falling back to linear search through the sweep status. This might result in incorrect annotations and hence open chains."
+                @warn "$head was not in the expected location in the sweep status. " * 
+                    "Falling back to linear search. This might result in incorrect annotations and hence open chains."
                 idx = findfirst(x -> x === head.other, sweep_status)
                 @assert(
                     !isnothing(idx),
@@ -323,24 +322,50 @@ function find_transition(
     searchsortedfirst(list, event; lt=(x, y) -> is_above(x, y; atol=atol, rtol=rtol))
 end
 
+
+"""
+    is_above(event, other, [atol, rtol])
+
+
+!!!!! Critical function. May be source of errors that only emerge later.
+
+Return `true` if `event` is strictly above `other`.
+
+A segment is considered above another if:
+    1. It is to the left of the other segment.
+    2. And the start point of the other segment is orientated clockwise from it.
+    3. Or the segment is a vertical line and the end point in the other segment is lower than its top.
+Or symmetrically:
+    1. It is to the right of the other segment.
+    2. And its start point segment is orientated counter-clockwise from the other segment.
+    3. Or the other segment is a vertical line and the end point of this segment is higher than that top.
+
+Assumes segments always go left to right.
+"""
 function is_above(
     ev::SegmentEvent, other::SegmentEvent
     ; atol::AbstractFloat=1e-6, rtol::AbstractFloat=1e-4
     ) # statusCompare
-    # !!!!! Critical function. May be source of errors that only emerge later.
-    # Assumes segments always go left to right.
-    # For symmetry, always project right most segment's start point on to the line 
-    # through the other segment and compare y values.
     seg1 = ev.segment
     seg2 = other.segment
-    ori_start = get_orientation(seg1[1], seg2[1], seg1[2]; rtol=rtol)
-    if ori_start == COLINEAR
-        return !is_above_or_on(seg2[2], seg1)
-    end
-    if (seg2[1][1] < seg1[1][1])
-        is_above_or_on(seg1[1], seg2; atol=atol)
+    if (seg1[1][1] <= seg2[1][1])
+        if abs(seg1[2][1] - seg1[1][1]) <= atol # vertical segment
+            return seg2[2][2] < max(seg1[1][2], seg1[2][2]) # true if seg2 below seg1
+        end
+        orient = get_orientation(seg1[1], seg1[2], seg2[1]; rtol=rtol, atol=atol)
+        if orient == COLINEAR
+            orient = get_orientation(seg1[1], seg1[2], seg2[2]; rtol=rtol, atol=atol)
+        end
+        return orient == CLOCKWISE
     else
-        !is_above_or_on(seg2[1], seg1; atol=atol)
+        if abs(seg2[2][1] - seg2[1][1]) <= atol # vertical segment
+            return seg1[2][2] > max(seg2[1][2], seg2[2][2]) # true if seg1 above seg2
+        end
+        orient = get_orientation(seg2[1], seg2[2], seg1[1]; rtol=rtol, atol=atol)
+        if orient == COLINEAR
+            orient = get_orientation(seg2[1], seg2[2], seg1[2]; rtol=rtol, atol=atol)
+        end
+        return orient == COUNTER_CLOCKWISE
     end
 end
 
@@ -611,6 +636,8 @@ Table
 16. Yes     Yes    Yes    Yes
 =#
 
+# For the 16 rows, indicate if (1) in the output shape (non-blank) and (2) which side is filled in that output shape
+
 INTERSECTION_CRITERIA = [
     BLANK, BLANK, BLANK, BLANK,
     BLANK, BELOW, EMPTY, BELOW,
@@ -619,7 +646,7 @@ INTERSECTION_CRITERIA = [
 ] # both below, both above, but not all 4
 
 INTERSECTION_SEGMENT_CRITERIA = [
-    BLANK, BLANK, ABOVE, BLANK,
+    BLANK, BLANK, BLANK, BLANK,
     BLANK, BLANK, EMPTY, BLANK,
     BLANK, EMPTY, BLANK, BLANK,
     BLANK, BLANK, BLANK, BLANK,
@@ -630,21 +657,21 @@ UNION_CRITERIA = [
     BELOW, BELOW, BLANK, BLANK,
     ABOVE, BLANK, ABOVE, BLANK,
     BLANK, BLANK, BLANK, BLANK,
-] # filled at once or twice on only 1 side
+] # filled only above/only below. (above1 | above2) ⊻ (below1 | below2)
 
 DIFFERENCE_CRITERIA = [
     BLANK, BLANK, BLANK, BLANK,
     BELOW, BLANK, BELOW, BLANK,
     ABOVE, ABOVE, BLANK, BLANK,
     BLANK, ABOVE, BELOW, BLANK,
-] # primary - secondary. 
+] # primary - secondary. (above1 && !above2) ⊻  (below1 && !below2)
 
 XOR_CRITERIA = [
     BLANK, BELOW, ABOVE, BLANK,
     BELOW, BLANK, BLANK, ABOVE,
     ABOVE, BLANK, BLANK, BELOW,
     BLANK, ABOVE, BELOW, BLANK,
-]
+] # (above1 ⊻ above2) ⊻ (below1 ⊻ below2)
 
 function apply_selection_criteria(annotated_segments::Vector{<:SegmentEvent{T}}, criteria::Vector{AnnotationFill}) where T
     result = SegmentEvent{T}[]

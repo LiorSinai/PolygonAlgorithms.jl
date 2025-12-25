@@ -1,10 +1,11 @@
 using PolygonAlgorithms: translate, PointSet
+using PolygonAlgorithms: PointSearchAlg, ChasingEdgesAlg, WeilerAthertonAlg, MartinezRuedaAlg
 
-@testset "convex intersections $alg" for alg in [
-    PolygonAlgorithms.PointSearchAlg(),
-    PolygonAlgorithms.ChasingEdgesAlg(),
-    PolygonAlgorithms.WeilerAthertonAlg(),
-    PolygonAlgorithms.MartinezRuedaAlg(), # Some results are different
+@testset "intersections convex - $alg" for alg in [
+    PointSearchAlg(),
+    ChasingEdgesAlg(),
+    WeilerAthertonAlg(),
+    MartinezRuedaAlg(), # Some results are different
 ]
 
 @testset "one inside the other" begin

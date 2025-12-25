@@ -1,6 +1,8 @@
-@testset "convex hulls -$alg" for alg in [
-    PolygonAlgorithms.GiftWrappingAlg(),
-    PolygonAlgorithms.GrahamScanAlg(),
+using PolygonAlgorithms: GiftWrappingAlg, GrahamScanAlg
+
+@testset "convex hulls - $alg" for alg in [
+    GiftWrappingAlg(),
+    GrahamScanAlg(),
 ]
 
 @testset "convex hull rectangle" begin
