@@ -73,21 +73,19 @@ end
 """
     martinez_rueda_algorithm(polygon1, polygon2, selection_criteria)
 
-The Martinez-Rueda-Feito polygon clipping algorithm.
+The Martínez-Rueda-Feito polygon clipping algorithm.
 Returns regions and edges of intersection.
 It runs in `O((n+m+k)log(n+m))` time where `n` and `m` are the number of vertices of `polygon1` 
-and `polygon2` respectively.
+and `polygon2` respectively and `k` is the total number of intersections between all segments.
 Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
 
 Description:
-Operates at a segment level and is an extension of the Bentley-Ottman line intersection algorithm.
+- Operates at a segment level and is an extension of the Bentley-Ottman line intersection algorithm.
 Segments are scanned from left to right, bottom to top. 
-The key assumption is that intersections are only found between the segments above and
-below the current segment.
-(This makes the algorithm fast but also sensitive to determining these segments correctly.)
-In addition, the below segment is used to determine the fill annotations for the current segment 
-(or empty space if nothing is below it.)
-Once the annotations are done, it is trivial to pick out segments that match the given criteria.
+- The key assumption is that only the segments immediately above and below the current segment need to be inspected for intersections.
+This makes the algorithm fast but also sensitive to determining these segments correctly.
+- The segment that is immediately below (or empty space) is used to determine the fill annotations for the current segment.
+- Once all annotations are done, the desired segments can be selected that match a given criteria.
 
 Limitations
 1. It can fail for improper polygons: polygons with lines sticking out.
@@ -295,7 +293,8 @@ function event_loop!(
         else # event is ending, so remove it from the status
             idx = find_transition(sweep_status, head.other; atol=atol, rtol=rtol)
             if !(0 < idx <= length(sweep_status) && sweep_status[idx] === head.other)
-                @warn "Falling back to linear search through the sweep status. This might result in incorrect annotations and hence open chains."
+                @warn "$head was not in the expected location in the sweep status. " * 
+                    "Falling back to linear search. This might result in incorrect annotations and hence open chains."
                 idx = findfirst(x -> x === head.other, sweep_status)
                 @assert(
                     !isnothing(idx),
