@@ -120,7 +120,8 @@ function execute(test::PolygonTest, polygon1::Vector, polygon2::Union{Vector, No
         end
         check_holes = test.clip_type == "UNION"
         area_ratio = calculate_area_diff_ratio(test.solution_area, regions; check_holes=check_holes)
-        count_diff = test.solution_count > 0 ? (test.solution_count - length(regions)) : 0
+        count_regions = sum((!is_hole(idx, regions) for idx in 1:length(regions)), init=0)
+        count_diff = test.solution_count > 0 ? (test.solution_count - count_regions) : 0
         area_ratio, count_diff
     catch err
         if err isa AssertionError
