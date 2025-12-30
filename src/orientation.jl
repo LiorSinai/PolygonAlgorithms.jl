@@ -1,7 +1,7 @@
 @enum Orientation COLINEAR=0 CLOCKWISE=1 COUNTER_CLOCKWISE=2
 
 """
-    get_orientation(p, q, r; rtol=1e-4, atol=1e-6)
+    get_orientation(p, q, r; atol=default_atol)
 
 Determine orientation of three points. 
 
@@ -10,7 +10,7 @@ The relative tolerance `rtol` is no longer used and will be removed in the futur
 
 Clockwise is returned if `cross(pq, qr)` is positive, else counter-clockwise.
 """
-function get_orientation(p::Point2D, q::Point2D, r::Point2D; rtol::AbstractFloat=1e-4, atol::AbstractFloat=1e-6)
+function get_orientation(p::Point2D, q::Point2D, r::Point2D; rtol::AbstractFloat=default_rtol, atol::AbstractFloat=default_atol)
     pq = (q[1] - p[1], q[2] - p[2])
     qr = (r[1] - q[1], r[2] - q[2])
     cross_product = pq[2] * qr[1] - qr[2] * pq[1]
@@ -21,24 +21,18 @@ function get_orientation(p::Point2D, q::Point2D, r::Point2D; rtol::AbstractFloat
 end
 
 """
-    on_segment(point, segment, [on_line]; atol=1e-6)
+    on_segment(point, segment, [on_line]; atol=default_atol)
 
 Determine if a point lies on the segment. 
 """
-function on_segment(q::Point2D, segment::NTuple{2, Point2D};
-    atol::AbstractFloat=1e-6, on_line::Union{Nothing, Bool}=nothing
-    )
-    Base.depwarn("`on_segment(q, segment; on_line)` is deprecated, use `on_segment(q, segment, on_line)` instead.", :on_segment)
-    p, r = segment
-    if isnothing(on_line)
-        on_line = get_orientation(p, q, r) == COLINEAR
-    end
+function on_segment(q::Point2D, segment::NTuple{2, Point2D}; atol::AbstractFloat=default_atol)
+    on_line = get_orientation(q, segment[1], segment[2]; atol=atol) == COLINEAR
     on_segment(q, segment, on_line; atol=atol)
 end
 
 function on_segment(
     q::Point2D, segment::NTuple{2, Point2D}, on_line::Bool
-    ; atol::AbstractFloat=1e-6
+    ; atol::AbstractFloat=default_atol
     )
     p, r = segment
     return on_line && (
@@ -49,12 +43,12 @@ function on_segment(
         )
 end
 
-function isless_orientation(p::Point2D, q::Point2D, p0::Point2D; rtol::AbstractFloat=1e-4)
+function isless_orientation(p::Point2D, q::Point2D, p0::Point2D; atol::AbstractFloat=default_atol)
     # a point p is "less than" another if it has a smaller angle from p0 in a counter-clockwise direction
     # or if the angle is the same, if is closer
     # instead of calculating the angle atan(p[2]-p0[2], p[1]-p0[1]), determine if (p0, p, q) is counter-clockwise
     # doesn't seem to work properly for on a circle
-    ori = get_orientation(p0, p, q; rtol=rtol)
+    ori = get_orientation(p0, p, q; atol=atol)
     if ori == COLINEAR
         dp = norm2(p, p0)
         dq = norm2(q, p0)
@@ -78,15 +72,19 @@ function isless_polar_angle(p::Point2D, q::Point2D, p0::Point2D)
     val
 end
 
-function sort_counter_clockwise(points::Vector{<:Point2D})
+function sort_counter_clockwise!(points::Vector{<:Point2D})
     middle = reduce(.+, points, init=(0.0, 0.0)) ./ length(points)
-    sort(points, lt=(p, q) -> isless_polar_angle(p, q, middle))
+    sort!(points, lt=(p, q) -> isless_polar_angle(p, q, middle))
 end
 
-function sort_clockwise(points::Vector{<:Point2D})
+sort_counter_clockwise(points::Vector{<:Point2D}) = sort_counter_clockwise!(copy(points))
+
+function sort_clockwise!(points::Vector{<:Point2D})
     middle = reduce(.+, points, init=(0.0, 0.0)) ./ length(points)
-    sort(points, lt=(p, q) -> !isless_polar_angle(p, q, middle))
+    sort!(points, lt=(p, q) -> !isless_polar_angle(p, q, middle))
 end
+
+sort_clockwise(points::Vector{<:Point2D}) = sort_clockwise!(copy(points))
 
 # orientation between two lines
 function cross_product(edge1::Segment2D, edge2::Segment2D)
@@ -114,7 +112,7 @@ function in_half_plane(edge::Segment2D, x::Point2D, is_counter_clockwise::Bool=t
 end
 
 """
-    is_above_or_on(point, segment)
+    is_above_or_on(point, segment; atol=default_atol)
 
 Is `point` above or on `segment`?
 
@@ -134,10 +132,10 @@ In the special case of a vertical segment (`x₂=x₁`), this compares `y` value
 yp ≥ max(y₂, y₁)
 ```
 """
-function is_above_or_on(point::Point2D, segment::Segment2D; atol::AbstractFloat=1e-6, rtol::AbstractFloat=1e-4)
+function is_above_or_on(point::Point2D, segment::Segment2D; atol::AbstractFloat=default_atol)
     if abs(segment[2][1] - segment[1][1]) <= atol # vertical segment
         return point[2] >= max(segment[1][2], segment[2][2])
     end
-    cmp = get_orientation(segment[1], segment[2], point; atol=atol, rtol=rtol)
+    cmp = get_orientation(segment[1], segment[2], point; atol=atol)
     cmp != CLOCKWISE # is counter-clockwise or co-linear
 end

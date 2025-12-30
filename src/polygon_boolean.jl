@@ -140,7 +140,7 @@ end
 
 #### Convex
 """
-    intersect_convex(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=ChasingEdgesAlg())
+    intersect_convex(polygon1, polygon2, alg=ChasingEdgesAlg(); atol=default_atol)
 
 Find the intersection points of convex polygons `polygon1` and `polygon2`.
 They are not guaranteed to be unique.
@@ -186,7 +186,7 @@ end
 
 function intersect_convex(
     polygon1::Polygon2D, polygon2::Polygon2D, ::PointSearchAlg
-    ; atol::AbstractFloat=1e-6
+    ; atol::AbstractFloat=default_atol
     )
     #https://www.swtestacademy.com/intersection-convex-polygons-algorithm/
     intersection_points = intersect_edges(polygon1, polygon2; atol=atol)
@@ -201,6 +201,5 @@ function intersect_convex(
     end
 
     points = vcat(intersection_points, p1_in_2, p2_in_1)
-    points = sort_counter_clockwise(points)
-    points
+    sort_counter_clockwise!(points)
 end

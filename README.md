@@ -87,7 +87,7 @@ For all of the the following `n` and `m` are the number of vertices of the polyg
 6. `intersect_geometry`
     - Operation: Intersection of polygons (polygon clipping).
     - Martinez-Rueda algorithm (default).
-        - See point 6.
+        - See point 7.
     - Weiler-Atherton algorithm:
         - Concave and convex but not self-intersecting.
         - Time complexity: `O(nm)`. 
