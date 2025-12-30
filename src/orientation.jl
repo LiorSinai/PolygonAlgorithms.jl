@@ -5,9 +5,8 @@
 
 Determine orientation of three points. 
 
-Colinear is returned if `cross(pq, qr) <= tol`, where `tol` is the 
-- `atol` if either magnitude is less than `atol`.
-- `rtol * |pq||qr|` otherwise, where `cross(pq, qr) ≈ |pq||qr|θ` for small `θ`.
+Colinear is returned if `cross(pq, qr) <= atol`.
+The relative tolerance `rtol` is no longer used and will be removed in the future.
 
 Clockwise is returned if `cross(pq, qr)` is positive, else counter-clockwise.
 """
@@ -15,10 +14,7 @@ function get_orientation(p::Point2D, q::Point2D, r::Point2D; rtol::AbstractFloat
     pq = (q[1] - p[1], q[2] - p[2])
     qr = (r[1] - q[1], r[2] - q[2])
     cross_product = pq[2] * qr[1] - qr[2] * pq[1]
-    mag_pq = sqrt(pq[1] * pq[1] + pq[2] * pq[2])
-    mag_qr = sqrt(qr[1] * qr[1] + qr[2] * qr[2])
-    tol = (mag_qr >= atol && mag_pq >= atol) ? (mag_pq * mag_qr) * rtol : atol
-    orientation = abs(cross_product) <= tol ? COLINEAR : 
+    orientation = abs(cross_product) <= atol ? COLINEAR : 
         cross_product >= 0 ?  CLOCKWISE : 
         COUNTER_CLOCKWISE
     orientation
