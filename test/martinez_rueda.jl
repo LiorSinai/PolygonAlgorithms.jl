@@ -124,6 +124,17 @@ using PolygonAlgorithms: BLANK
             idx = find_transition(status, ev2)
             @test idx == 2
         end
+
+        @testset "size discrepancy" begin
+            # from spiral-star example. 
+            status = [
+                SegmentEvent(((-10.0, -12.0), (0.0, -2.0)), true) # star leg
+            ]
+            # test
+            ev = SegmentEvent(((-8.338, -10.337), (-8.239, -10.426)), true) # tiny segment of spiral
+            idx = find_transition(status, ev)
+            @test idx == 1
+        end
     end
 
     @testset "order sweep status" begin
