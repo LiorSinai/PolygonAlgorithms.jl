@@ -293,7 +293,7 @@ function event_loop!(
         else # event is ending, so remove it from the status
             idx = find_transition(sweep_status, head.other; atol=atol, rtol=rtol)
             if !(0 < idx <= length(sweep_status) && sweep_status[idx] === head.other)
-                @warn "$head was not in the expected location in the sweep status. " * 
+                @warn "$(head.other) was not in the expected location in the sweep status. " * 
                     "Falling back to linear search. This might result in incorrect annotations and hence open chains."
                 idx = findfirst(x -> x === head.other, sweep_status)
                 @assert(
