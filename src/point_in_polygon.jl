@@ -1,7 +1,6 @@
 """
     contains(vertices, point;
         on_border_is_inside=true,
-        rtol=default_rtol, 
         atol=default_atol
     )
 
@@ -58,9 +57,9 @@ function contains(
         edge = (vertices[s], vertices[next_s])
         intersect = false
         if (next_s - s) == 1 || (s == n && next_s ==1) # 3b.i
-            intersect = do_intersect(edge, (point, extreme_right); rtol=rtol)
+            intersect = do_intersect(edge, (point, extreme_right); atol=atol)
         elseif skipped_right # 3b.ii
-            intersect = do_intersect(edge, (extreme_left, extreme_right); rtol=rtol)
+            intersect = do_intersect(edge, (extreme_left, extreme_right); atol=atol)
         end
         num_intersections += intersect
         if next_s <= s  # gone in a full loop

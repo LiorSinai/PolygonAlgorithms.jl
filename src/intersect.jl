@@ -1,13 +1,13 @@
 """
-    do_intersect(segment1, segment2; rtol=default_rtol, atol=default_atol)
+    do_intersect(segment1, segment2; atol=default_atol)
 
 Determine if the segments intersect. For the intersection point, use `intersect_geometry`. 
 """
 function do_intersect(segment1::Segment2D, segment2::Segment2D; rtol::AbstractFloat=default_rtol, atol::AbstractFloat=default_atol)
-    o1 = get_orientation(segment1[1], segment1[2], segment2[1]; rtol=rtol)
-    o2 = get_orientation(segment1[1], segment1[2], segment2[2]; rtol=rtol)
-    o3 = get_orientation(segment2[1], segment2[2], segment1[1]; rtol=rtol)
-    o4 = get_orientation(segment2[1], segment2[2], segment1[2]; rtol=rtol)
+    o1 = get_orientation(segment1[1], segment1[2], segment2[1]; atol=atol)
+    o2 = get_orientation(segment1[1], segment1[2], segment2[2]; atol=atol)
+    o3 = get_orientation(segment2[1], segment2[2], segment1[1]; atol=atol)
+    o4 = get_orientation(segment2[1], segment2[2], segment1[2]; atol=atol)
 
     # general case
     if (o1 != o2) && (o3 != o4)

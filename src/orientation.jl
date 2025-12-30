@@ -1,7 +1,7 @@
 @enum Orientation COLINEAR=0 CLOCKWISE=1 COUNTER_CLOCKWISE=2
 
 """
-    get_orientation(p, q, r; rtol=default_rtol, atol=default_atol)
+    get_orientation(p, q, r; atol=default_atol)
 
 Determine orientation of three points. 
 
@@ -26,7 +26,7 @@ end
 Determine if a point lies on the segment. 
 """
 function on_segment(q::Point2D, segment::NTuple{2, Point2D}; atol::AbstractFloat=default_atol)
-    on_line = get_orientation(q, segment[1], segment[2]) == COLINEAR
+    on_line = get_orientation(q, segment[1], segment[2]; atol=atol) == COLINEAR
     on_segment(q, segment, on_line; atol=atol)
 end
 
@@ -43,12 +43,12 @@ function on_segment(
         )
 end
 
-function isless_orientation(p::Point2D, q::Point2D, p0::Point2D; rtol::AbstractFloat=default_rtol)
+function isless_orientation(p::Point2D, q::Point2D, p0::Point2D; atol::AbstractFloat=default_atol)
     # a point p is "less than" another if it has a smaller angle from p0 in a counter-clockwise direction
     # or if the angle is the same, if is closer
     # instead of calculating the angle atan(p[2]-p0[2], p[1]-p0[1]), determine if (p0, p, q) is counter-clockwise
     # doesn't seem to work properly for on a circle
-    ori = get_orientation(p0, p, q; rtol=rtol)
+    ori = get_orientation(p0, p, q; atol=atol)
     if ori == COLINEAR
         dp = norm2(p, p0)
         dq = norm2(q, p0)
@@ -132,10 +132,10 @@ In the special case of a vertical segment (`x₂=x₁`), this compares `y` value
 yp ≥ max(y₂, y₁)
 ```
 """
-function is_above_or_on(point::Point2D, segment::Segment2D; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol)
+function is_above_or_on(point::Point2D, segment::Segment2D; atol::AbstractFloat=default_atol)
     if abs(segment[2][1] - segment[1][1]) <= atol # vertical segment
         return point[2] >= max(segment[1][2], segment[2][2])
     end
-    cmp = get_orientation(segment[1], segment[2], point; atol=atol, rtol=rtol)
+    cmp = get_orientation(segment[1], segment[2], point; atol=atol)
     cmp != CLOCKWISE # is counter-clockwise or co-linear
 end

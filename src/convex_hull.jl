@@ -5,7 +5,7 @@ struct GiftWrappingAlg <: ConvexHullAlgorithm end
 struct GrahamScanAlg   <: ConvexHullAlgorithm end
 
 """
-    convex_hull(points, alg=GiftWrappingAlg(); rtol=default_rtol)
+    convex_hull(points, alg=GiftWrappingAlg(); atol=default_atol)
 
 Determine the indices of the convex hull for a set of points.
 
@@ -17,7 +17,7 @@ For  `n` input vertices and `h` resultant vertices on the convex hull:
 """
 convex_hull(points::Polygon2D; options...) = convex_hull(points, GiftWrappingAlg(); options...)
 
-function convex_hull(points::Polygon2D, ::GiftWrappingAlg; rtol::AbstractFloat=default_rtol)
+function convex_hull(points::Polygon2D, ::GiftWrappingAlg; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol)
     # https://www.geeksforgeeks.org/convex-hull-using-jarvis-algorithm-or-wrapping/    
     topleft = left_topmost(points)
     hull_idxs = Int[]
@@ -34,7 +34,7 @@ function convex_hull(points::Polygon2D, ::GiftWrappingAlg; rtol::AbstractFloat=d
         # find more counter-clockwise point than q
         for i in eachindex(points)
             point_i = points[i]
-            turn = get_orientation(point_p, point_i, point_q; rtol=rtol)
+            turn = get_orientation(point_p, point_i, point_q; atol=atol)
             if turn == COUNTER_CLOCKWISE
                 q = i
                 point_q = point_i
@@ -68,19 +68,19 @@ function left_topmost(points::Polygon2D)
     idx
 end
 
-function convex_hull(points::Polygon2D, ::GrahamScanAlg; rtol::AbstractFloat=default_rtol)
+function convex_hull(points::Polygon2D, ::GrahamScanAlg; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol)
     # https://www.geeksforgeeks.org/convex-hull-using-graham-scan/
     idx = bottom_leftmost(points)
     p0 = points[idx]
-    idxs = sortperm(points, lt=(p, q) -> isless_orientation(p, q, p0))
+    idxs = sortperm(points, lt=(p, q) -> isless_orientation(p, q, p0; atol=atol))
 
     hull = idxs[[1, 2, 3]]
-    if get_orientation(points[hull[1]], points[hull[2]], points[hull[3]]; rtol=rtol) == COLINEAR
+    if get_orientation(points[hull[1]], points[hull[2]], points[hull[3]]; atol=atol) == COLINEAR
         deleteat!(hull, 2)
     end
     for idx in idxs[4:end]
         while length(hull) > 1 &&
-            get_orientation(points[hull[end-1]], points[hull[end]], points[idx]; rtol=rtol) != COUNTER_CLOCKWISE
+            get_orientation(points[hull[end-1]], points[hull[end]], points[idx]; atol=atol) != COUNTER_CLOCKWISE
             pop!(hull)
         end
         push!(hull, idx)

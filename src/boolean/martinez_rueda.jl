@@ -103,26 +103,26 @@ function martinez_rueda_algorithm(
     polygon1::Polygon2D{T},
     polygon2::Polygon2D{T},
     selection_criteria::Vector{AnnotationFill}
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     ) where T
     event_queue1 = convert_to_event_queue(polygon1; primary=true, atol=atol)
     event_queue2 = convert_to_event_queue(polygon2; primary=false, atol=atol)
-    martinez_rueda_algorithm(event_queue1, event_queue2, selection_criteria; atol=atol, rtol=rtol)
+    martinez_rueda_algorithm(event_queue1, event_queue2, selection_criteria; atol=atol)
 end
 
 function martinez_rueda_algorithm(
     event_queue1::Vector{<:SegmentEvent{T}},
     event_queue2::Vector{<:SegmentEvent{T}},
     selection_criteria::Vector{AnnotationFill}
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     ) where T
-    annotated_segments1 = event_loop!(event_queue1; self_intersection=true, atol=atol, rtol=rtol)
-    annotated_segments2 = event_loop!(event_queue2; self_intersection=true, atol=atol, rtol=rtol)
+    annotated_segments1 = event_loop!(event_queue1; self_intersection=true, atol=atol)
+    annotated_segments2 = event_loop!(event_queue2; self_intersection=true, atol=atol)
     queue = SegmentEvent{T}[]
     for ev in vcat(annotated_segments1, annotated_segments2)
         add_annotated_segment!(queue, ev)
     end
-    annotated_segments3 = event_loop!(queue; self_intersection=false, atol=atol, rtol=rtol)
+    annotated_segments3 = event_loop!(queue; self_intersection=false, atol=atol)
     # for consistent reporting, swap annotations so that self annotations are always the primary
     for ev in annotated_segments3
         if !ev.primary
@@ -253,7 +253,7 @@ function compare_events(event::SegmentEvent, here::SegmentEvent; atol::AbstractF
         # instead, assume smaller segment leans towards the right
         return event.other_point[1] > here.segment[1][1]
     end
-    is_above_or_on(event.other_point, here.segment) ? false : true
+    is_above_or_on(event.other_point, here.segment; atol=atol) ? false : true
 end
 
 #############################################################
@@ -262,7 +262,7 @@ end
 
 function event_loop!(
     queue::Vector{SegmentEvent{T}}
-    ; self_intersection::Bool, atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; self_intersection::Bool, atol::AbstractFloat=default_atol
     ) where T # eventLoop
     annotated_segments = SegmentEvent{T}[]
     sweep_status = SegmentEvent{T}[] # current events in a vertical line, top to bottom.
@@ -272,17 +272,17 @@ function event_loop!(
         status_length = length(sweep_status)
         @debug("[event_loop!] ($(queue_length), $(status_length)): $(head)")
         if head.is_start # then check for intersections and add to sweep status
-            idx = find_transition(sweep_status, head; atol=atol, rtol=rtol)
+            idx = find_transition(sweep_status, head; atol=atol)
             above = idx == 1 ? nothing : sweep_status[idx - 1]
             below = (idx > length(sweep_status)) ? nothing : sweep_status[idx]
             @debug("[event_loop!] transition idx=$idx")
             @debug("[event_loop!] above=$above")
             @debug("[event_loop!] below=$below")
-            check_and_divide_intersection!(queue, head, above, self_intersection; atol=atol, rtol=rtol)
+            check_and_divide_intersection!(queue, head, above, self_intersection; atol=atol)
             if queue[1] != head
                 continue # either head was removed or something was inserted ahead of it
             end
-            check_and_divide_intersection!(queue, head, below, self_intersection; atol=atol, rtol=rtol)
+            check_and_divide_intersection!(queue, head, below, self_intersection; atol=atol)
             if queue[1] != head
                 continue # either head was removed or something was inserted ahead of it
             end
@@ -293,7 +293,7 @@ function event_loop!(
             end
             insert!(sweep_status, idx, head)
         else # event is ending, so remove it from the status
-            idx = find_transition(sweep_status, head.other; atol=atol, rtol=rtol)
+            idx = find_transition(sweep_status, head.other; atol=atol)
             if !(0 < idx <= length(sweep_status) && sweep_status[idx] === head.other)
                 @warn "$(head.other) was not in the expected location in the sweep status. " * 
                     "Falling back to linear search. This might result in incorrect annotations and hence open chains."
@@ -307,7 +307,7 @@ function event_loop!(
                 # there will be 2 new adjacent edges, so check the intersection between them
                 check_and_divide_intersection!(
                     queue, sweep_status[idx - 1], sweep_status[idx + 1], self_intersection
-                    ; atol=atol, rtol=rtol)
+                    ; atol=atol)
             end
             push!(annotated_segments, copy_segment(head.other))
             popat!(sweep_status, idx)
@@ -319,13 +319,13 @@ end
 
 function find_transition(
     list::Vector{<:SegmentEvent}, event::SegmentEvent
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     )
-    searchsortedfirst(list, event; lt=(x, y) -> is_above(x, y; atol=atol, rtol=rtol))
+    searchsortedfirst(list, event; lt=(x, y) -> is_above(x, y; atol=atol))
 end
 
 """
-    is_above(event, other, [atol, rtol])
+    is_above(event, other, [atol])
 
 
 !!!!! Critical function. May be source of errors that only emerge later.
@@ -343,27 +343,27 @@ Assumes segments always go left to right.
 """
 function is_above(
     ev::SegmentEvent, other::SegmentEvent
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     ) # statusCompare
     seg1 = ev.segment
     seg2 = other.segment
     if (seg1[1][1] < seg2[1][1])
-        orient = get_orientation(seg1[1], seg1[2], seg2[1]; rtol=rtol, atol=atol)
+        orient = get_orientation(seg1[1], seg1[2], seg2[1]; atol=atol)
         if orient == COLINEAR
-            orient = get_orientation(seg1[1], seg1[2], seg2[2]; rtol=rtol, atol=atol)
+            orient = get_orientation(seg1[1], seg1[2], seg2[2]; atol=atol)
         end
         return orient == CLOCKWISE
     else
-        orient = get_orientation(seg2[1], seg2[2], seg1[1]; rtol=rtol, atol=atol)
+        orient = get_orientation(seg2[1], seg2[2], seg1[1]; atol=atol)
         if orient == COLINEAR
-            orient = get_orientation(seg2[1], seg2[2], seg1[2]; rtol=rtol, atol=atol)
+            orient = get_orientation(seg2[1], seg2[2], seg1[2]; atol=atol)
         end
         return orient == COUNTER_CLOCKWISE
     end
 end
 
 function check_and_divide_intersection!(
-    queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::Nothing, self_intersection::Bool; atol=1e-6, rtol=1e-4
+    queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::Nothing, self_intersection::Bool; atol=1e-6
     )
     queue
 end
@@ -373,13 +373,13 @@ function check_and_divide_intersection!(
     ev1::SegmentEvent,
     ev2::SegmentEvent,
     self_intersection::Bool
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     )
     pt = intersect_geometry(ev1.segment, ev2.segment)
     if isnothing(pt)
         # Lines need to be exactly on top of each other 
-        ori2_start = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[1]; rtol=rtol)
-        ori2_end = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[2]; rtol=rtol)
+        ori2_start = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[1]; atol=atol)
+        ori2_end = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[2]; atol=atol)
         if (ori2_start == COLINEAR) && (ori2_end == COLINEAR)
             divide_coincident_intersection!(queue, ev1, ev2, self_intersection; atol=atol)
         end
@@ -700,7 +700,7 @@ end
 
 function chain_segments(
     segments::AbstractVector{SegmentEvent{T}}
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol, check_closes::Bool=true
+    ; atol::AbstractFloat=default_atol, check_closes::Bool=true
     ) where T
     # Note: if any of the regions intersect at a vertex, than this is not guaranteed to give consistent results
     # They might be joined into one region or presented as separate regions.
@@ -731,7 +731,7 @@ function chain_segments(
                 push!(regions, chain)
                 @debug("[chain_segment]: closed chain")
             else
-                append_candidate!(chain, candidate; atol=atol, rtol=rtol)
+                append_candidate!(chain, candidate; atol=atol)
                 @debug("[chain_segment]: appended chain")
             end
         elseif length(candidates) == 2 # join two chains together
@@ -740,7 +740,7 @@ function chain_segments(
             @assert cand1.match_segment_start != cand2.match_segment_start "Same point of segment $(cand1.segment) linked to two open chains"
             chain1 = chains[cand1.chain_idx]
             chain2 = chains[cand2.chain_idx]
-            append_candidate!(chain1, cand1; atol=atol, rtol=rtol)
+            append_candidate!(chain1, cand1; atol=atol)
             new_chain = join_chains!(chain1, chain2, cand1.match_chain_start, cand2.match_chain_start)
             chains[cand1.chain_idx] = new_chain
             @debug("[chain_segment]: combined chains")
@@ -800,16 +800,16 @@ function insert_matching_candidate!(
 end
 
 function append_candidate!(chain::Vector{<:Tuple}, candidate::SegmentChainCandidate
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol)
+    ; atol::AbstractFloat=default_atol)
     if candidate.match_chain_start
         if length(chain) > 1 && 
-            get_orientation(candidate.other_point, chain[1], chain[2]; atol=atol, rtol=rtol) == COLINEAR
+            get_orientation(candidate.other_point, chain[1], chain[2]; atol=atol) == COLINEAR
             popfirst!(chain)
         end
         insert!(chain, 1, candidate.other_point)
     else
         if length(chain) > 1 && 
-            get_orientation(chain[end-1], chain[end], candidate.other_point; atol=atol, rtol=rtol) == COLINEAR
+            get_orientation(chain[end-1], chain[end], candidate.other_point; atol=atol) == COLINEAR
             pop!(chain)
         end
         push!(chain, candidate.other_point)
