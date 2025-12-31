@@ -38,10 +38,10 @@ function SegmentEvent(
     SegmentEvent(segment, is_start, primary, self_annotations, other_annotations, nothing, point, other_point)
 end
 
-function copy_segment(event::SegmentEvent) 
+function copy_segment(event::SegmentEvent, is_primary::Bool) 
     # make a copy independent of the original event.
     SegmentEvent(
-        deepcopy(event.segment), event.is_start, event.primary, deepcopy(event.self_annotations), deepcopy(event.other_annotations)
+        deepcopy(event.segment), event.is_start, is_primary, deepcopy(event.self_annotations), deepcopy(event.other_annotations)
     )
 end
 
@@ -71,15 +71,18 @@ function Base.show(io::IO, event::SegmentEvent)
 end
 
 """
-    martinez_rueda_algorithm(polygon1, polygon2, selection_criteria;
-        atol=default_atol, rtol=default_rtol
-    )
+    martinez_rueda_algorithm(selection_criteria, base, others...; atol=default_atol)
 
 The Martínez-Rueda-Feito polygon clipping algorithm.
 Returns regions and edges of intersection.
 It runs in `O((n+m+k)log(n+m))` time where `n` and `m` are the number of vertices of `polygon1` 
 and `polygon2` respectively and `k` is the total number of intersections between all segments.
 Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
+
+The `base` and `others` must both be either:
+- Polygons: `Vector{Tuple{Float64, Float64}}`.
+- Multi-polygons: `Vector{Vector{Tuple{Float64, Float64}}}`. Note: these are not interpreted as holes.
+- Segment event queue: `Vector{<:SegmentEvent{Float64}}`. The core algorithm uses this representation.
 
 Description:
 - Operates at a segment level and is an extension of the Bentley-Ottman line intersection algorithm.
@@ -100,39 +103,52 @@ References
 - article source code: https://github.com/velipso/polybooljs
 """
 function martinez_rueda_algorithm(
-    polygon1::Polygon2D{T},
-    polygon2::Polygon2D{T},
-    selection_criteria::Vector{AnnotationFill}
+    selection_criteria::Vector{AnnotationFill},
+    base::Polygon2D{T},
+    others::Vararg{Polygon2D{T}},
     ; atol::AbstractFloat=default_atol
     ) where T
-    event_queue1 = convert_to_event_queue(polygon1; primary=true, atol=atol)
-    event_queue2 = convert_to_event_queue(polygon2; primary=false, atol=atol)
-    martinez_rueda_algorithm(event_queue1, event_queue2, selection_criteria; atol=atol)
+    event_queue_base = convert_to_event_queue(base; primary=true, atol=atol)
+    event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
+    martinez_rueda_algorithm(selection_criteria, event_queue_base, event_queue_others...; atol=atol)
 end
 
 function martinez_rueda_algorithm(
-    event_queue1::Vector{<:SegmentEvent{T}},
-    event_queue2::Vector{<:SegmentEvent{T}},
-    selection_criteria::Vector{AnnotationFill}
+    selection_criteria::Vector{AnnotationFill},
+    subjects::AbstractVector{<:Polygon2D{T}},
+    clips::AbstractVector{<:Polygon2D{T}},
     ; atol::AbstractFloat=default_atol
     ) where T
-    annotated_segments1 = event_loop!(event_queue1; self_intersection=true, atol=atol)
-    annotated_segments2 = event_loop!(event_queue2; self_intersection=true, atol=atol)
-    queue = SegmentEvent{T}[]
-    for ev in vcat(annotated_segments1, annotated_segments2)
-        add_annotated_segment!(queue, ev)
-    end
-    annotated_segments3 = event_loop!(queue; self_intersection=false, atol=atol)
-    # for consistent reporting, swap annotations so that self annotations are always the primary
-    for ev in annotated_segments3
-        if !ev.primary
-            temp = ev.self_annotations
-            ev.self_annotations = ev.other_annotations
-            ev.other_annotations = temp
+    event_queue_subjects = map(p -> convert_to_event_queue(p; primary=true, atol=atol), subjects)
+    event_queue_clips = map(p -> convert_to_event_queue(p; primary=false, atol=atol), clips)
+    martinez_rueda_algorithm(selection_criteria, event_queue_subjects..., event_queue_clips...; atol=atol)
+end
+
+function martinez_rueda_algorithm(
+    selection_criteria::Vector{AnnotationFill},
+    base::Vector{<:SegmentEvent{T}},
+    polygons::Vararg{Vector{<:SegmentEvent{T}}},
+    ; atol::AbstractFloat=default_atol
+    ) where T
+    base_annotated_segments = event_loop!(base; self_intersection=true, atol=atol)
+    for polygon in polygons
+        annotated_segments = event_loop!(polygon; self_intersection=true, atol=atol)
+        queue = SegmentEvent{T}[]
+        for ev in vcat(base_annotated_segments, annotated_segments)
+            add_annotated_segment!(queue, ev)
         end
+        combined_annotated_segments = event_loop!(queue; self_intersection=false, atol=atol)
+        # for consistent reporting, swap annotations so that self annotations are always the primary
+        for ev in combined_annotated_segments
+            if !ev.primary
+                temp = ev.self_annotations
+                ev.self_annotations = ev.other_annotations
+                ev.other_annotations = temp
+            end
+        end
+        base_annotated_segments = apply_selection_criteria(combined_annotated_segments, selection_criteria)
     end
-    selected = apply_selection_criteria(annotated_segments3, selection_criteria)
-    empty_segments, regions_segments = separate(is_empty_segment, selected)
+    empty_segments, regions_segments = separate(is_empty_segment, base_annotated_segments)
     regions = chain_segments(regions_segments; atol=atol, check_closes=true)
     segment_chains = chain_segments(empty_segments; atol=atol, check_closes=false)
     # It is also possible to attach some segment_chains to regions.
@@ -309,7 +325,7 @@ function event_loop!(
                     queue, sweep_status[idx - 1], sweep_status[idx + 1], self_intersection
                     ; atol=atol)
             end
-            push!(annotated_segments, copy_segment(head.other))
+            push!(annotated_segments, copy_segment(head.other, head.other.primary))
             popat!(sweep_status, idx)
         end
         popfirst!(queue)
@@ -674,12 +690,12 @@ function apply_selection_criteria(annotated_segments::Vector{<:SegmentEvent{T}},
                 (ev.other_annotations.fill_above ? 2 : 0) + 
                 (ev.other_annotations.fill_below ? 1 : 0)
         if criteria[index] != BLANK
-            new_segment = copy_segment(ev)
+            new_segment = copy_segment(ev, true)
             new_segment.self_annotations.fill_above = criteria[index] == ABOVE
             new_segment.self_annotations.fill_below = criteria[index] == BELOW
             new_segment.other_annotations.fill_above = nothing
             new_segment.other_annotations.fill_below = nothing
-            push!(result, copy_segment(new_segment))
+            push!(result, new_segment)
         end
     end
     result

@@ -67,13 +67,17 @@ struct MartinezRuedaAlg <: PolygonIntersectionAlgorithm end
 # General
 
 """
-    intersect_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=MartinezRuedaAlg())
+    intersect_geometry(polygon1::Polygon2D, polygon2::Polygon2D, alg=MartinezRuedaAlg())
+    intersect_geometry(polygons::Vector{<:Polygon2D}, alg=MartinezRuedaAlg())
 
 General case of polygon intersection. 
 
 `alg` can either be `MartinezRuedaAlg()` or `WeilerAthertonAlg()`.
 There are slight differences in the result depending on the algorithm.
 The `WeilerAthertonAlg` tends to be more robust to numeric inaccuracies.
+
+For the multi-polygon version, only the `MartinezRuedaAlg` can be used.
+This is more efficient than looping through the polygons and applying `intersect_geometry` sequentially.
 
 Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
 """
@@ -91,28 +95,59 @@ function intersect_geometry(
     polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg
     ; options...
     )
-    martinez_rueda_algorithm(polygon1, polygon2, INTERSECTION_CRITERIA; options...)
+    martinez_rueda_algorithm(INTERSECTION_CRITERIA, polygon1, polygon2; options...)
+end
+
+function intersect_geometry(
+    polygons::AbstractVector{<:Polygon2D}, alg::MartinezRuedaAlg=MartinezRuedaAlg(); options...
+    )
+    @info(" polygon vectors")
+    martinez_rueda_algorithm(INTERSECTION_CRITERIA, polygons...; options...)
 end
 
 """
-    difference_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=MartinezRuedaAlg())
+    difference_geometry(subject::Polygon2D, clip::Polygon2D, alg=MartinezRuedaAlg())
+    difference_geometry(subject::Polygon2D, clips::Vector{<:Polygon2D}, alg=MartinezRuedaAlg())
+    difference_geometry(subjects::Vector{<:Polygon2D}, clips::Vector{<:Polygon2D}, alg=MartinezRuedaAlg())
 
-General case of polygon difference: points in `polygon1` that are not in `polygon2`.
+General case of polygon difference: points in `subject(s)` that are not in `clip(s)`.
 
-`alg` can only be `MartinezRuedaAlg()`.
+If `subjects` is a list of polygons, they should not overlap. Call `union_geometry` first to ensure this is the case.
+There should not be any holes in the union:
+
+```julia
+difference_geometry(union_geometry(subjects), clips);
+```
+
+The multi-polygon version is more efficient than looping through the polygons and applying `difference_geometry` sequentially.
 """
 function difference_geometry(
-    polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg=MartinezRuedaAlg()
+    subject::Polygon2D, clip::Polygon2D, alg::MartinezRuedaAlg=MartinezRuedaAlg()
     ; options...
     )
-    martinez_rueda_algorithm(polygon1, polygon2, DIFFERENCE_CRITERIA)
+    martinez_rueda_algorithm(DIFFERENCE_CRITERIA, subject, clip)
+end
+
+function difference_geometry(
+    subject::Polygon2D, clips::AbstractVector{<:Polygon2D}, alg::MartinezRuedaAlg=MartinezRuedaAlg(); options...
+    )
+    martinez_rueda_algorithm(DIFFERENCE_CRITERIA, subject, clips...; options...)
+end
+
+function difference_geometry(
+    subjects::AbstractVector{<:Polygon2D}, clips::AbstractVector{<:Polygon2D}, alg::MartinezRuedaAlg=MartinezRuedaAlg(); options...
+    )
+    martinez_rueda_algorithm(DIFFERENCE_CRITERIA, subjects, clips; options...)
 end
 
 """
-    union_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=MartinezRuedaAlg())
+    union_geometry(polygon1::Polygon2D, polygon2::Polygon2D, alg=MartinezRuedaAlg())
+    union_geometry(polygons::Vector{<:Polygon2D}, alg=MartinezRuedaAlg())
 
 General case of polygon union: in both polygons. 
 Possibly returns holes but does not classify them as holes.
+
+The multi-polygon version is more efficient than looping through the polygons and applying `union_geometry` sequentially.
 
 `alg` can only be `MartinezRuedaAlg()`.
 """
@@ -120,14 +155,23 @@ function union_geometry(
     polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg=MartinezRuedaAlg()
     ; options...
     )
-    martinez_rueda_algorithm(polygon1, polygon2, UNION_CRITERIA; options...)
+    martinez_rueda_algorithm(UNION_CRITERIA, polygon1, polygon2; options...)
+end
+
+function union_geometry(
+    polygons::AbstractVector{<:Polygon2D}, alg::MartinezRuedaAlg=MartinezRuedaAlg(); options...
+    )
+    martinez_rueda_algorithm(UNION_CRITERIA, polygons...; options...)
 end
 
 """
-    xor_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=MartinezRuedaAlg())
+    xor_geometry(polygon1::Polygon2D, polygon2::Polygon2D, alg=MartinezRuedaAlg())
+    xor_geometry(polygons::Vector{<:Polygon2D}, alg=MartinezRuedaAlg())
 
 General case of polygon xor: in one polygon or the other but not both.
 Possibly returns holes but does not classify them as holes.
+
+The multi-polygon version is more efficient than looping through the polygons and applying `xor_geometry` sequentially.
 
 `alg` can only be `MartinezRuedaAlg()`.
 """
@@ -135,12 +179,18 @@ function xor_geometry(
     polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg=MartinezRuedaAlg()
     ; options...
     )
-    martinez_rueda_algorithm(polygon1, polygon2, XOR_CRITERIA; options...)
+    martinez_rueda_algorithm(XOR_CRITERIA, polygon1, polygon2; options...)
+end
+
+function xor_geometry(
+    polygons::AbstractVector{<:Polygon2D}, alg::MartinezRuedaAlg=MartinezRuedaAlg(); options...
+    )
+    martinez_rueda_algorithm(XOR_CRITERIA, polygons...; options...)
 end
 
 #### Convex
 """
-    intersect_convex(polygon1, polygon2, alg=ChasingEdgesAlg(); atol=default_atol)
+    intersect_convex(polygon1::Polygon2D, polygon2::Polygon2D, alg=ChasingEdgesAlg(); atol=default_atol)
 
 Find the intersection points of convex polygons `polygon1` and `polygon2`.
 They are not guaranteed to be unique.
@@ -176,7 +226,7 @@ function intersect_convex(
     polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::MartinezRuedaAlg
     ; options...
     ) where T
-    regions = martinez_rueda_algorithm(polygon1, polygon2, INTERSECTION_CRITERIA; options...)
+    regions = martinez_rueda_algorithm(INTERSECTION_CRITERIA, polygon1, polygon2; options...)
     if isempty(regions)
         return Point2D{T}[]
     end

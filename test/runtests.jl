@@ -21,5 +21,6 @@ end
     include("martinez_rueda.jl")
     include("intersect_convex.jl")
     include("intersect_concave.jl")
+    include("intersect_multi.jl")
     include("convex_hull.jl")
 end
