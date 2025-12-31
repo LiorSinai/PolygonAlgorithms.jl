@@ -101,7 +101,6 @@ end
 function intersect_geometry(
     polygons::AbstractVector{<:Polygon2D}, alg::MartinezRuedaAlg=MartinezRuedaAlg(); options...
     )
-    @info(" polygon vectors")
     martinez_rueda_algorithm(INTERSECTION_CRITERIA, polygons...; options...)
 end
 
