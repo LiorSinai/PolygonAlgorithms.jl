@@ -1,6 +1,6 @@
 const Point2D{T<:AbstractFloat} = NTuple{2,T}
 const Segment2D{T<:AbstractFloat} = NTuple{2,Point2D{T}}
-const Polygon2D{T<:AbstractFloat} = Vector{<:Point2D{T}}
+const Path2D{T<:AbstractFloat} = Vector{<:Point2D{T}}
 const default_atol = 1e-6
 const default_rtol = 1e-4
 
@@ -55,7 +55,7 @@ end
 rotate(points::Vector{<:Point2D}, θ::AbstractFloat, p0::Point2D) = 
     translate(rotate(translate(points, (-p0[1], -p0[2])), θ), p0)
 
-x_coords(points::Polygon2D) = [p[1] for p in points]
-x_coords(points::Polygon2D, idxs::AbstractVector{Int}) = [p[1] for p in points[idxs]]
-y_coords(points::Polygon2D) = [p[2] for p in points]
-y_coords(points::Polygon2D, idxs::AbstractVector{Int}) = [p[2] for p in points[idxs]]
+x_coords(points::Path2D) = [p[1] for p in points]
+x_coords(points::Path2D, idxs::AbstractVector{Int}) = [p[1] for p in points[idxs]]
+y_coords(points::Path2D) = [p[2] for p in points]
+y_coords(points::Path2D, idxs::AbstractVector{Int}) = [p[2] for p in points[idxs]]

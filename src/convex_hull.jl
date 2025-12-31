@@ -15,9 +15,9 @@ For  `n` input vertices and `h` resultant vertices on the convex hull:
 - `GiftWrappingAlg` runs in `O(nh)` time.
 - `GrahamScanAlg` runs in `O(n*log(n))` time.
 """
-convex_hull(points::Polygon2D; options...) = convex_hull(points, GiftWrappingAlg(); options...)
+convex_hull(points::Path2D; options...) = convex_hull(points, GiftWrappingAlg(); options...)
 
-function convex_hull(points::Polygon2D, ::GiftWrappingAlg; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol)
+function convex_hull(points::Path2D, ::GiftWrappingAlg; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol)
     # https://www.geeksforgeeks.org/convex-hull-using-jarvis-algorithm-or-wrapping/    
     topleft = left_topmost(points)
     hull_idxs = Int[]
@@ -56,7 +56,7 @@ function convex_hull(points::Polygon2D, ::GiftWrappingAlg; atol::AbstractFloat=d
     hull_idxs
 end
 
-function left_topmost(points::Polygon2D)
+function left_topmost(points::Path2D)
     idx = 1
     for i in eachindex(points)
         if points[i][1] < points[idx][1]
@@ -68,7 +68,7 @@ function left_topmost(points::Polygon2D)
     idx
 end
 
-function convex_hull(points::Polygon2D, ::GrahamScanAlg; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol)
+function convex_hull(points::Path2D, ::GrahamScanAlg; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol)
     # https://www.geeksforgeeks.org/convex-hull-using-graham-scan/
     idx = bottom_leftmost(points)
     p0 = points[idx]
@@ -88,7 +88,7 @@ function convex_hull(points::Polygon2D, ::GrahamScanAlg; atol::AbstractFloat=def
     hull
 end
 
-function bottom_leftmost(points::Polygon2D)
+function bottom_leftmost(points::Path2D)
     idx = 1
     for i in eachindex(points)
         if points[i][2] < points[idx][2]

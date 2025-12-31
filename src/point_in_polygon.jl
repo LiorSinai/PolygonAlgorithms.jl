@@ -13,7 +13,7 @@ It skips vertices that are on the ray. To compensate, the ray is projected backw
 intersection can be found for a skipped vertex if needed.
 """
 function contains(
-    vertices::Polygon2D, point::Point2D{T}
+    vertices::Path2D, point::Point2D{T}
     ; on_border_is_inside::Bool=true, rtol::AbstractFloat=default_rtol, atol::AbstractFloat=default_atol
     ) where T
     n = length(vertices)

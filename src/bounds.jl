@@ -3,7 +3,7 @@
 
 A rectangle which bounds the polygon, given as `(xmin, ymin, xmax, ymax)`.
 """
-function bounds(polygon::Polygon2D)
+function bounds(polygon::Path2D)
     start = polygon[1]
     xmin = start[1]
     xmax = start[1]
@@ -23,7 +23,7 @@ end
 
 A rectangle which bounds all the polygons, given as `(xmin, ymin, xmax, ymax)`.
 """
-function bounds(polygons::Vector{<:Polygon2D})
+function bounds(polygons::Vector{<:Path2D})
     start = polygons[1][1]
     xmin = start[1]
     xmax = start[1]

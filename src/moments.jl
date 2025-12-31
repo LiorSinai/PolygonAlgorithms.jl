@@ -3,11 +3,11 @@
 
 Uses the shoelace formula: Σ(xᵢyᵢ₊₁ - yᵢxᵢ₊₁)
 """
-function area_polygon(vertices::Polygon2D)
+function area_polygon(vertices::Path2D)
     abs(first_moment(vertices))
 end
 
-function first_moment(vertices::Polygon2D)
+function first_moment(vertices::Path2D)
     # first moment of a simple polygon
     n = length(vertices)
     moment = 0.0
@@ -20,8 +20,8 @@ function first_moment(vertices::Polygon2D)
     moment
 end
 
-is_clockwise(vertices::Polygon2D) = first_moment(vertices) <= 0.0
-is_counter_clockwise(vertices::Polygon2D) = first_moment(vertices) >= 0.0
+is_clockwise(vertices::Path2D) = first_moment(vertices) <= 0.0
+is_counter_clockwise(vertices::Path2D) = first_moment(vertices) >= 0.0
 
 """
   centroid_polygon(vertices::Vector{<:Point2D})
@@ -30,7 +30,7 @@ Uses the following formulas:
 - Cx = (1/6A)Σ(xᵢ + xᵢ₊₁)(xᵢyᵢ₊₁ - yᵢxᵢ₊₁)
 - Cy = (1/6A)Σ(yᵢ + yᵢ₊₁)(xᵢyᵢ₊₁ - yᵢxᵢ₊₁)   
 """
-function centroid_polygon(vertices::Polygon2D)
+function centroid_polygon(vertices::Path2D)
     area = first_moment(vertices)
     n = length(vertices)
     Cx = 0.0

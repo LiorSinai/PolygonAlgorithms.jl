@@ -104,8 +104,8 @@ References
 """
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
-    base::Polygon2D{T},
-    others::Vararg{Polygon2D{T}},
+    base::Path2D{T},
+    others::Vararg{Path2D{T}},
     ; atol::AbstractFloat=default_atol
     ) where T
     event_queue_base = convert_to_event_queue(base; primary=true, atol=atol)
@@ -115,8 +115,8 @@ end
 
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
-    subjects::AbstractVector{<:Polygon2D{T}},
-    clips::AbstractVector{<:Polygon2D{T}},
+    subjects::AbstractVector{<:Path2D{T}},
+    clips::AbstractVector{<:Path2D{T}},
     ; atol::AbstractFloat=default_atol
     ) where T
     event_queue_subjects = map(p -> convert_to_event_queue(p; primary=true, atol=atol), subjects)
@@ -174,7 +174,7 @@ end
 ##                  Initialise Events                      ##
 #############################################################
 
-function convert_to_event_queue(polygon::Polygon2D{T}; primary::Bool=true, atol::AbstractFloat=default_atol) where T
+function convert_to_event_queue(polygon::Path2D{T}; primary::Bool=true, atol::AbstractFloat=default_atol) where T
     # The event list reads all segments from left to right, end->start, top to bottom
     queue = SegmentEvent{T}[]
     pt2 = polygon[end]
