@@ -5,16 +5,18 @@ import Base: length, show
 
 include("definitions.jl")
 include("utils.jl")
-include("orientation.jl")
 include("data_structures/linked_list.jl")
 include("data_structures/point_set.jl")
 
+include("orientation.jl")
 include("bounds.jl")
 include("convex_hull.jl")
 include("intersect.jl")
 include("moments.jl")
 
 include("point_in_polygon.jl")
+include("line_sweep.jl")
+
 include("polygon_boolean.jl")
 include("deprecations.jl")
 
