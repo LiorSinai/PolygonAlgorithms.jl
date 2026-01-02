@@ -69,3 +69,26 @@ function contains(
     end
     return (num_intersections % 2) == 1
 end
+
+"""
+    on_border(vertices, point; atol=default_atol)
+
+Return true if `point` lies on any segment between the `vertices`.
+
+Runs in `O(n)` time where `n=length(vertices)`.
+"""
+function on_border(
+    vertices::Path2D, point::Point2D{T}
+    ; atol::AbstractFloat=default_atol
+    ) where T
+    n = length(vertices)
+    # step 1: point intersects a vertex or edge
+    for i in 1:n
+        next_i = (i % n) + 1
+        segment = (vertices[i], vertices[next_i])
+        if on_segment(point, segment; atol=atol)
+            return true
+        end
+    end
+    false
+end

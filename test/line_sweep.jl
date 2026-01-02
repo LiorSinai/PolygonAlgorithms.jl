@@ -234,22 +234,25 @@ using PolygonAlgorithms: find_transition, any_intersect
                 ((1.0, 1.0), (2.0, 3.0)), ((2.0, 2.0), (5.0, 0.0))
             ]
             @test !any_intersect(segments...)
+            @test !any_intersect(segments...; include_vertices=false)
             # touch on line
             segments = [
                 ((1.0, 1.0), (3.0, 3.0)), ((2.0, 2.0), (5.0, 0.0))
             ]
             @test any_intersect(segments...)
+            @test !any_intersect(segments...; include_vertices=false)
             # intersect
             segments = [
                 ((1.0, 1.0), (4.0, 3.0)), ((2.0, 2.0), (5.0, 0.0))
             ]
             @test any_intersect(segments...)
+            @test any_intersect(segments...; include_vertices=false)
             # same origin
             segments = [
                 ((1.0, 1.0), (2.0, 3.0)), ((1.0, 1.0), (5.0, 0.0))
             ]
             @test any_intersect(segments...)
-            @test !any_intersect(segments...; exclude_connected=true)
+            @test !any_intersect(segments...; include_vertices=false)
         end
 
         @testset "random lines" begin 
@@ -313,7 +316,7 @@ using PolygonAlgorithms: find_transition, any_intersect
                 ((0.0, 0.0), (3.0, 3.0)),
             ]
             @test any_intersect(segments...)
-            @test !any_intersect(segments...; exclude_connected=true)
+            @test !any_intersect(segments...; include_vertices=false)
         end
     end
 end

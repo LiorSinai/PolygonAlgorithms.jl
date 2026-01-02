@@ -10,8 +10,10 @@ Implementations of Polygon algorithms.
 ## Description
 ### Representation
 
-Points are represented as tuples and polygons as list of points (tuples).
-The last point is assumed to share an edge with the first: `n + 1 = 1`.
+There are two ways to represent polygons:
+- As a list of points (tuples). The last point is assumed to share an edge with the first: `n + 1 = 1`.
+- With the internal `PolygonAlgorithms.Polygon` struct. This struct consists of an `exterior` and `holes`. Each sub-object must be a list points (tuples). The holes should be properly contained in the polygon.
+Validation is not performed by default. Pass `validate=true` to the constructor to enable it.
 
 For indexing use `x_coords` and `y_coords`. 
 Common broadcasting operations are supplied such as `translate` and `rotate`.

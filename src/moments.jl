@@ -28,19 +28,24 @@ is_counter_clockwise(vertices::Path2D) = first_moment(vertices) >= 0.0
 
 Uses the following formulas:
 - Cx = (1/6A)Σ(xᵢ + xᵢ₊₁)(xᵢyᵢ₊₁ - yᵢxᵢ₊₁)
-- Cy = (1/6A)Σ(yᵢ + yᵢ₊₁)(xᵢyᵢ₊₁ - yᵢxᵢ₊₁)   
+- Cy = (1/6A)Σ(yᵢ + yᵢ₊₁)(xᵢyᵢ₊₁ - yᵢxᵢ₊₁)
 """
 function centroid_polygon(vertices::Path2D)
     area = first_moment(vertices)
-    n = length(vertices)
+    Cx, Cy = _centroid_loop(vertices)
+    centroid = (Cx/(6 * area), Cy/(6 * area))
+    centroid
+end
+
+function _centroid_loop(vertices::Path2D)
     Cx = 0.0
     Cy = 0.0
+    n = length(vertices)
     for i in 1:n
         pt1 = vertices[i]
         pt2 = vertices[(i % n) + 1]
         Cx += (pt1[1] + pt2[1]) * (pt1[1] * pt2[2] - pt1[2] * pt2[1])
         Cy += (pt1[2] + pt2[2]) * (pt1[1] * pt2[2] - pt1[2] * pt2[1])
     end
-    centroid = (Cx/(6 * area), Cy/(6 * area))
-    centroid 
+    (Cx, Cy)
 end

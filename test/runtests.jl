@@ -23,6 +23,7 @@ end
     include("area-centroid.jl")
     include("bounds.jl")
     include("point_in_polygon.jl")
+    include("data_structures/polygon.jl")
     # boolean
     include("martinez_rueda.jl")
     include("intersect_convex.jl")

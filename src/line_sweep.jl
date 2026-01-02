@@ -205,12 +205,11 @@ function find_transition(
     searchsortedfirst(list, event; lt=(x, y) -> is_above(x, y; atol=atol))
 end
 
-function is_connected(segment1::Segment2D, segment2::Segment2D; atol::AbstractFloat=default_atol)
-    start1_on_end2 = is_same_point(segment1[1], segment2[2]; atol=atol)
-    end1_on_start2 = is_same_point(segment1[2], segment2[1]; atol=atol)
-    starts_equal = is_same_point(segment1[1], segment2[1]; atol=atol)
-    ends_equal = is_same_point(segment1[2], segment2[2]; atol=atol)
-    start1_on_end2 || end1_on_start2 || (starts_equal ⊻ ends_equal)
+function is_vertex_intersection(segment1::Segment2D, segment2::Segment2D; atol::AbstractFloat=default_atol)
+    on_segment(segment1[1], segment2; atol=atol) || 
+        on_segment(segment1[2], segment2; atol=atol) ||
+        on_segment(segment2[1], segment1; atol=atol) ||
+        on_segment(segment2[2], segment1; atol=atol)
 end
 
 #############################################################
@@ -218,8 +217,8 @@ end
 #############################################################
 
 """
-    any_intersect(segment::Segment2D, ...; atol=default_atol, exclude_connected=false)
-    any_intersect(queue::Vector{SegmentEvent}}; atol=default_atol, exclude_connected=false)
+    any_intersect(segment::Segment2D, ...; atol=default_atol, include_vertices=true)
+    any_intersect(queue::Vector{SegmentEvent}}; atol=default_atol, include_vertices=true)
 
 A line sweep algorithm for determining if any segment intersects with any other segment.
 
@@ -228,7 +227,10 @@ Shamos-Hoey algorithm. It runs in `O(n*log(n))` time where `n` is the length of 
 Reference:
 - http://euro.ecom.cmu.edu/people/faculty/mshamos/1976GeometricIntersection.pdf
 """
-function any_intersect(queue::Vector{SegmentEvent{T}}; atol::AbstractFloat=default_atol, exclude_connected::Bool=false) where T
+function any_intersect(
+    queue::Vector{SegmentEvent{T}}
+    ; atol::AbstractFloat=default_atol, include_vertices::Bool=true
+    ) where T
     sweep_status = SegmentEvent{T}[] # current events in a vertical line, top to bottom.
     for head in queue
         queue_length = length(queue)
@@ -242,10 +244,10 @@ function any_intersect(queue::Vector{SegmentEvent{T}}; atol::AbstractFloat=defau
             @debug("[event_loop!] above=$above")
             @debug("[event_loop!] below=$below")
             if !isnothing(above) && do_intersect(head.segment, above.segment; atol=atol) &&
-                (!exclude_connected || !is_connected(head.segment, above.segment; atol=atol))
+                (include_vertices || !is_vertex_intersection(head.segment, above.segment; atol=atol))
                 return true
             elseif !isnothing(below) && do_intersect(head.segment, below.segment; atol=atol) &&
-                (!exclude_connected || !is_connected(head.segment, below.segment; atol=atol))
+                (include_vertices || !is_vertex_intersection(head.segment, below.segment; atol=atol))
                 return true
             end
             insert!(sweep_status, idx, head)
@@ -262,10 +264,10 @@ function any_intersect(queue::Vector{SegmentEvent{T}}; atol::AbstractFloat=defau
             end
             if (idx != 1) && (idx != length(sweep_status))
                 # there will be 2 new adjacent edges, so check the intersection between them
-                above = sweep_status[idx - 1].segment
-                below = sweep_status[idx + 1].segment
-                if do_intersect(above, below; atol=atol) && 
-                    (!exclude_connected || !is_connected(above, below; atol=atol))
+                above = sweep_status[idx - 1]
+                below = sweep_status[idx + 1]
+                if do_intersect(above.segment, below.segment; atol=atol) && 
+                    (include_vertices || !is_vertex_intersection(above.segment, below.segment; atol=atol))
                     return true
                 end
             end

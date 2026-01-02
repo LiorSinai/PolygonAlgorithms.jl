@@ -17,6 +17,8 @@ include("moments.jl")
 include("point_in_polygon.jl")
 include("line_sweep.jl")
 
+include("data_structures/polygon.jl")
+
 include("polygon_boolean.jl")
 include("deprecations.jl")
 
