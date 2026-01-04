@@ -28,5 +28,6 @@ end
     include("martinez_rueda.jl")
     include("intersect_convex.jl")
     include("intersect_concave.jl")
-    include("intersect_multi.jl")
+    include("polygon_boolean.jl")
+    include("polygon_boolean_multi.jl")
 end

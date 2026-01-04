@@ -1,5 +1,5 @@
-@testset verbose=true "boolean multi - $alg" for alg in [
-    MartinezRuedaAlg(), # Some results are different
+@testset "polygon boolean multi - $alg" for alg in [
+    MartinezRuedaAlg(),
 ]
 
 @testset verbose=true "single" begin

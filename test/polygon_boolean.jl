@@ -1,7 +1,9 @@
 using PolygonAlgorithms
 using PolygonAlgorithms: translate
 
-@testset "polygon boolean - MartinezRuedaAlg only" begin
+@testset "polygon boolean - $alg" for alg in [
+    MartinezRuedaAlg(),
+]
 
 # See test/intersect_convex.jl and test/intersect_concave.jl for intersection tests.
     
@@ -146,15 +148,17 @@ end
         [(1.0, 9.0), (-2.0, 6.0), (1.0, 3.0), (4.0, 6.0)], # hole
         [(2.0, 10.0), (3.0, 11.0), (3.0, 11.0), (2.0, 12.0), (1.0, 11.0), (0.0, 12.0), (-1.0, 11.0), (0.0, 10.0), (-4.0, 6.0), (-0.0, 2.0), (-1.0, 1.0), (0.0, 0.0), (1.0, 1.0), (2.0, 0.0), (3.0, 1.0), (2.0, 2.0), (6.0, 6.0)]
     ]
+    @test are_regions_equal(regions, expected)
     ## XOR
     regions = xor_geometry(poly1, poly2, alg)
     expected = [
         [(0.0, 12.0), (-1.0, 11.0), (0.0, 10.0), (-4.0, 6.0), (-0.0, 2.0), (-1.0, 1.0), (0.0, 0.0), (1.0, 1.0), (-0.0, 2.0), (1.0, 3.0), (-2.0, 6.0), (1.0, 9.0), (0.0, 10.0), (1.0, 11.0)],
         [(2.0, 10.0), (3.0, 11.0), (3.0, 11.0), (2.0, 12.0), (1.0, 11.0), (2.0, 10.0), (1.0, 9.0), (1.0, 9.0), (4.0, 6.0), (1.0, 3.0), (2.0, 2.0), (1.0, 1.0), (2.0, 0.0), (3.0, 1.0), (2.0, 2.0), (6.0, 6.0)]
     ]
+    @test are_regions_equal(regions, expected)
 end
 
-@testset "self-intersect rectangle" begin
+@testset "self-intersect & rectangle" begin
     self_intersect = [
         (0.0, 0.0), (2.0, 2.0), (6.0, -2.0), (11.0, 2.0), (11.0, 0.0)
     ]
@@ -175,13 +179,15 @@ end
     ## Union
     regions = union_geometry(poly1, poly2, alg)
     expected = [
-        [(12.0, 3.0), (12.0, 0.0), (11.0, 0.0), (8.5, -0.0), (6.0, -2.0), (4.0, 0.0), (0.0, 0.0), (-1.0, 0.0), (-1.0, 3.0)]
+        [(12.0, 3.0), (12.0, 0.0), (8.5, 0.0), (6.0, -2.0), (4.0, 0.0), (-1.0, 0.0), (-1.0, 3.0)]
     ]
+    @test are_regions_equal(regions, expected)
     ## XOR
     regions = xor_geometry(poly1, poly2, alg)
     expected = [
-        [(12.0, 3.0), (12.0, 0.0), (11.0, 0.0), (11.0, 2.0), (11.0, 2.0), (8.5, -0.0), (6.0, -2.0), (4.0, 0.0), (2.0, 2.0), (0.0, 0.0), (-1.0, 0.0), (-1.0, 3.0)]
+        [(12.0, 3.0), (12.0, 0.0), (11.0, 0.0), (11.0, 2.0), (11.0, 2.0), (6.0, -2.0), (2.0, 2.0), (0.0, 0.0), (-1.0, 0.0), (-1.0, 3.0)]
     ]
+    @test are_regions_equal(regions, expected)
 end
 
 end
