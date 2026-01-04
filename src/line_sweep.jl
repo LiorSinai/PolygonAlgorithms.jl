@@ -73,9 +73,17 @@ end
 ##                  Initialise Events                      ##
 #############################################################
 
-function convert_to_event_queue(polygon::Path2D{T}; primary::Bool=true, atol::AbstractFloat=default_atol) where T
-    # The event list reads all segments from left to right, end->start, top to bottom
-    queue = SegmentEvent{T}[]
+function convert_to_event_queue(
+    polygon::Path2D{T}; options...
+    ) where T
+    # The event list reads all segments from left to right, end to start, bottom to top
+    convert_to_event_queue!(SegmentEvent{T}[], polygon; options...)
+end
+
+function convert_to_event_queue!(
+    queue::Vector{<:SegmentEvent}, polygon::Path2D;
+    primary::Bool=true, atol::AbstractFloat=default_atol
+    )
     pt2 = polygon[end]
     for i in eachindex(polygon)
         pt1 = pt2

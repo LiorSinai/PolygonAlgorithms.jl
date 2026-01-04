@@ -29,5 +29,6 @@ end
     include("intersect_convex.jl")
     include("intersect_concave.jl")
     include("polygon_boolean.jl")
+    include("polygon_boolean_holes.jl")
     include("polygon_boolean_multi.jl")
 end

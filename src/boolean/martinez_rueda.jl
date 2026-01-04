@@ -45,6 +45,30 @@ end
 
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
+    base::Polygon{T},
+    others::Vararg{Polygon{T}},
+    ; atol::AbstractFloat=default_atol
+    ) where T
+    event_queue_base = convert_to_event_queue(base.exterior; primary=true, atol=atol)
+    for hole in base.holes
+        convert_to_event_queue!(event_queue_base, hole; primary=true, atol=atol)
+    end
+    event_queue_others = map(p -> convert_to_event_queue(p.exterior; primary=false, atol=atol), others)
+    for (queue, other) in zip(event_queue_others, others)
+        for hole in other.holes
+            convert_to_event_queue!(queue, hole; primary=false, atol=atol)
+        end
+    end
+    #TODO return Vector{Polygon}. This will require:
+    # 1. Return Vector{Vector{SegmentEvent}}. Then convert to Path2D/Poylgon as required.
+    # 2. An indicator if a polygon is a hole or not.
+    # 3. Sorting of the resulting regions into holes/polygons.
+    #    Caveat: Handle polygons inside the hole of another polygon.
+    martinez_rueda_algorithm(selection_criteria, event_queue_base, event_queue_others...; atol=atol)
+end
+
+function martinez_rueda_algorithm(
+    selection_criteria::Vector{AnnotationFill},
     subjects::AbstractVector{<:Path2D{T}},
     clips::AbstractVector{<:Path2D{T}},
     ; atol::AbstractFloat=default_atol
@@ -362,7 +386,7 @@ function calculate_self_annotations!(ev::SegmentEvent, below::Union{Nothing, Seg
     @debug("[calculate_self_annotations!] below: $(below)")
     toggle = isnothing(ev.self_annotations.fill_below) ? true : ev.self_annotations.fill_above != ev.self_annotations.fill_below
     if isnothing(below)
-        ev.self_annotations.fill_below = false # TODO primaryPolyInverted
+        ev.self_annotations.fill_below = false
     else
         @assert !isnothing(below.self_annotations.fill_above) "missing annotations below: $(below)" # preempt !nothing error
         ev.self_annotations.fill_below = below.self_annotations.fill_above # below should already be filled
@@ -380,8 +404,8 @@ function calculate_other_annotations!(ev::SegmentEvent, below::Nothing)
     @debug("[calculate_other_annotations!] ev=$ev")
     @debug("[calculate_other_annotations!] below=$below")
     if isnothing(ev.other_annotations.fill_above)
-        # if nothing is below ev, only inside if the other polygon is inverted
-        inside = false # TODO is_primary ? secondaryPolyInverted : primaryPolyInverted
+        # if nothing is below the event, it cannot be in the other polygon
+        inside = false
         ev.other_annotations.fill_above = inside
         ev.other_annotations.fill_below = inside
     end
