@@ -10,8 +10,10 @@ Implementations of Polygon algorithms.
 ## Description
 ### Representation
 
-Points are represented as tuples and polygons as list of points (tuples).
-The last point is assumed to share an edge with the first: `n + 1 = 1`.
+There are two ways to represent polygons:
+- As a list of points (tuples). The last point is assumed to share an edge with the first: `n + 1 = 1`.
+- With the internal `PolygonAlgorithms.Polygon` struct. This struct consists of an `exterior` and `holes`. Each sub-object must be a list points (tuples). The holes should be properly contained in the polygon.
+Validation is not performed by default. Pass `validate=true` to the constructor to enable it.
 
 For indexing use `x_coords` and `y_coords`. 
 Common broadcasting operations are supplied such as `translate` and `rotate`.
@@ -95,8 +97,8 @@ For all of the the following `n` and `m` are the number of vertices of the polyg
 7. `difference_geometry`, `union_geometry`, `xor_geometry`
     - Operation: boolean operations on polygons.
     - Algorithm: Martinez-Rueda.
-    - Concave, convex and self-intersecting.
-    - Annotates each segments with 4 fill criteria: filled by itself above and/or below, and filled by the other polygon above and/or below. Once this has been accomplished, it is trivial to select segments which match the given operation.
+    - Concave, convex and self-intersecting. Can operate on multiple polygons at once.
+    - Annotates each segments with 4 fill criteria: filled by itself above and/or below, and filled by the other polygon above and/or below. Once this has been accomplished, it is trivial to select segments which match the given operation. These segments are then combined to form the final polygon.
     - Time complexity: `O((n+m+k)log(n+m))`. 
     - Reference: https://www.researchgate.net/publication/220163820_A_new_algorithm_for_computing_Boolean_operations_on_polygons
     - Blog post: https://sean.fun/a/polygon-clipping-pt2/

@@ -109,7 +109,7 @@ Find all points which lie on the intersection of the edges of the vertices given
 Time complexity is `O(nm)` where `n` and `m` are the number of vertices of polygon 1 and 2 respectively.
 """
 function intersect_edges(
-    polygon1::Polygon2D{T}, polygon2::Polygon2D{T}
+    polygon1::Path2D{T}, polygon2::Path2D{T}
     ; atol::AbstractFloat=default_atol
     ) where T
     points = Point2D{T}[]

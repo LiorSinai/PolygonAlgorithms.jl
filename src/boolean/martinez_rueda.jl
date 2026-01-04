@@ -1,85 +1,18 @@
 @enum AnnotationFill BLANK=0 ABOVE=1 BELOW=2 EMPTY=3
 
-#############################################################
-##                     SegmentEvent                        ##
-#############################################################
-
-mutable struct SegmentAnnotations
-    fill_above::Union{Nothing, Bool}
-    fill_below::Union{Nothing, Bool}
-end
-
-SegmentAnnotations() = SegmentAnnotations(nothing, nothing)
-
-==(ann1::SegmentAnnotations, ann2::SegmentAnnotations) = 
-    (ann1.fill_above == ann2.fill_above) && (ann1.fill_below == ann2.fill_below)
-
-mutable struct SegmentEvent{T}
-    segment::Segment2D{T}
-    is_start::Bool
-    primary::Bool # primary or secondary polygon
-    self_annotations::SegmentAnnotations # this polygon
-    other_annotations::SegmentAnnotations # other polygon
-    # convenience properties
-    other::Union{Nothing,SegmentEvent{T}} # links to opposite event
-    point::Point2D{T} # is_start ? segment[1] : segment[2]
-    other_point::Point2D{T} # is_start ? segment[2] : segment[1]
-end
-
-function SegmentEvent(
-    segment::Segment2D,
-    is_start::Bool,
-    primary::Bool=true,
-    self_annotations::SegmentAnnotations=SegmentAnnotations(),
-    other_annotations::SegmentAnnotations=SegmentAnnotations(),
-    )
-    point = is_start ? segment[1] : segment[2]
-    other_point = is_start ? segment[2] : segment[1]
-    SegmentEvent(segment, is_start, primary, self_annotations, other_annotations, nothing, point, other_point)
-end
-
-function copy_segment(event::SegmentEvent) 
-    # make a copy independent of the original event.
-    SegmentEvent(
-        deepcopy(event.segment), event.is_start, event.primary, deepcopy(event.self_annotations), deepcopy(event.other_annotations)
-    )
-end
-
 """
-    ==(ev1::SegmentEvent, ev2::SegmentEvent)
-
-Test equality by comparing attributes but excluding the `other` link.
-Use `===` instead if the `other` link is required.
-"""
-==(ev1::SegmentEvent, ev2::SegmentEvent) = 
-    (ev1.segment == ev2.segment) && (ev1.is_start == ev2.is_start) &&
-    (ev1.primary == ev2.primary) &&
-    (ev1.self_annotations == ev2.self_annotations) && (ev1.other_annotations == ev2.other_annotations)
-
-function Base.show(io::IO, event::SegmentEvent)
-    #print(io, typeof(event), "(")
-    print(io, "SegmentEvent(")
-    print(io, event.segment)
-    print(io, ", ", event.is_start)
-    print(io, ", ", event.primary)
-    print(io, ", ", event.self_annotations)
-    print(io, ", ", event.other_annotations)
-    #print(io, ", ", event.other)
-    #print(io, ", ", event.point)
-    #print(io, ", ", event.other_point)
-    print(io, ")")
-end
-
-"""
-    martinez_rueda_algorithm(polygon1, polygon2, selection_criteria;
-        atol=default_atol, rtol=default_rtol
-    )
+    martinez_rueda_algorithm(selection_criteria, base, others...; atol=default_atol)
 
 The Martínez-Rueda-Feito polygon clipping algorithm.
 Returns regions and edges of intersection.
 It runs in `O((n+m+k)log(n+m))` time where `n` and `m` are the number of vertices of `polygon1` 
 and `polygon2` respectively and `k` is the total number of intersections between all segments.
 Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
+
+The `base` and `others` must both be either:
+- Polygons: `Vector{Tuple{Float64, Float64}}`.
+- Multi-polygons: `Vector{Vector{Tuple{Float64, Float64}}}`. Note: these are not interpreted as holes.
+- Segment event queue: `Vector{<:SegmentEvent{Float64}}`. The core algorithm uses this representation.
 
 Description:
 - Operates at a segment level and is an extension of the Bentley-Ottman line intersection algorithm.
@@ -100,98 +33,82 @@ References
 - article source code: https://github.com/velipso/polybooljs
 """
 function martinez_rueda_algorithm(
-    polygon1::Polygon2D{T},
-    polygon2::Polygon2D{T},
-    selection_criteria::Vector{AnnotationFill}
+    selection_criteria::Vector{AnnotationFill},
+    base::Path2D{T},
+    others::Vararg{Path2D{T}},
     ; atol::AbstractFloat=default_atol
     ) where T
-    event_queue1 = convert_to_event_queue(polygon1; primary=true, atol=atol)
-    event_queue2 = convert_to_event_queue(polygon2; primary=false, atol=atol)
-    martinez_rueda_algorithm(event_queue1, event_queue2, selection_criteria; atol=atol)
+    event_queue_base = convert_to_event_queue(base; primary=true, atol=atol)
+    event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
+    martinez_rueda_algorithm(selection_criteria, event_queue_base, event_queue_others...; atol=atol)
 end
 
 function martinez_rueda_algorithm(
-    event_queue1::Vector{<:SegmentEvent{T}},
-    event_queue2::Vector{<:SegmentEvent{T}},
-    selection_criteria::Vector{AnnotationFill}
+    selection_criteria::Vector{AnnotationFill},
+    base::Polygon{T},
+    others::Vararg{Polygon{T}},
     ; atol::AbstractFloat=default_atol
     ) where T
-    annotated_segments1 = event_loop!(event_queue1; self_intersection=true, atol=atol)
-    annotated_segments2 = event_loop!(event_queue2; self_intersection=true, atol=atol)
-    queue = SegmentEvent{T}[]
-    for ev in vcat(annotated_segments1, annotated_segments2)
-        add_annotated_segment!(queue, ev)
+    event_queue_base = convert_to_event_queue(base.exterior; primary=true, atol=atol)
+    for hole in base.holes
+        convert_to_event_queue!(event_queue_base, hole; primary=true, atol=atol)
     end
-    annotated_segments3 = event_loop!(queue; self_intersection=false, atol=atol)
-    # for consistent reporting, swap annotations so that self annotations are always the primary
-    for ev in annotated_segments3
-        if !ev.primary
-            temp = ev.self_annotations
-            ev.self_annotations = ev.other_annotations
-            ev.other_annotations = temp
+    event_queue_others = map(p -> convert_to_event_queue(p.exterior; primary=false, atol=atol), others)
+    for (queue, other) in zip(event_queue_others, others)
+        for hole in other.holes
+            convert_to_event_queue!(queue, hole; primary=false, atol=atol)
         end
     end
-    selected = apply_selection_criteria(annotated_segments3, selection_criteria)
-    empty_segments, regions_segments = separate(is_empty_segment, selected)
+    #TODO return Vector{Polygon}. This will require:
+    # 1. Return Vector{Vector{SegmentEvent}}. Then convert to Path2D/Poylgon as required.
+    # 2. An indicator if a polygon is a hole or not.
+    # 3. Sorting of the resulting regions into holes/polygons.
+    #    Caveat: Handle polygons inside the hole of another polygon.
+    martinez_rueda_algorithm(selection_criteria, event_queue_base, event_queue_others...; atol=atol)
+end
+
+function martinez_rueda_algorithm(
+    selection_criteria::Vector{AnnotationFill},
+    subjects::AbstractVector{<:Path2D{T}},
+    clips::AbstractVector{<:Path2D{T}},
+    ; atol::AbstractFloat=default_atol
+    ) where T
+    event_queue_subjects = map(p -> convert_to_event_queue(p; primary=true, atol=atol), subjects)
+    event_queue_clips = map(p -> convert_to_event_queue(p; primary=false, atol=atol), clips)
+    martinez_rueda_algorithm(selection_criteria, event_queue_subjects..., event_queue_clips...; atol=atol)
+end
+
+function martinez_rueda_algorithm(
+    selection_criteria::Vector{AnnotationFill},
+    base::Vector{<:SegmentEvent{T}},
+    polygons::Vararg{Vector{<:SegmentEvent{T}}},
+    ; atol::AbstractFloat=default_atol
+    ) where T
+    base_annotated_segments = event_loop!(base; self_intersection=true, atol=atol)
+    for polygon in polygons
+        annotated_segments = event_loop!(polygon; self_intersection=true, atol=atol)
+        queue = SegmentEvent{T}[]
+        for ev in vcat(base_annotated_segments, annotated_segments)
+            add_annotated_segment!(queue, ev)
+        end
+        combined_annotated_segments = event_loop!(queue; self_intersection=false, atol=atol)
+        # for consistent reporting, swap annotations so that self annotations are always the primary
+        for ev in combined_annotated_segments
+            if !ev.primary
+                temp = ev.self_annotations
+                ev.self_annotations = ev.other_annotations
+                ev.other_annotations = temp
+            end
+        end
+        base_annotated_segments = apply_selection_criteria(combined_annotated_segments, selection_criteria)
+    end
+    empty_segments, regions_segments = separate(is_empty_segment, base_annotated_segments)
     regions = chain_segments(regions_segments; atol=atol, check_closes=true)
     segment_chains = chain_segments(empty_segments; atol=atol, check_closes=false)
     # It is also possible to attach some segment_chains to regions.
     # This will give consistent results with the Weiler-Atherton implementation.
     # For now, skipping this step.
     vcat(regions, segment_chains)
-end
-
-function insert_in_order!(vec::Vector{T}, data::T; lt=isless, rev=false) where T
-    idx = searchsortedfirst(vec, data; lt=lt, rev=rev)
-    insert!(vec, idx, data)
-end
-
-function pop_key!(vec::Vector{T}, key::T) where T
-    idx = findfirst(x->x===key, vec)
-    if isnothing(idx)
-        throw(KeyError(key))
-    end
-    popat!(vec, idx)
-end
-
-#############################################################
-##                  Initialise Events                      ##
-#############################################################
-
-function convert_to_event_queue(polygon::Polygon2D{T}; primary::Bool=true, atol::AbstractFloat=default_atol) where T
-    # The event list reads all segments from left to right, end->start, top to bottom
-    queue = SegmentEvent{T}[]
-    pt2 = polygon[end]
-    for i in eachindex(polygon)
-        pt1 = pt2
-        pt2 = polygon[i]
-        forward = _compare_points(pt1, pt2; atol=atol)
-        if forward == 0
-            continue # zero length segment
-        end
-        start = forward < 0 ? pt1 : pt2
-        end_ = forward < 0 ? pt2 : pt1
-        segment = (start, end_)
-        add_segment_event!(queue, segment, primary)
-    end
-    queue
-end
-
-function add_segment_event!(
-    queue::Vector{<:SegmentEvent},
-    segment::Segment2D,
-    primary::Bool,
-    shared_self_annotations::SegmentAnnotations=SegmentAnnotations(),
-    shared_other_annotations::SegmentAnnotations=SegmentAnnotations(),
-    )
-    forward = _compare_points(segment[1], segment[2])
-    @assert forward < 0 "invalid segment $(segment). Require start to be to the left or directly below the end."
-    start_event = SegmentEvent(segment, true, primary, shared_self_annotations, shared_other_annotations)
-    end_event = SegmentEvent(segment, false, primary, shared_self_annotations, shared_other_annotations)
-    start_event.other = end_event
-    end_event.other = start_event   
-    insert_in_order!(queue, start_event; lt=compare_events)
-    insert_in_order!(queue, end_event; lt=compare_events)
 end
 
 function add_annotated_segment!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent)
@@ -205,55 +122,6 @@ function add_annotated_segment!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent)
     end_ = forward < 0 ? pt2 : pt1
     segment = (start, end_)
     add_segment_event!(queue, segment, ev.primary, ev.self_annotations, ev.other_annotations)
-end
-
-"""
-    _compare_points(pt1, pt2; atol=default_atol)
-Return:
-- -1 if pt1 is smaller
-- 0 if the same
-- 1 if pt2 is smaller
-"""
-function _compare_points(pt1::Point2D{T}, pt2::Point2D{T}; atol::AbstractFloat=default_atol) where T # pointsCompare
-    if abs(pt1[1] - pt2[1]) < atol # on a vertical line
-        if abs(pt1[2] - pt2[2]) < atol # same point
-            return 0
-        end
-        return pt1[2] < pt2[2] ? -1 : 1; # compare Y values
-    end
-    return pt1[1] < pt2[1] ? -1 : 1; # compare X values
-end
-
-"""
-    compare_events(event, here)
-
-Smaller events are to the left or bottom. Otherwise, end events come before the start.
-Returns true if smaller.
-"""
-function compare_events(event::SegmentEvent, here::SegmentEvent; atol::AbstractFloat=default_atol) # eventCompare
-    # Assumes events are left to right
-    comp = _compare_points(event.point, here.point)
-    if comp != 0
-        return comp < 0
-    end
-    # Selected points are the same -> events on top of each other.
-    comp = _compare_points(event.other_point, here.other_point)
-    if comp === 0
-        return false # equal segments
-    end
-    # Two events on top of each other.
-    if event.is_start != here.is_start
-        # favor the one that isn't the start
-        return event.is_start ? false : true
-    end
-    # share a common start point ⋅< or a common end point >⋅
-    # Manually calculate if the other point is above
-    if abs(here.segment[1][1] - here.segment[2][1]) < atol # vertical
-        # projecting the point won't work.
-        # instead, assume smaller segment leans towards the right
-        return event.other_point[1] > here.segment[1][1]
-    end
-    is_above_or_on(event.other_point, here.segment; atol=atol) ? false : true
 end
 
 #############################################################
@@ -309,57 +177,12 @@ function event_loop!(
                     queue, sweep_status[idx - 1], sweep_status[idx + 1], self_intersection
                     ; atol=atol)
             end
-            push!(annotated_segments, copy_segment(head.other))
+            push!(annotated_segments, copy_segment(head.other, head.other.primary))
             popat!(sweep_status, idx)
         end
         popfirst!(queue)
     end
     annotated_segments
-end
-
-function find_transition(
-    list::Vector{<:SegmentEvent}, event::SegmentEvent
-    ; atol::AbstractFloat=default_atol
-    )
-    searchsortedfirst(list, event; lt=(x, y) -> is_above(x, y; atol=atol))
-end
-
-"""
-    is_above(event, other, [atol])
-
-
-!!!!! Critical function. May be source of errors that only emerge later.
-
-Return `true` if `event` is strictly above `other`.
-
-A segment is considered above another if:
-    1. It is to the left of the other segment.
-    2. And the start point of the other segment is orientated clockwise from it.
-Or symmetrically:
-    1. It is in line or to the right of the other segment.
-    2. And its start point is orientated counter-clockwise from the other segment.
-
-Assumes segments always go left to right.
-"""
-function is_above(
-    ev::SegmentEvent, other::SegmentEvent
-    ; atol::AbstractFloat=default_atol
-    ) # statusCompare
-    seg1 = ev.segment
-    seg2 = other.segment
-    if (seg1[1][1] < seg2[1][1])
-        orient = get_orientation(seg1[1], seg1[2], seg2[1]; atol=atol)
-        if orient == COLINEAR
-            orient = get_orientation(seg1[1], seg1[2], seg2[2]; atol=atol)
-        end
-        return orient == CLOCKWISE
-    else
-        orient = get_orientation(seg2[1], seg2[2], seg1[1]; atol=atol)
-        if orient == COLINEAR
-            orient = get_orientation(seg2[1], seg2[2], seg1[2]; atol=atol)
-        end
-        return orient == COUNTER_CLOCKWISE
-    end
 end
 
 function check_and_divide_intersection!(
@@ -377,7 +200,7 @@ function check_and_divide_intersection!(
     )
     pt = intersect_geometry(ev1.segment, ev2.segment)
     if isnothing(pt)
-        # Lines need to be exactly on top of each other 
+        # Lines might be on top of each other 
         ori2_start = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[1]; atol=atol)
         ori2_end = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[2]; atol=atol)
         if (ori2_start == COLINEAR) && (ori2_end == COLINEAR)
@@ -563,7 +386,7 @@ function calculate_self_annotations!(ev::SegmentEvent, below::Union{Nothing, Seg
     @debug("[calculate_self_annotations!] below: $(below)")
     toggle = isnothing(ev.self_annotations.fill_below) ? true : ev.self_annotations.fill_above != ev.self_annotations.fill_below
     if isnothing(below)
-        ev.self_annotations.fill_below = false # TODO primaryPolyInverted
+        ev.self_annotations.fill_below = false
     else
         @assert !isnothing(below.self_annotations.fill_above) "missing annotations below: $(below)" # preempt !nothing error
         ev.self_annotations.fill_below = below.self_annotations.fill_above # below should already be filled
@@ -581,8 +404,8 @@ function calculate_other_annotations!(ev::SegmentEvent, below::Nothing)
     @debug("[calculate_other_annotations!] ev=$ev")
     @debug("[calculate_other_annotations!] below=$below")
     if isnothing(ev.other_annotations.fill_above)
-        # if nothing is below ev, only inside if the other polygon is inverted
-        inside = false # TODO is_primary ? secondaryPolyInverted : primaryPolyInverted
+        # if nothing is below the event, it cannot be in the other polygon
+        inside = false
         ev.other_annotations.fill_above = inside
         ev.other_annotations.fill_below = inside
     end
@@ -674,12 +497,12 @@ function apply_selection_criteria(annotated_segments::Vector{<:SegmentEvent{T}},
                 (ev.other_annotations.fill_above ? 2 : 0) + 
                 (ev.other_annotations.fill_below ? 1 : 0)
         if criteria[index] != BLANK
-            new_segment = copy_segment(ev)
+            new_segment = copy_segment(ev, true)
             new_segment.self_annotations.fill_above = criteria[index] == ABOVE
             new_segment.self_annotations.fill_below = criteria[index] == BELOW
             new_segment.other_annotations.fill_above = nothing
             new_segment.other_annotations.fill_below = nothing
-            push!(result, copy_segment(new_segment))
+            push!(result, new_segment)
         end
     end
     result
