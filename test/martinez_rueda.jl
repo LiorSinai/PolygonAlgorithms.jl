@@ -1,6 +1,6 @@
 using Test
 using PolygonAlgorithms: SegmentEvent, SegmentAnnotations
-using PolygonAlgorithms: add_annotated_segment!, convert_to_event_queue
+using PolygonAlgorithms: add_annotated_segment!, compare_events, convert_to_event_queue
 using PolygonAlgorithms: check_and_divide_intersection!, event_loop!
 using PolygonAlgorithms: chain_segments
 using PolygonAlgorithms: BLANK
@@ -375,19 +375,40 @@ using PolygonAlgorithms: BLANK
                 SegmentEvent(((4.0, -4.0), (7.0, -1.0)), true),
             ]
             regions = chain_segments(segments)
-            expected = [[(7.0, -1.0), (3.0, 3.0), (0.0, 0.0), (4.0, -4.0)]]
+            expected = [[
+                    SegmentEvent(((3.0, 3.0), (7.0, -1.0)), false),
+                    SegmentEvent(((0.0, 0.0), (3.0, 3.0)),  false),
+                    SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
+                    SegmentEvent(((0.0, 0.0), (4.0, -4.0)), false),
+            ]]
+            @test regions == expected
+        end
+
+        @testset "close fuzzy" begin
+            segments = [
+                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
+                SegmentEvent(((0.0, 0.0), (3.0, 3.0)), true),
+                SegmentEvent(((3.0, 3.0), (7.0, -1.0)), true),
+                SegmentEvent(((3.999, -3.999), (7.0, -1.0)), true),
+            ]
+            regions = chain_segments(segments)
+            expected = [[
+                SegmentEvent(((3.999, -3.999), (7.0, -1.0)), true),
+                SegmentEvent(((3.0, 3.0), (7.0, -1.0)), false),
+                SegmentEvent(((0.0, 0.0), (3.0, 3.0)), false),
+                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
+                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), false),
+            ]]
             @test regions == expected
         end
 
         @testset "chain segments - improper" begin
             segments = [
                 SegmentEvent(((0.0, 0.0), (2.0, 2.0)), true),
-                SegmentEvent(((0.0, 0.0), (2.0, 2.0)), true),
                 SegmentEvent(((2.0, 2.0), (5.0, 1.0)), true),
                 SegmentEvent(((2.0, 2.0), (3.0, 5.0)), true),
                 SegmentEvent(((3.0, 5.0), (5.0, 1.0)), true),
             ]
-            expected = [(0.0, 0.0), (2.0, 2.0), (3.0, 5.0), (5.0, 1.0), (2.0, 2.0)]
             @test_throws AssertionError chain_segments(segments)
         end
     end

@@ -40,7 +40,10 @@ function martinez_rueda_algorithm(
     ) where T
     event_queue_base = convert_to_event_queue(base; primary=true, atol=atol)
     event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
-    martinez_rueda_algorithm(selection_criteria, event_queue_base, event_queue_others...; atol=atol)
+    regions_segments = martinez_rueda_algorithm(
+        selection_criteria, event_queue_base, event_queue_others...; atol=atol
+    )
+    map(segments -> map(event -> event.point, segments), regions_segments)
 end
 
 function martinez_rueda_algorithm(
@@ -61,10 +64,13 @@ function martinez_rueda_algorithm(
     end
     #TODO return Vector{Polygon}. This will require:
     # 1. Return Vector{Vector{SegmentEvent}}. Then convert to Path2D/Poylgon as required.
+    regions_segments = martinez_rueda_algorithm(
+        selection_criteria, event_queue_base, event_queue_others...; atol=atol
+    )
     # 2. An indicator if a polygon is a hole or not.
     # 3. Sorting of the resulting regions into holes/polygons.
     #    Caveat: Handle polygons inside the hole of another polygon.
-    martinez_rueda_algorithm(selection_criteria, event_queue_base, event_queue_others...; atol=atol)
+    map(segments -> map(event -> event.point, segments), regions_segments)
 end
 
 function martinez_rueda_algorithm(
@@ -75,7 +81,10 @@ function martinez_rueda_algorithm(
     ) where T
     event_queue_subjects = map(p -> convert_to_event_queue(p; primary=true, atol=atol), subjects)
     event_queue_clips = map(p -> convert_to_event_queue(p; primary=false, atol=atol), clips)
-    martinez_rueda_algorithm(selection_criteria, event_queue_subjects..., event_queue_clips...; atol=atol)
+    regions_segments = martinez_rueda_algorithm(
+        selection_criteria, event_queue_subjects..., event_queue_clips...; atol=atol
+    )
+    map(segments -> map(event -> event.point, segments), regions_segments)
 end
 
 function martinez_rueda_algorithm(
@@ -516,9 +525,7 @@ is_empty_segment(ev::SegmentEvent) = (ev.self_annotations.fill_above == false) &
 struct SegmentChainCandidate{T}
     chain_idx::Int
     match_chain_start::Bool
-    match_segment_start::Bool
-    match_point::Point2D{T}
-    other_point::Point2D{T}
+    segment_event::SegmentEvent{T}
 end
 
 function chain_segments(
@@ -528,8 +535,8 @@ function chain_segments(
     # Note: if any of the regions intersect at a vertex, than this is not guaranteed to give consistent results
     # They might be joined into one region or presented as separate regions.
     # This algorithm can fail if the polygon is improper (it has lines jutting out)
-    chains = Vector{Point2D{T}}[] # this is the same type as regions
-    regions = Vector{Point2D{T}}[]
+    chains = Vector{SegmentEvent{T}}[]
+    regions = Vector{SegmentEvent{T}}[]
     processed = Set{Segment2D{T}}()
     for event in segments
         if event.segment in processed
@@ -540,10 +547,13 @@ function chain_segments(
         @debug("[chain_segment]: event=$event")
         @debug("[chain_segment]: candidates=$candidates")
         for (chain_idx, chain) in enumerate(chains)
-            insert_matching_candidate!(candidates, chain, chain_idx, event.segment; atol=atol)
+            insert_matching_candidate!(candidates, chain, chain_idx, event; atol=atol)
         end
         if length(candidates) == 0 # start a new open chain
-            chain = [event.segment[1], event.segment[2]]
+            chain = [
+                SegmentEvent(event.segment, true, true, deepcopy(event.self_annotations)),
+                SegmentEvent(event.segment, false, true, deepcopy(event.self_annotations))
+            ]
             @debug("[chain_segment]: new chain")
             push!(chains, chain)
         elseif length(candidates) == 1 # check if it closes else append to chain
@@ -554,16 +564,15 @@ function chain_segments(
                 push!(regions, chain)
                 @debug("[chain_segment]: closed chain")
             else
-                append_candidate!(chain, candidate; atol=atol)
+                append_candidate!(chain, candidate)
                 @debug("[chain_segment]: appended chain")
             end
         elseif length(candidates) == 2 # join two chains together
             cand1 = candidates[1]
             cand2 = candidates[2]
-            @assert cand1.match_segment_start != cand2.match_segment_start "Same point of segment $(cand1.segment) linked to two open chains"
             chain1 = chains[cand1.chain_idx]
             chain2 = chains[cand2.chain_idx]
-            append_candidate!(chain1, cand1; atol=atol)
+            append_candidate!(chain1, cand1)
             new_chain = join_chains!(chain1, chain2, cand1.match_chain_start, cand2.match_chain_start)
             chains[cand1.chain_idx] = new_chain
             @debug("[chain_segment]: combined chains")
@@ -587,67 +596,82 @@ end
 
 function insert_matching_candidate!(
     candidates::Vector{<:SegmentChainCandidate},
-    chain::Vector{<:Point2D},
+    chain::Vector{<:SegmentEvent},
     chain_idx::Int,
-    segment::Segment2D
+    event::SegmentEvent
     ; atol::AbstractFloat=default_atol
     )
+    segment = event.segment
     is_match = false
-    if is_same_point(chain[1], segment[1]; atol=atol)
+    if is_same_point(chain[1].point, segment[1]; atol=atol)
         is_match = true
         match_chain_start = true
         match_idx = 1
-        other_idx = 2
-    elseif is_same_point(chain[1], segment[2]; atol=atol)
+    elseif is_same_point(chain[1].point, segment[2]; atol=atol)
         is_match = true
         match_chain_start = true
         match_idx = 2
-        other_idx = 1
-    elseif is_same_point(chain[end], segment[1]; atol=atol)
+    elseif is_same_point(chain[end].point, segment[1]; atol=atol)
         is_match = true
         match_chain_start = false
         match_idx = 1
-        other_idx = 2
-    elseif is_same_point(chain[end], segment[2]; atol=atol)
+    elseif is_same_point(chain[end].point, segment[2]; atol=atol)
         is_match = true
         match_chain_start = false
         match_idx = 2
-        other_idx = 1
     end
     if is_match
+        is_start = match_idx == 1
         candidate = SegmentChainCandidate(
-            chain_idx, match_chain_start, match_idx == 1, segment[match_idx], segment[other_idx]
+            chain_idx,
+            match_chain_start,
+            # add segment for the other point
+            SegmentEvent(segment, !is_start, true, deepcopy(event.self_annotations))
         )
         push!(candidates, candidate)
     end
 end
 
-function append_candidate!(chain::Vector{<:Tuple}, candidate::SegmentChainCandidate
-    ; atol::AbstractFloat=default_atol)
+function append_candidate!(
+    chain::Vector{<:SegmentEvent},
+    candidate::SegmentChainCandidate
+    ; atol::AbstractFloat=default_atol
+    )
     if candidate.match_chain_start
         if length(chain) > 1 && 
-            get_orientation(candidate.other_point, chain[1], chain[2]; atol=atol) == COLINEAR
+            get_orientation(
+                candidate.segment_event.point,
+                chain[1].point,
+                chain[2].point
+                ; atol=atol
+            ) == COLINEAR
             popfirst!(chain)
         end
-        insert!(chain, 1, candidate.other_point)
+        insert!(chain, 1, candidate.segment_event)
     else
         if length(chain) > 1 && 
-            get_orientation(chain[end-1], chain[end], candidate.other_point; atol=atol) == COLINEAR
+            get_orientation(
+                chain[end-1].point,
+                chain[end].point,
+                candidate.segment_event.point
+                ; atol=atol
+            ) == COLINEAR
             pop!(chain)
         end
-        push!(chain, candidate.other_point)
+        push!(chain, candidate.segment_event)
     end
 end
 
-function closes_chain(chain::Vector{<:Point2D}, candidate::SegmentChainCandidate; atol::AbstractFloat=default_atol)
+function closes_chain(chain::Vector{<:SegmentEvent}, candidate::SegmentChainCandidate; atol::AbstractFloat=default_atol)
+    candidate_point = candidate.segment_event.point
     if candidate.match_chain_start
-        return is_same_point(chain[end], candidate.other_point; atol=atol)
+        return is_same_point(chain[end].point, candidate_point; atol=atol)
     else
-        return is_same_point(chain[1], candidate.other_point; atol=atol)
+        return is_same_point(chain[1].point, candidate_point; atol=atol)
     end
 end
 
-function fuzzy_close!(chains::Vector{<:Vector{<:Point2D}}, regions::Vector{<:Vector{<:Point2D}}; atol)
+function fuzzy_close!(chains::Vector{<:Vector{<:SegmentEvent}}, regions::Vector{<:Vector{<:SegmentEvent}}; atol)
     for idx in reverse(eachindex(chains))
         if is_fuzzy_closed(chains[idx], length(regions) + 1; atol=atol)
             push!(regions, popat!(chains, idx))
@@ -656,12 +680,13 @@ function fuzzy_close!(chains::Vector{<:Vector{<:Point2D}}, regions::Vector{<:Vec
     regions
 end
 
-function is_fuzzy_closed(chain::Vector{<:Point2D}, idx::Int; atol::AbstractFloat, rtol::AbstractFloat=1.0)
-    if is_same_point(chain[1], chain[end]; atol=atol)
+function is_fuzzy_closed(chain::Vector{<:SegmentEvent}, idx::Int; atol::AbstractFloat, rtol::AbstractFloat=1.0)
+    if is_same_point(chain[1].point, chain[end].point; atol=atol)
         return true
     end
-    gap = norm(chain[1], chain[end])
-    gaps = norm.(chain[1:(end-1)], chain[2:end])
+    gap = norm(chain[1].point, chain[end].point)
+    path = map(event -> event.point, chain)
+    gaps = norm.(path[1:(end-1)], path[2:end])
     mean_gap = sum(gaps) / length(gaps)
     if gap / mean_gap <= rtol
         @warn("Region $idx was not closed, but it has a relatively small gap and will be considered closed.")
@@ -670,7 +695,7 @@ function is_fuzzy_closed(chain::Vector{<:Point2D}, idx::Int; atol::AbstractFloat
     false
 end
 
-function join_chains!(chain1::Vector{<:Point2D}, chain2::Vector{<:Point2D}, match_chain1_start, match_chain2_start)
+function join_chains!(chain1::Vector{<:SegmentEvent}, chain2::Vector{<:SegmentEvent}, match_chain1_start, match_chain2_start)
     # Note: with clever use of reverse! can change this to always modify chain1 in place for the same output
     if match_chain1_start && match_chain2_start
         # <--- --->
