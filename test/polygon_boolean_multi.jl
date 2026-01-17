@@ -1,3 +1,6 @@
+using PolygonAlgorithms
+using PolygonAlgorithms: MartinezRuedaAlg, PointSet
+
 @testset "polygon boolean multi - $alg" for alg in [
     MartinezRuedaAlg(),
 ]
@@ -73,7 +76,14 @@ end
         regions2 = difference_geometry(regions[1], vcat([regions[2]], [triangle])) # top region is no longer primary
         @test are_regions_equal(regions2, expected[1:1]) # not a bug. The top region was excluded.
 
-        @test_broken difference_geometry([rect1, triangle], [rect2]) # this doesn't work if the subject polygons overlap.
+        # combine rect1 + triangle. They overlap so equivalent to self-intersecting with holes
+        regions3 = difference_geometry([rect1, triangle], [rect2])
+        expected = [
+            [(-0.5, 1.5), (0.0, 1.5), (0.0, 1.625)],
+            [(1.0, 0.5), (1.0, 0.0), (0.0, 0.0), (0.0, 0.5), (0.3, 0.5), (0.5, 0.25), (0.6428571428571428, 0.5)],
+            [(1.5, 2.0), (1.2142857142857142, 1.5), (1.0, 1.5), (1.0, 1.875), (1.0, 1.875), (0.0, 1.625), (0.0, 2.0), (1.0, 2.0), (1.0, 2.0), (1.0, 1.875)],
+        ]
+        @test are_regions_equal(regions3, expected)
     end
 
     @testset "xor" begin
@@ -162,7 +172,6 @@ end
         regions = xor_geometry(vcat(regions, [rect]), alg)
         @test are_regions_equal(regions, expected)
     end
-
 end
 
 end

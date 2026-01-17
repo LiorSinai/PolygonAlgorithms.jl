@@ -40,10 +40,10 @@ function martinez_rueda_algorithm(
     ) where T
     event_queue_base = convert_to_event_queue(base; primary=true, atol=atol)
     event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
-    regions_segments = martinez_rueda_algorithm(
+    region_segments = martinez_rueda_algorithm(
         selection_criteria, event_queue_base, event_queue_others...; atol=atol
     )
-    map(segments -> map(event -> event.point, segments), regions_segments)
+    map(segments -> map(event -> event.point, segments), region_segments)
 end
 
 function martinez_rueda_algorithm(
@@ -52,12 +52,13 @@ function martinez_rueda_algorithm(
     clips::AbstractVector{<:Path2D{T}},
     ; atol::AbstractFloat=default_atol
     ) where T
-    event_queue_subjects = map(p -> convert_to_event_queue(p; primary=true, atol=atol), subjects)
+    subject_queue = SegmentEvent{T}[]
+    map(p -> convert_to_event_queue!(subject_queue, p; primary=true, atol=atol), subjects)
     event_queue_clips = map(p -> convert_to_event_queue(p; primary=false, atol=atol), clips)
-    regions_segments = martinez_rueda_algorithm(
-        selection_criteria, event_queue_subjects..., event_queue_clips...; atol=atol
+    region_segments = martinez_rueda_algorithm(
+        selection_criteria, subject_queue, event_queue_clips...; atol=atol
     )
-    map(segments -> map(event -> event.point, segments), regions_segments)
+    map(segments -> map(event -> event.point, segments), region_segments)
 end
 
 # Polygon with hole input
@@ -78,27 +79,23 @@ function martinez_rueda_algorithm(
             convert_to_event_queue!(queue, hole; primary=false, atol=atol)
         end
     end
-    #TODO return Vector{Polygon}. This will require:
-    # 1. Return Vector{Vector{SegmentEvent}}. Then convert to Path2D/Poylgon as required.
-    regions_segments = martinez_rueda_algorithm(
+    region_segments = martinez_rueda_algorithm(
         selection_criteria, event_queue_base, event_queue_others...; atol=atol
     )
-    # 2. An indicator if a polygon is a hole or not.
-    # 3. Sorting of the resulting regions into holes/polygons.
-    #    Caveat: Handle polygons inside the hole of another polygon.
-    map(segments -> map(event -> event.point, segments), regions_segments)
+    convert_segments_to_polygons(region_segments; atol=atol)
 end
 
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subjects::AbstractVector{<:Polygon{T}},
-    clips::Vararg{Polygon{T}},
+    clips::Vararg{<:Polygon{T}},
     ; atol::AbstractFloat=default_atol
     ) where T
-    event_queue_subjects = map(p -> convert_to_event_queue(p.exterior; primary=true, atol=atol), subjects)
-    for (queue, subject) in zip(event_queue_subjects, subjects)
+    subject_queue = SegmentEvent{T}[]
+    map(p -> convert_to_event_queue!(subject_queue, p.exterior; primary=true, atol=atol), subjects)
+    for subject in subjects
         for hole in subject.holes
-            convert_to_event_queue!(queue, hole; primary=true, atol=atol)
+            convert_to_event_queue!(subject_queue, hole; primary=true, atol=atol)
         end
     end
     event_queue_clips = map(p -> convert_to_event_queue(p.exterior; primary=false, atol=atol), clips)
@@ -107,10 +104,10 @@ function martinez_rueda_algorithm(
             convert_to_event_queue!(queue, hole; primary=false, atol=atol)
         end
     end
-    regions_segments = martinez_rueda_algorithm(
-        selection_criteria, event_queue_subjects..., event_queue_clips...; atol=atol
+    region_segments = martinez_rueda_algorithm(
+        selection_criteria, subject_queue, event_queue_clips...; atol=atol
     )
-    map(segments -> map(event -> event.point, segments), regions_segments)
+    convert_segments_to_polygons(region_segments; atol=atol)
 end
 
 # SegmentEvent input → main algorithm
@@ -139,8 +136,8 @@ function martinez_rueda_algorithm(
         end
         base_annotated_segments = apply_selection_criteria(combined_annotated_segments, selection_criteria)
     end
-    empty_segments, regions_segments = separate(is_empty_segment, base_annotated_segments)
-    regions = chain_segments(regions_segments; atol=atol, check_closes=true)
+    empty_segments, region_segments = separate(is_empty_segment, base_annotated_segments)
+    regions = chain_segments(region_segments; atol=atol, check_closes=true)
     segment_chains = chain_segments(empty_segments; atol=atol, check_closes=false)
     # It is also possible to attach some segment_chains to regions.
     # This will give consistent results with the Weiler-Atherton implementation.
@@ -738,4 +735,97 @@ function join_chains!(chain1::Vector{<:SegmentEvent}, chain2::Vector{<:SegmentEv
         # ----> <-----
         return push!(chain1, reverse!(chain2)...) 
     end
+end
+
+#############################################################
+##                  Polygons and Holes                     ##
+#############################################################
+
+function convert_segments_to_polygons(
+    regions::Vector{<:Vector{<:SegmentEvent}}
+    ; atol::AbstractFloat=default_rtol
+    )
+    candidates, exteriors  = separate(p -> is_hole(p; atol=atol), regions)
+    polygons = map(segments -> Polygon(map(event -> event.point, segments)), exteriors)
+    holes = map(segments -> map(event -> event.point, segments), candidates)
+    parents = match_holes_polygons(polygons, holes; atol=atol)
+    for (idx, hole) in zip(parents, holes)
+        if idx == 0
+            compact_vec = "[$(hole[1])...$(hole[end])]"
+            @debug "Hole $(compact_vec) has no parent. Casting to Polygon."
+            push!(polygons, Polygon(hole))
+        else
+            push!(polygons[idx].holes, hole)
+        end
+    end
+    polygons
+end
+
+"""
+    is_hole(polygon::Vector{<:SegmentEvent}; atol=default_atol)
+
+A necessary and sufficient condition for a polygon to be classified as a hole is that
+at its lowest point it must be filled below and not above.
+
+The `self_annotations` must therefore not be `nothing`.
+
+Note: if the direction of the polygon was known (clockwise/counter-clockwise) then any point could be used.
+"""
+function is_hole(polygon::Vector{<:SegmentEvent}; atol::AbstractFloat=default_atol)
+    # instead of sorting the whole vector, get the lowest segments first
+    y = minimum(event -> event.point[2], polygon)
+    lowest_segments = filter(event -> event.point[2] == y || event.other_point[2] == y, polygon)
+    # sort and check annotations
+    sort!(lowest_segments, lt=(x, y) -> is_above(x, y; atol=atol))
+    annotations = lowest_segments[end].self_annotations
+    annotations.fill_below && !annotations.fill_above
+end
+
+"""
+    match_holes_polygons(polygons::Vector{<:Polygon}, holes::Vector{<:Tuple})
+
+An algorithm for matching holes to polygons.
+Returns the index of each parent for each hole.
+
+For every hole, match to a polygon that contains the hole.
+If there are multiple polygons possible, the polygon with the least area is chosen.
+If no polygons are found, return the hole as a `Polygon`.
+
+In the best case there is one polygon or one hole. Then this runs in `O(1)` time.
+In the worst case, none of the holes match to a polygon.
+Then this runs in `O(phn)` time where `p` is the number polygons,
+`h` is the number of holes and `n` is the average number of vertices defining each polygon.
+"""
+function match_holes_polygons(
+    polygons::Vector{<:Polygon},
+    holes::Vector{<:Path2D}
+    ; atol::AbstractFloat=default_atol
+    )
+    if length(polygons) == 1
+        return fill(1, length(holes))
+    elseif isempty(holes)
+        return Int[]
+    end
+    areas = map(area_polygon, polygons)
+    # sort by ascending areas. Therefore smallest parent is matched first.
+    # Trade off is the hole may be tried in many smaller polygons first.
+    idxs = sortperm(areas)
+    parents = zeros(Int, length(holes))
+    for (idx_h, candidate) in enumerate(holes)
+        found = false
+        for (idx_p, parent) in zip(idxs, polygons[idxs])
+            # Assume that no segments intersect after the Martínez-Rueda algorithm.
+            # Then only need to check a point not on the exterior.
+            j = 1
+            while (j < length(candidate)) && on_border(parent.exterior, candidate[j])
+                j += 1
+            end
+            found = contains(parent.exterior, candidate[j]; atol=atol, on_border_is_inside=false)
+            if found
+                parents[idx_h] = idx_p
+                break
+            end
+        end
+    end
+    parents
 end

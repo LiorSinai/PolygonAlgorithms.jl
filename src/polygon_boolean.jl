@@ -134,12 +134,8 @@ The polygons must all either be:
 - `Vector{<:Tuple{T, T}} where T<:AbstractFloat`
 - `Polygon{T<:AbstractFloat}`
 
-If `subjects` is a list of polygons, they should not overlap. Call `union_geometry` first to ensure this is the case.
-There should not be any holes in the union:
-
-```julia
-difference_geometry(union_geometry(subjects), clips);
-```
+If `subjects` is a list of polygons and they overlap, this is equivalent to passing a self-intersecting polygon
+and some areas might be classified as holes according to the even-odd rule.
 
 The multi-polygon version is more efficient than looping through the polygons and applying `difference_geometry` sequentially.
 """
@@ -178,7 +174,7 @@ end
 function difference_geometry(
     subjects::AbstractVector{<:Polygon}, clips::AbstractVector{<:Polygon}, alg::MartinezRuedaAlg=MartinezRuedaAlg(); options...
     )
-    martinez_rueda_algorithm(DIFFERENCE_CRITERIA, subjects, clips; options...)
+    martinez_rueda_algorithm(DIFFERENCE_CRITERIA, subjects, clips...; options...)
 end
 
 """
