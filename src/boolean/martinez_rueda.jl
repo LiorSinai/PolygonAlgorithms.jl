@@ -48,6 +48,22 @@ end
 
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
+    subjects::AbstractVector{<:Path2D{T}},
+    clips::AbstractVector{<:Path2D{T}},
+    ; atol::AbstractFloat=default_atol
+    ) where T
+    event_queue_subjects = map(p -> convert_to_event_queue(p; primary=true, atol=atol), subjects)
+    event_queue_clips = map(p -> convert_to_event_queue(p; primary=false, atol=atol), clips)
+    regions_segments = martinez_rueda_algorithm(
+        selection_criteria, event_queue_subjects..., event_queue_clips...; atol=atol
+    )
+    map(segments -> map(event -> event.point, segments), regions_segments)
+end
+
+# Polygon with hole input
+
+function martinez_rueda_algorithm(
+    selection_criteria::Vector{AnnotationFill},
     base::Polygon{T},
     others::Vararg{Polygon{T}},
     ; atol::AbstractFloat=default_atol
@@ -75,17 +91,29 @@ end
 
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
-    subjects::AbstractVector{<:Path2D{T}},
-    clips::AbstractVector{<:Path2D{T}},
+    subjects::AbstractVector{<:Polygon{T}},
+    clips::Vararg{Polygon{T}},
     ; atol::AbstractFloat=default_atol
     ) where T
-    event_queue_subjects = map(p -> convert_to_event_queue(p; primary=true, atol=atol), subjects)
-    event_queue_clips = map(p -> convert_to_event_queue(p; primary=false, atol=atol), clips)
+    event_queue_subjects = map(p -> convert_to_event_queue(p.exterior; primary=true, atol=atol), subjects)
+    for (queue, subject) in zip(event_queue_subjects, subjects)
+        for hole in subject.holes
+            convert_to_event_queue!(queue, hole; primary=true, atol=atol)
+        end
+    end
+    event_queue_clips = map(p -> convert_to_event_queue(p.exterior; primary=false, atol=atol), clips)
+    for (queue, other) in zip(event_queue_clips, clips)
+        for hole in other.holes
+            convert_to_event_queue!(queue, hole; primary=false, atol=atol)
+        end
+    end
     regions_segments = martinez_rueda_algorithm(
         selection_criteria, event_queue_subjects..., event_queue_clips...; atol=atol
     )
     map(segments -> map(event -> event.point, segments), regions_segments)
 end
+
+# SegmentEvent input → main algorithm
 
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
