@@ -116,6 +116,19 @@ using PolygonAlgorithms: find_transition, any_intersect
             idx = find_transition(status, ev)
             @test idx == 1
         end
+
+        @testset "" begin
+            events = SegmentEvent[
+                SegmentEvent(((0.0, 8.0), (6.0, 8.0)), true,),
+                SegmentEvent(((0.0, 3.0), (6.0, 3.0)), true,),
+                SegmentEvent(((0.0, 0.0), (0.0, 10.0)), true),
+                SegmentEvent(((0.0, 0.0), (20.0, 0.0)), true)
+            ]
+            idx = find_transition(events, events[3])
+            @test_broken idx == 3
+            # the issue is the ambiguity with the straight line
+            @test !is_above(events[2], events[3]) && !is_above(events[3], events[2])
+        end
     end
 
     @testset "order sweep status" begin
