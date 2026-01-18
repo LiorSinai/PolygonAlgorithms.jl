@@ -1,7 +1,7 @@
 using Test
 using PolygonAlgorithms: SegmentEvent, SegmentAnnotations
 using PolygonAlgorithms: compare_events, convert_to_event_queue
-using PolygonAlgorithms: find_transition, any_intersect
+using PolygonAlgorithms: find_transition, is_above, any_intersect
 
 @testset "line Sweep" verbose=false begin
     @testset "queueing" begin

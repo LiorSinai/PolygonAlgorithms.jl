@@ -1,5 +1,5 @@
 using PolygonAlgorithms
-using PolygonAlgorithms: translate
+using PolygonAlgorithms: MartinezRuedaAlg, Polygon, translate
 
 @testset "polygon boolean - $alg" for alg in [
     MartinezRuedaAlg(),
