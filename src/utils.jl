@@ -21,4 +21,16 @@ function separate(f, v::Vector)
     other_idxs = setdiff(eachindex(v), idxs)
     (@view(v[idxs]), @view(v[other_idxs]))
 end
-  
+
+function insert_in_order!(vec::Vector{T}, data::T; lt=isless, rev=false) where T
+    idx = searchsortedfirst(vec, data; lt=lt, rev=rev)
+    insert!(vec, idx, data)
+end
+
+function pop_key!(vec::Vector{T}, key::T) where T
+    idx = findfirst(x->x===key, vec)
+    if isnothing(idx)
+        throw(KeyError(key))
+    end
+    popat!(vec, idx)
+end
