@@ -49,14 +49,14 @@ end
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subjects::AbstractVector{<:Path2D{T}},
-    clips::AbstractVector{<:Path2D{T}},
+    others::Vararg{<:Path2D{T}},
     ; atol::AbstractFloat=default_atol
     ) where T
     subject_queue = SegmentEvent{T}[]
     map(p -> convert_to_event_queue!(subject_queue, p; primary=true, atol=atol), subjects)
-    event_queue_clips = map(p -> convert_to_event_queue(p; primary=false, atol=atol), clips)
+    event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
     region_segments = martinez_rueda_algorithm(
-        selection_criteria, subject_queue, event_queue_clips...; atol=atol
+        selection_criteria, subject_queue, event_queue_others...; atol=atol
     )
     map(segments -> map(event -> event.point, segments), region_segments)
 end
@@ -110,7 +110,7 @@ function martinez_rueda_algorithm(
     convert_segments_to_polygons(region_segments; atol=atol)
 end
 
-# SegmentEvent input → main algorithm
+# Core algorithm: SegmentEvent input
 
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},

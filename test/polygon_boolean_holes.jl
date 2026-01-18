@@ -48,6 +48,10 @@ end
     regions = union_geometry(poly1, poly2, alg)
     expected = [poly1]
     @test are_equivalent(regions, expected)
+    # in this case the polygon is treated as a hole
+    regions = union_geometry([poly1, poly2], Polygon{Float64}[])
+    expected = [Polygon(poly1.exterior, holes=[poly2.exterior])]
+    @test are_equivalent(regions, expected)
     # XOR
     regions = xor_geometry(poly1, poly2, alg)
     expected = [Polygon(poly1.exterior; holes=[poly2.exterior])]
@@ -326,7 +330,7 @@ end
     rect = Polygon([(0.5, 0.0), (0.5, 0.5), (2.0, 0.5), (2.0, 0.0)])
 
     ## Intersection
-    regions = intersect_geometry([elbow, triangle, rect], alg)
+    regions = intersect_geometry([elbow], [triangle, rect], alg)
     @test isempty(regions)
     # Union
     expected = [
@@ -338,7 +342,7 @@ end
             ]
         )
     ]
-    regions = union_geometry([elbow, triangle, rect], alg)
+    regions = union_geometry([elbow], [triangle, rect], alg)
     @test are_equivalent(regions, expected)
     ## Difference
     expected = [
@@ -362,19 +366,8 @@ end
             ]
         ),
     ]
-    regions = xor_geometry([elbow, triangle, rect], alg)
+    regions = xor_geometry([elbow], [triangle, rect], alg)
     @test are_equivalent(regions, expected)
-end
-
-@testset "nested squares with holes" begin
-    poly1 = Polygon(
-        [(0.0, 0.0), (0.0, 7.0), (7.0, 7.0), (7.0, 0.0)],
-        holes=[[(1.0, 1.0), (1.0, 6.0), (6.0, 6.0), (6.0, 1.0)]],
-    )
-    poly2 = Polygon(
-        [(2.0, 2.0), (2.0, 5.0), (5.0, 5.0), (5.0, 2.0)];
-        holes=[[(3.0, 3.0), (3.0, 4.0), (4.0, 4.0), (4.0, 3.0)]],
-    )
 end
 
 end
