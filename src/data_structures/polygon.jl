@@ -48,7 +48,7 @@ function validate_polygon(exterior::Path2D{T}; holes::Vector{<:Path2D}=Vector{Po
     true
 end
 
-validate_polygon(polygon::Polygon) = validate_polygon(polygon.exterior, polygon.holes)
+validate_polygon(polygon::Polygon) = validate_polygon(polygon.exterior; holes=polygon.holes)
 
 function Polygon(
     exterior::Path2D{T}
