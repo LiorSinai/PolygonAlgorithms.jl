@@ -27,7 +27,7 @@ The following additional checks are not done:
 1. Holes should not intersect each other.
 2. No nested holes: holes should not be inside other holes.
 """
-function validate_polygon(exterior::Path2D{T}; holes::Vector{<:Path2D}=Path2D{T}[], atol::AbstractFloat=default_atol) where T
+function validate_polygon(exterior::Path2D{T}; holes::Vector{<:Path2D}=Vector{Point2D{T}}[], atol::AbstractFloat=default_atol) where T
     @assert length(exterior) > 2 "exterior requires at least 3 points."
     queue = convert_to_event_queue(exterior)
     @assert !any_intersect(queue; atol=atol, include_vertices=false) "Invalid exterior: edges self-intersect."
@@ -52,11 +52,11 @@ validate_polygon(polygon::Polygon) = validate_polygon(polygon.exterior, polygon.
 
 function Polygon(
     exterior::Path2D{T}
-    ; holes::Vector{<:Path2D}=Path2D{T}[],
+    ; holes::Vector{<:Path2D}=Vector{Point2D{T}}[],
     validate::Bool=false,
     atol::AbstractFloat=default_atol) where T
     if validate
-        validate_polygon(exterior, holes; atol=atol)
+        validate_polygon(exterior; holes=holes, atol=atol)
     end
     Polygon{T}(exterior, holes)
 end
