@@ -13,6 +13,25 @@ using PolygonAlgorithms: MartinezRuedaAlg, PointSet
     @test PointSet(points[1]) == PointSet(rect1)
 end
 
+@testset "overlap" begin
+    poly1 = [(1.0, 2.0), (1.0, 4.0), (3.0, 4.0), (3.0, 2.0)];
+    poly2 = [(1.0, 1.0), (2.0, 3.0), (3.0, 1.0)];
+    # union two different polygons
+    regions = union_geometry(poly1, poly2, alg)
+    exterior = [[
+        (3.0, 4.0), (3.0, 2.0), (2.5, 2.0), (3.0, 1.0), (1.0, 1.0), 
+        (1.5, 2.0), (1.5, 2.0), (1.0, 2.0), (1.0, 4.0)
+    ]]
+    @test are_regions_equal(regions, exterior)
+    # both are part of the subject
+    regions = union_geometry([poly1, poly2], Vector{Tuple{Float64, Float64}}[], alg)
+    expected = [
+        [(2.5, 2.0), (1.5, 2.0), (2.0, 3.0)], # hole
+        exterior[1]
+    ]
+    @test are_regions_equal(regions, expected)
+end
+
 @testset verbose=true "self-intersecting star" begin
     self_intersect_star = [
         (-3.0, 2.0), (3.0, 2.0), (-2.0, -2.0), (0.0, 5.0), (2.0, -2.0)

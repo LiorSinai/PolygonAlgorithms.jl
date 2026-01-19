@@ -58,6 +58,22 @@ end
     @test are_equivalent(regions, expected)
 end
 
+@testset "overlap" begin
+    poly1 = Polygon([(1.0, 2.0), (1.0, 4.0), (3.0, 4.0), (3.0, 2.0)]);
+    poly2 = Polygon([(1.0, 1.0), (2.0, 3.0), (3.0, 1.0)]);
+    # union two different polygons
+    regions = union_geometry(poly1, poly2, alg)
+    expected = [Polygon([
+        (3.0, 4.0), (3.0, 2.0), (2.5, 2.0), (3.0, 1.0), (1.0, 1.0), 
+        (1.5, 2.0), (1.5, 2.0), (1.0, 2.0), (1.0, 4.0)
+    ])]
+    @test are_equivalent(regions, expected)
+    # both are part of the subject
+    regions = union_geometry([poly1, poly2], Polygon{Float64}[], alg)
+    push!(expected[1].holes, [(2.5, 2.0), (1.5, 2.0), (2.0, 3.0)])
+    @test are_equivalent(regions, expected)
+end
+
 @testset "rectangles" begin
     ## Same
     poly1 = Polygon([

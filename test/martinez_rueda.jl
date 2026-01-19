@@ -412,6 +412,20 @@ using PolygonAlgorithms: BLANK
             ]
             @test_throws AssertionError chain_segments(segments)
         end
+
+        @testset "chain segments - improper hole" begin
+            segments = [
+                SegmentEvent(((0.0, 0.0), (0.0, 4.0)), true, true, SegmentAnnotations(false, true)),
+                SegmentEvent(((2.0, 1.0), (2.0, 2.0)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((0.0, 4.0), (2.0, 2.0)), true, true, SegmentAnnotations(true, true) ),
+                SegmentEvent(((2.0, 1.0), (3.0, 3.0)), true, true, SegmentAnnotations(false, true)),
+                SegmentEvent(((2.0, 2.0), (3.0, 3.0)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((0.0, 0.0), (5.0, 1.0)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((5.0, 1.0), (5.0, 4.0)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((0.0, 4.0), (5.0, 4.0)), true, true, SegmentAnnotations(false, true)),
+            ]
+            @test_throws AssertionError chain_segments(segments)
+        end
     end
 
     @testset "holes" begin
