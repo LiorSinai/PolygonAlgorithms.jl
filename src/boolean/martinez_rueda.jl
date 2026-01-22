@@ -103,26 +103,26 @@ function martinez_rueda_algorithm(
     polygon1::Polygon2D{T},
     polygon2::Polygon2D{T},
     selection_criteria::Vector{AnnotationFill}
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) where T
     event_queue1 = convert_to_event_queue(polygon1; primary=true, atol=atol)
     event_queue2 = convert_to_event_queue(polygon2; primary=false, atol=atol)
-    martinez_rueda_algorithm(event_queue1, event_queue2, selection_criteria; atol=atol)
+    martinez_rueda_algorithm(event_queue1, event_queue2, selection_criteria; atol=atol, rtol=rtol)
 end
 
 function martinez_rueda_algorithm(
     event_queue1::Vector{<:SegmentEvent{T}},
     event_queue2::Vector{<:SegmentEvent{T}},
     selection_criteria::Vector{AnnotationFill}
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) where T
-    annotated_segments1 = event_loop!(event_queue1; self_intersection=true, atol=atol)
-    annotated_segments2 = event_loop!(event_queue2; self_intersection=true, atol=atol)
+    annotated_segments1 = event_loop!(event_queue1; self_intersection=true, atol=atol, rtol=rtol)
+    annotated_segments2 = event_loop!(event_queue2; self_intersection=true, atol=atol, rtol=rtol)
     queue = SegmentEvent{T}[]
     for ev in vcat(annotated_segments1, annotated_segments2)
         add_annotated_segment!(queue, ev)
     end
-    annotated_segments3 = event_loop!(queue; self_intersection=false, atol=atol)
+    annotated_segments3 = event_loop!(queue; self_intersection=false, atol=atol, rtol=rtol)
     # for consistent reporting, swap annotations so that self annotations are always the primary
     for ev in annotated_segments3
         if !ev.primary
@@ -262,7 +262,7 @@ end
 
 function event_loop!(
     queue::Vector{SegmentEvent{T}}
-    ; self_intersection::Bool, atol::AbstractFloat=default_atol
+    ; self_intersection::Bool, atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_atol
     ) where T # eventLoop
     annotated_segments = SegmentEvent{T}[]
     sweep_status = SegmentEvent{T}[] # current events in a vertical line, top to bottom.
@@ -278,11 +278,11 @@ function event_loop!(
             @debug("[event_loop!] transition idx=$idx")
             @debug("[event_loop!] above=$above")
             @debug("[event_loop!] below=$below")
-            check_and_divide_intersection!(queue, head, above, self_intersection; atol=atol)
+            check_and_divide_intersection!(queue, head, above, self_intersection; atol=atol, rtol=rtol)
             if queue[1] != head
                 continue # either head was removed or something was inserted ahead of it
             end
-            check_and_divide_intersection!(queue, head, below, self_intersection; atol=atol)
+            check_and_divide_intersection!(queue, head, below, self_intersection; atol=atol, rtol=rtol)
             if queue[1] != head
                 continue # either head was removed or something was inserted ahead of it
             end
@@ -307,7 +307,7 @@ function event_loop!(
                 # there will be 2 new adjacent edges, so check the intersection between them
                 check_and_divide_intersection!(
                     queue, sweep_status[idx - 1], sweep_status[idx + 1], self_intersection
-                    ; atol=atol)
+                    ; atol=atol, rtol=rtol)
             end
             push!(annotated_segments, copy_segment(head.other))
             popat!(sweep_status, idx)
@@ -363,7 +363,8 @@ function is_above(
 end
 
 function check_and_divide_intersection!(
-    queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::Nothing, self_intersection::Bool; atol=1e-6
+    queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::Nothing, self_intersection::Bool
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
     queue
 end
@@ -373,10 +374,11 @@ function check_and_divide_intersection!(
     ev1::SegmentEvent,
     ev2::SegmentEvent,
     self_intersection::Bool
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
-    pt = intersect_geometry(ev1.segment, ev2.segment; atol=atol)
+    pt = intersect_geometry(ev1.segment, ev2.segment; atol=atol, rtol=rtol)
     if isnothing(pt)
+        @debug("no intersection at $ev1 -- $ev2")
         # Lines need to be exactly on top of each other 
         ori2_start = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[1]; atol=atol)
         ori2_end = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[2]; atol=atol)

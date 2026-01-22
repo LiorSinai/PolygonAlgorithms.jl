@@ -23,7 +23,7 @@ function do_intersect(segment1::Segment2D, segment2::Segment2D; rtol::AbstractFl
 end
     
 """
-    intersect_geometry(segment1, segment2; atol=default_atol)
+    intersect_geometry(segment1, segment2; atol=default_atol; rtol=default_rtol)
 
 Returns the intersection point if it exists or nothing otherwise.
 Use `do_intersect` for a quicker boolean test.
@@ -44,7 +44,8 @@ where both `0≤ t ≤1` and `0≤ u ≤1`. This can be solved as a linear equat
 ```
 """
 function intersect_geometry(
-    segment1::Segment2D, segment2::Segment2D; atol::AbstractFloat=default_atol
+    segment1::Segment2D, segment2::Segment2D; 
+    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
     A11 = segment1[2][1] - segment1[1][1]
     A12 = segment2[1][1] - segment2[2][1]
@@ -59,7 +60,7 @@ function intersect_geometry(
     # tu = A \ b
     t = (A22 * b1 - A12 * b2) / determinant
     u = (A11 * b2 - A21 * b1) / determinant
-    if -atol <= t <= 1 && -atol <= u <= 1
+    if -rtol <= t <= 1 && -rtol <= u <= 1
         x = segment1[1][1] + t * A11
         y = segment1[1][2] + t * A21
         return (x, y)
