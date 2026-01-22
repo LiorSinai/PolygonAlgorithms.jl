@@ -36,12 +36,12 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     base::Path2D{T},
     others::Vararg{Path2D{T}},
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) where T
     event_queue_base = convert_to_event_queue(base; primary=true, atol=atol)
     event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
     region_segments = martinez_rueda_algorithm(
-        selection_criteria, event_queue_base, event_queue_others...; atol=atol
+        selection_criteria, event_queue_base, event_queue_others...; atol=atol, rtol=rtol
     )
     map(segments -> map(event -> event.point, segments), region_segments)
 end
@@ -50,13 +50,13 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subjects::AbstractVector{<:Path2D{T}},
     others::Vararg{<:Path2D{T}},
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) where T
     subject_queue = SegmentEvent{T}[]
     map(p -> convert_to_event_queue!(subject_queue, p; primary=true, atol=atol), subjects)
     event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
     region_segments = martinez_rueda_algorithm(
-        selection_criteria, subject_queue, event_queue_others...; atol=atol
+        selection_criteria, subject_queue, event_queue_others...; atol=atol, rtol=rtol
     )
     map(segments -> map(event -> event.point, segments), region_segments)
 end
@@ -67,7 +67,7 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     base::Polygon{T},
     others::Vararg{Polygon{T}},
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) where T
     event_queue_base = convert_to_event_queue(base.exterior; primary=true, atol=atol)
     for hole in base.holes
@@ -80,7 +80,7 @@ function martinez_rueda_algorithm(
         end
     end
     region_segments = martinez_rueda_algorithm(
-        selection_criteria, event_queue_base, event_queue_others...; atol=atol
+        selection_criteria, event_queue_base, event_queue_others...; atol=atol, rtol=rtol
     )
     convert_segments_to_polygons(region_segments; atol=atol)
 end
@@ -89,7 +89,7 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subjects::AbstractVector{<:Polygon{T}},
     clips::Vararg{<:Polygon{T}},
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) where T
     subject_queue = SegmentEvent{T}[]
     map(p -> convert_to_event_queue!(subject_queue, p.exterior; primary=true, atol=atol), subjects)
@@ -105,7 +105,7 @@ function martinez_rueda_algorithm(
         end
     end
     region_segments = martinez_rueda_algorithm(
-        selection_criteria, subject_queue, event_queue_clips...; atol=atol
+        selection_criteria, subject_queue, event_queue_clips...; atol=atol, rtol=rtol
     )
     convert_segments_to_polygons(region_segments; atol=atol)
 end
@@ -116,16 +116,16 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     base::Vector{<:SegmentEvent{T}},
     polygons::Vararg{Vector{<:SegmentEvent{T}}},
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) where T
-    base_annotated_segments = event_loop!(base; self_intersection=true, atol=atol)
+    base_annotated_segments = event_loop!(base; self_intersection=true, atol=atol, rtol=rtol)
     for polygon in polygons
-        annotated_segments = event_loop!(polygon; self_intersection=true, atol=atol)
+        annotated_segments = event_loop!(polygon; self_intersection=true, atol=atol, rtol=rtol)
         queue = SegmentEvent{T}[]
         for ev in vcat(base_annotated_segments, annotated_segments)
             add_annotated_segment!(queue, ev)
         end
-        combined_annotated_segments = event_loop!(queue; self_intersection=false, atol=atol)
+        combined_annotated_segments = event_loop!(queue; self_intersection=false, atol=atol, rtol=rtol)
         # for consistent reporting, swap annotations so that self annotations are always the primary
         for ev in combined_annotated_segments
             if !ev.primary
@@ -164,7 +164,7 @@ end
 
 function event_loop!(
     queue::Vector{SegmentEvent{T}}
-    ; self_intersection::Bool, atol::AbstractFloat=default_atol
+    ; self_intersection::Bool, atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_atol
     ) where T # eventLoop
     annotated_segments = SegmentEvent{T}[]
     sweep_status = SegmentEvent{T}[] # current events in a vertical line, top to bottom.
@@ -180,11 +180,11 @@ function event_loop!(
             @debug("[event_loop!] transition idx=$idx")
             @debug("[event_loop!] above=$above")
             @debug("[event_loop!] below=$below")
-            check_and_divide_intersection!(queue, head, above, self_intersection; atol=atol)
+            check_and_divide_intersection!(queue, head, above, self_intersection; atol=atol, rtol=rtol)
             if queue[1] != head
                 continue # either head was removed or something was inserted ahead of it
             end
-            check_and_divide_intersection!(queue, head, below, self_intersection; atol=atol)
+            check_and_divide_intersection!(queue, head, below, self_intersection; atol=atol, rtol=rtol)
             if queue[1] != head
                 continue # either head was removed or something was inserted ahead of it
             end
@@ -209,7 +209,7 @@ function event_loop!(
                 # there will be 2 new adjacent edges, so check the intersection between them
                 check_and_divide_intersection!(
                     queue, sweep_status[idx - 1], sweep_status[idx + 1], self_intersection
-                    ; atol=atol)
+                    ; atol=atol, rtol=rtol)
             end
             push!(annotated_segments, copy_segment(head.other, head.other.primary))
             popat!(sweep_status, idx)
@@ -220,7 +220,8 @@ function event_loop!(
 end
 
 function check_and_divide_intersection!(
-    queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::Nothing, self_intersection::Bool; atol=1e-6
+    queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::Nothing, self_intersection::Bool
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
     queue
 end
@@ -230,10 +231,11 @@ function check_and_divide_intersection!(
     ev1::SegmentEvent,
     ev2::SegmentEvent,
     self_intersection::Bool
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
-    pt = intersect_geometry(ev1.segment, ev2.segment; atol=atol)
+    pt = intersect_geometry(ev1.segment, ev2.segment; atol=atol, rtol=rtol)
     if isnothing(pt)
+        @debug("no intersection or parallel lines at $ev1 -- $ev2")
         # Lines might be on top of each other 
         ori2_start = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[1]; atol=atol)
         ori2_end = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[2]; atol=atol)

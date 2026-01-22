@@ -108,6 +108,28 @@ For all of the the following `n` and `m` are the number of vertices of the polyg
     <img src="images/martinez_reuda.png" width="80%" style="padding:5px"/>
    </p>
 
+## Robustness
+
+Mathematically, the algorithms are infinitely precise.
+Practically, this code works with floats that require a tolerance threshold.
+The philosophy of this package is to define tolerances that can be passed down as keyword arguments throughout the entire algorithm.
+The two main tolerances are the absolute tolerance `atol` and the relative tolerance `rtol`. 
+They take the default values of `PolygonAlgorithms.default_atol` and `PolygonAlgorithms.default_rtol` respectively which are both set to `1e-6`.
+
+Several core functions make use of `atol` including:
+- `PolygonAlgorithms.is_same_point`: two points are the same if the straight line distance separating them is less than `atol`.
+- `PolygonAlgorithms.get_orientation`: three points are colinear if the [cross product](https://mathworld.wolfram.com/CrossProduct.html) is less than `atol`.
+- `PolygonAlgorithms.intersect_geometry`: for the line method, two lines are considered parallel if the absolute value of the determinant of the intersection matrix is less than `atol`.
+
+Some functions make use of `rtol` including:
+= `PolygonAlgorithms.intersect_geometry`: for the segment method, an intersection is considered valid even if the segments intersect a proportion `rtol` outside of the line length.
+
+The behaviour of this code is not fully controlled under the tolerance.
+It is strongly recommend to work with lines and points that are much further apart than the tolerance.
+Otherwise, errors may arise in the output.
+
+Note: there is also a defunct `rtol` value that is current not used.
+
 ## Installation
 
 In the Julia REPL:

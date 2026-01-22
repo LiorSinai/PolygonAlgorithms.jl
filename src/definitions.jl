@@ -2,7 +2,7 @@ const Point2D{T<:AbstractFloat} = NTuple{2,T}
 const Segment2D{T<:AbstractFloat} = NTuple{2,Point2D{T}}
 const Path2D{T<:AbstractFloat} = Vector{<:Point2D{T}}
 const default_atol = 1e-6
-const default_rtol = 1e-4
+const default_rtol = 1e-6
 
 """
     Line2D(a, b, c)
