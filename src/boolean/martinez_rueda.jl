@@ -375,7 +375,7 @@ function check_and_divide_intersection!(
     self_intersection::Bool
     ; atol::AbstractFloat=default_atol
     )
-    pt = intersect_geometry(ev1.segment, ev2.segment)
+    pt = intersect_geometry(ev1.segment, ev2.segment; atol=atol)
     if isnothing(pt)
         # Lines need to be exactly on top of each other 
         ori2_start = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[1]; atol=atol)
