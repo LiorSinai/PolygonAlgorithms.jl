@@ -20,7 +20,7 @@ Limitations
 For a more general algorithm see the Martinez-Rueda polygon clipping algorithm.
 """
 function weiler_atherton_algorithm(
-    polygon1::Polygon2D{T}, polygon2::Polygon2D{T}
+    polygon1::Path2D{T}, polygon2::Path2D{T}
     ; atol::AbstractFloat=default_atol
     ) where T
     if polygon1 == polygon2
@@ -63,7 +63,7 @@ mutable struct PointEvent{T}
     type::IntersectionType
 end
 
-function convert_to_linked_list(polygon::Polygon2D{T}) where T
+function convert_to_linked_list(polygon::Path2D{T}) where T
     data = PointEvent{T}(polygon[1], false, nothing, NONE)
     head = Node(data)
     list = DoublyLinkedList(head)

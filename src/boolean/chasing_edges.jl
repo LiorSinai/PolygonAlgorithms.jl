@@ -1,5 +1,5 @@
 function chasing_edges_algorithm(
-    polygon1::Polygon2D{T}, polygon2::Polygon2D{T}
+    polygon1::Path2D{T}, polygon2::Path2D{T}
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) where T
     n = length(polygon1)

@@ -67,75 +67,203 @@ struct MartinezRuedaAlg <: PolygonIntersectionAlgorithm end
 # General
 
 """
-    intersect_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=MartinezRuedaAlg())
+    intersect_geometry(polygon1, polygon2, alg=MartinezRuedaAlg())
+    intersect_geometry(subjects, others, alg=MartinezRuedaAlg()) # MartinezRuedaAlg only
 
-General case of polygon intersection. 
+General case of polygon intersection.
+The polygons must all either be:
+- `Vector{<:Tuple{T, T}} where T<:AbstractFloat`
+- `Polygon{T<:AbstractFloat}`
+- A `Vector` of polygons in one of the previous formats.
+The `subjects` list is treated as a single polygon: if any of the polygons overlap, this is equivalent to passing a self-intersecting polygon
+and some areas might be classified as holes according to the even-odd rule.
+The `others` list is treated as separate polygons.
 
-`alg` can either be `MartinezRuedaAlg()` or `WeilerAthertonAlg()`.
+For the 2 argument method with plain vectors, the `alg` can either be `MartinezRuedaAlg()` or `WeilerAthertonAlg()` .
 There are slight differences in the result depending on the algorithm.
 The `WeilerAthertonAlg` tends to be more robust to numeric inaccuracies.
 
+The multi-polygon version is more efficient than looping through the polygons and applying `intersect_geometry` sequentially.
+
 Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
 """
-intersect_geometry(polygon1::Polygon2D, polygon2::Polygon2D; options...) = 
+intersect_geometry(polygon1::Path2D, polygon2::Path2D; options...) = 
+    intersect_geometry(polygon1, polygon2, MartinezRuedaAlg(); options...)
+
+intersect_geometry(polygon1::Polygon, polygon2::Polygon; options...) = 
     intersect_geometry(polygon1, polygon2, MartinezRuedaAlg(); options...)
 
 function intersect_geometry(
-    polygon1::Polygon2D, polygon2::Polygon2D, alg::WeilerAthertonAlg
+    polygon1::Path2D, polygon2::Path2D, alg::WeilerAthertonAlg
     ; options...
     )
     weiler_atherton_algorithm(polygon1, polygon2; options...)
 end
 
 function intersect_geometry(
-    polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg
+    polygon1::Path2D, polygon2::Path2D, alg::MartinezRuedaAlg
     ; options...
     )
-    martinez_rueda_algorithm(polygon1, polygon2, INTERSECTION_CRITERIA; options...)
+    martinez_rueda_algorithm(INTERSECTION_CRITERIA, polygon1, polygon2; options...)
 end
 
-"""
-    difference_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=MartinezRuedaAlg())
+function intersect_geometry(
+    polygon1::Polygon, polygon2::Polygon, alg::MartinezRuedaAlg
+    ; options...
+    )
+    martinez_rueda_algorithm(INTERSECTION_CRITERIA, polygon1, polygon2; options...)
+end
 
-General case of polygon difference: points in `polygon1` that are not in `polygon2`.
+function intersect_geometry(
+    subjects::AbstractVector{<:Path2D}, others::AbstractVector{<:Path2D}, alg::MartinezRuedaAlg=MartinezRuedaAlg()
+    ; options...
+    )
+    martinez_rueda_algorithm(INTERSECTION_CRITERIA, subjects, others...; options...)
+end
+
+function intersect_geometry(
+    subjects::AbstractVector{<:Polygon}, others::AbstractVector{<:Polygon}, alg::MartinezRuedaAlg=MartinezRuedaAlg()
+    ; options...
+    )
+    martinez_rueda_algorithm(INTERSECTION_CRITERIA, subjects, others...; options...)
+end
+
+
+"""
+    difference_geometry(subject, clip, alg=MartinezRuedaAlg())
+    difference_geometry(subjects, clips, alg=MartinezRuedaAlg())
+
+General case of polygon difference: points in `subject(s)` that are not in `clip(s)`.
+
+The polygons must all either be:
+- `Vector{<:Tuple{T, T}} where T<:AbstractFloat`
+- `Polygon{T<:AbstractFloat}`
+- A `Vector` of polygons in one of the previous formats.
+The `subjects` list is treated as a single polygon: if any of the polygons overlap, this is equivalent to passing a self-intersecting polygon
+and some areas might be classified as holes according to the even-odd rule.
+The `clips` list is treated as separate polygons.
+
+The multi-polygon version is more efficient than looping through the polygons and applying `difference_geometry` sequentially.
 
 `alg` can only be `MartinezRuedaAlg()`.
 """
 function difference_geometry(
-    polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg=MartinezRuedaAlg()
+    subject::Path2D, clip::Path2D, alg::MartinezRuedaAlg=MartinezRuedaAlg()
     ; options...
     )
-    martinez_rueda_algorithm(polygon1, polygon2, DIFFERENCE_CRITERIA)
+    martinez_rueda_algorithm(DIFFERENCE_CRITERIA, subject, clip)
+end
+
+function difference_geometry(
+    subject::Polygon, clip::Polygon, alg::MartinezRuedaAlg=MartinezRuedaAlg(); options...
+    )
+    martinez_rueda_algorithm(DIFFERENCE_CRITERIA, subject, clip; options...)
+end
+
+function difference_geometry(
+    subjects::AbstractVector{<:Path2D}, clips::AbstractVector{<:Path2D}, alg::MartinezRuedaAlg=MartinezRuedaAlg(); options...
+    )
+    martinez_rueda_algorithm(DIFFERENCE_CRITERIA, subjects, clips...; options...)
+end
+
+function difference_geometry(
+    subjects::AbstractVector{<:Polygon}, clips::AbstractVector{<:Polygon}, alg::MartinezRuedaAlg=MartinezRuedaAlg(); options...
+    )
+    martinez_rueda_algorithm(DIFFERENCE_CRITERIA, subjects, clips...; options...)
 end
 
 """
-    union_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=MartinezRuedaAlg())
+    union_geometry(polygon1, polygon2, alg=MartinezRuedaAlg())
+    union_geometry(subjects, others, alg=MartinezRuedaAlg())
 
 General case of polygon union: in both polygons. 
 Possibly returns holes but does not classify them as holes.
 
+The polygons must all either be:
+- `Vector{<:Tuple{T, T}} where T<:AbstractFloat`
+- `Polygon{T<:AbstractFloat}`
+- A `Vector` of polygons in one of the previous formats.
+The `subjects` list is treated as a single polygon: if any of the polygons overlap, this is equivalent to passing a self-intersecting polygon
+and some areas might be classified as holes according to the even-odd rule.
+The `others` list is treated as separate polygons.
+
+The multi-polygon version is more efficient than looping through the polygons and applying `union_geometry` sequentially.
+
 `alg` can only be `MartinezRuedaAlg()`.
 """
 function union_geometry(
-    polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg=MartinezRuedaAlg()
+    polygon1::Path2D, polygon2::Path2D, alg::MartinezRuedaAlg=MartinezRuedaAlg()
     ; options...
     )
-    martinez_rueda_algorithm(polygon1, polygon2, UNION_CRITERIA; options...)
+    martinez_rueda_algorithm(UNION_CRITERIA, polygon1, polygon2; options...)
+end
+
+function union_geometry(
+    polygon1::Polygon, polygon2::Polygon, alg::MartinezRuedaAlg=MartinezRuedaAlg()
+    ; options...
+    )
+    martinez_rueda_algorithm(UNION_CRITERIA, polygon1, polygon2; options...)
+end
+
+function union_geometry(
+    subjects::AbstractVector{<:Path2D}, others::AbstractVector{<:Path2D}, alg::MartinezRuedaAlg=MartinezRuedaAlg()
+    ; options...
+    )
+    martinez_rueda_algorithm(UNION_CRITERIA, subjects, others...; options...)
+end
+
+function union_geometry(
+    subjects::AbstractVector{<:Polygon}, others::AbstractVector{<:Polygon}, alg::MartinezRuedaAlg=MartinezRuedaAlg()
+    ; options...
+    )
+    martinez_rueda_algorithm(UNION_CRITERIA, subjects, others...; options...)
 end
 
 """
-    xor_geometry(polygon1::Vector{<:Point2D}, polygon2::Vector{<:Point2D}, alg=MartinezRuedaAlg())
+    xor_geometry(polygon1::Path2D, polygon2::Path2D, alg=MartinezRuedaAlg())
+    xor_geometry(polygons::Vector{<:Path2D}, alg=MartinezRuedaAlg())
 
 General case of polygon xor: in one polygon or the other but not both.
 Possibly returns holes but does not classify them as holes.
 
+The polygons must all either be:
+- `Vector{<:Tuple{T, T}} where T<:AbstractFloat`
+- `Polygon{T<:AbstractFloat}`
+- A `Vector` of polygons in one of the previous formats.
+The `subjects` list is treated as a single polygon: if any of the polygons overlap, this is equivalent to passing a self-intersecting polygon
+and some areas might be classified as holes according to the even-odd rule.
+The `others` list is treated as separate polygons.
+
+The multi-polygon version is more efficient than looping through the polygons and applying `xor_geometry` sequentially.
+
 `alg` can only be `MartinezRuedaAlg()`.
 """
 function xor_geometry(
-    polygon1::Polygon2D, polygon2::Polygon2D, alg::MartinezRuedaAlg=MartinezRuedaAlg()
+    polygon1::Path2D, polygon2::Path2D, alg::MartinezRuedaAlg=MartinezRuedaAlg()
     ; options...
     )
-    martinez_rueda_algorithm(polygon1, polygon2, XOR_CRITERIA; options...)
+    martinez_rueda_algorithm(XOR_CRITERIA, polygon1, polygon2; options...)
+end
+
+function xor_geometry(
+    polygon1::Polygon, polygon2::Polygon, alg::MartinezRuedaAlg=MartinezRuedaAlg()
+    ; options...
+    )
+    martinez_rueda_algorithm(XOR_CRITERIA, polygon1, polygon2; options...)
+end
+
+function xor_geometry(
+    subjects::AbstractVector{<:Path2D}, others::AbstractVector{<:Path2D}, alg::MartinezRuedaAlg=MartinezRuedaAlg()
+    ; options...
+    )
+    martinez_rueda_algorithm(XOR_CRITERIA, subjects, others...; options...)
+end
+
+function xor_geometry(
+    subjects::AbstractVector{<:Polygon}, others::AbstractVector{<:Polygon}, alg::MartinezRuedaAlg=MartinezRuedaAlg()
+    ; options...
+    )
+    martinez_rueda_algorithm(XOR_CRITERIA, subjects, others...; options...)
 end
 
 #### Convex
@@ -145,6 +273,8 @@ end
 Find the intersection points of convex polygons `polygon1` and `polygon2`.
 They are not guaranteed to be unique.
 
+The polygons can only be `Vector{<:Tuple{T, T}} where T<:AbstractFloat`. Holes are not supported.
+
 A major assumption is that convex polygons only have one area of intersection.
 This fails in the general case with non-convex polygons. 
 See `intersect_geometry` for a more general `O(nm)` algorithm.
@@ -153,15 +283,15 @@ See `intersect_geometry` for a more general `O(nm)` algorithm.
 The two general algorithms `MartinezRuedaAlg` and `WeilerAthertonAlg` will throw an error if more
 than one area of intersection is found.
 """
-intersect_convex(polygon1::Polygon2D, polygon2::Polygon2D; options...) = 
+intersect_convex(polygon1::Path2D, polygon2::Path2D; options...) = 
     intersect_convex(polygon1, polygon2, ChasingEdgesAlg(); options...)
 
-function intersect_convex(polygon1::Polygon2D, polygon2::Polygon2D, ::ChasingEdgesAlg; options...)
+function intersect_convex(polygon1::Path2D, polygon2::Path2D, ::ChasingEdgesAlg; options...)
     chasing_edges_algorithm(polygon1, polygon2; options...)
 end
 
 function intersect_convex(
-    polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::WeilerAthertonAlg
+    polygon1::Path2D{T}, polygon2::Path2D{T}, ::WeilerAthertonAlg
     ; options...
     ) where T
     regions = weiler_atherton_algorithm(polygon1, polygon2; options...)
@@ -173,10 +303,10 @@ function intersect_convex(
 end
 
 function intersect_convex(
-    polygon1::Polygon2D{T}, polygon2::Polygon2D{T}, ::MartinezRuedaAlg
+    polygon1::Path2D{T}, polygon2::Path2D{T}, ::MartinezRuedaAlg
     ; options...
     ) where T
-    regions = martinez_rueda_algorithm(polygon1, polygon2, INTERSECTION_CRITERIA; options...)
+    regions = martinez_rueda_algorithm(INTERSECTION_CRITERIA, polygon1, polygon2; options...)
     if isempty(regions)
         return Point2D{T}[]
     end
@@ -185,7 +315,7 @@ function intersect_convex(
 end
 
 function intersect_convex(
-    polygon1::Polygon2D, polygon2::Polygon2D, ::PointSearchAlg
+    polygon1::Path2D, polygon2::Path2D, ::PointSearchAlg
     ; atol::AbstractFloat=default_atol
     )
     #https://www.swtestacademy.com/intersection-convex-polygons-algorithm/
