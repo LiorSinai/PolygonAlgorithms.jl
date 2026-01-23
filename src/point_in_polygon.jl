@@ -27,7 +27,7 @@ function contains(
     for i in 1:n
         next_i = (i % n) + 1
         segment = (vertices[i], vertices[next_i])
-        if (point == segment[1]) || on_segment(point, segment)
+        if (point == segment[1]) || on_segment(point, segment; atol=atol)
             return on_border_is_inside
         end
     end
