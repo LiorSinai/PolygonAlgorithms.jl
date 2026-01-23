@@ -5,9 +5,9 @@ using PolygonAlgorithms: Polygon, x_coords, y_coords
 function plot_polygons!(canvas, polygons::AbstractVector{<:Polygon}; options...)
     for polygon in polygons
         if length(polygon.exterior) == 1
-            scatter!(canvas, x_coords(polygon.exterior), y_coords(polygon.exterior), color=:black, marker=:xcross, label="")
+            scatter!(canvas, x_coords(polygon.exterior), y_coords(polygon.exterior), marker=:xcross, label="")
         else 
-            plot_polygon!(canvas, polygon; label="", color=:black, options...)
+            plot_polygon!(canvas, polygon; label="", options...)
         end
     end
     canvas
@@ -16,10 +16,10 @@ end
 function plot_polygon!(canvas, polygon::Polygon; options...)
     region = polygon.exterior
     idxs = vcat(1:length(region), 1)
-    plot!(canvas, x_coords(region[idxs]), y_coords(region[idxs]); fill=(0, 0.4, :green), options...)
+    plot!(canvas, x_coords(region[idxs]), y_coords(region[idxs]); fill=(0, 0.5, :green), color=:black, options...)
     for hole in polygon.holes
         idxs = vcat(1:length(hole), 1)
-        plot!(canvas, x_coords(hole[idxs]), y_coords(hole[idxs]); fill=(0, 1.0, :grey70), options...)
+        plot!(canvas, x_coords(hole[idxs]), y_coords(hole[idxs]); fill=(0, 0.7, :grey70), color=:black, label="")
     end
     canvas
 end
@@ -35,18 +35,19 @@ star = [
 polygon1 = Polygon(spiral)
 polygon2 = Polygon(star)
 
-canvas_base = plot_polygon!(plot(), polygon1, aspectratio=:equal, xlabel="base", legend=:none, fill=(0, 0.5))
-plot_polygon!(canvas_base, polygon2; fill=(0, 0.3))
+colors = palette(:default)
+canvas_base = plot_polygon!(plot(), polygon1, aspectratio=:equal, xlabel="base", legend=:none, fill=(0, 0.5), color=colors[1])
+plot_polygon!(canvas_base, polygon2; fill=(0, 0.5), color=colors[2])
 
-regions_difference12 = difference_geometry(polygon1, polygon2, PolygonAlgorithms.MartinezRuedaAlg());
-regions_difference21 = difference_geometry(polygon2, polygon1, PolygonAlgorithms.MartinezRuedaAlg());
-regions_intersect = intersect_geometry(polygon1, polygon2, PolygonAlgorithms.MartinezRuedaAlg());
-regions_union = union_geometry(polygon1, polygon2, PolygonAlgorithms.MartinezRuedaAlg());
-regions_xor = xor_geometry(polygon1, polygon2, PolygonAlgorithms.MartinezRuedaAlg());
+regions_difference12 = difference_geometry(polygon1, polygon2);
+regions_difference21 = difference_geometry(polygon2, polygon1);
+regions_intersect = intersect_geometry(polygon1, polygon2);
+regions_union = union_geometry(polygon1, polygon2);
+regions_xor = xor_geometry(polygon1, polygon2);
 
 canvas_difference12 = plot_polygons!(
-    plot(xlabel="difference 1-2", xlims=xlims(canvas_base), ylims=ylims(canvas_base)),
-    regions_difference12, 
+    plot(aspectratio=:equal, xlabel="difference 1-2", xlims=xlims(canvas_base), ylims=ylims(canvas_base)),
+    regions_difference12
 )
 canvas_difference21 = plot_polygons!(
     plot(aspectratio=:equal, xlabel="difference 2-1", xlims=xlims(canvas_base), ylims=ylims(canvas_base)),

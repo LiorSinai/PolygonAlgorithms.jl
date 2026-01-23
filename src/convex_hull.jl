@@ -2,22 +2,22 @@
 abstract type ConvexHullAlgorithm end
 
 struct GiftWrappingAlg <: ConvexHullAlgorithm end
-struct GrahamScanAlg   <: ConvexHullAlgorithm end
+struct GrahamScanAlg <: ConvexHullAlgorithm end
 
 """
-    convex_hull(points, alg=GiftWrappingAlg(); atol=default_atol)
+    convex_hull([GiftWrappingAlg()], points, ; atol=default_atol)
 
 Determine the indices of the convex hull for a set of points.
 
-`alg` can either be `GiftWrappingAlg()` or `GrahamScanAlg()`.
+Algorithm can either be `GiftWrappingAlg()` or `GrahamScanAlg()`.
 
 For  `n` input vertices and `h` resultant vertices on the convex hull:
 - `GiftWrappingAlg` runs in `O(nh)` time.
 - `GrahamScanAlg` runs in `O(n*log(n))` time.
 """
-convex_hull(points::Path2D; options...) = convex_hull(points, GiftWrappingAlg(); options...)
+convex_hull(points::Path2D; options...) = convex_hull(GiftWrappingAlg(), points; options...)
 
-function convex_hull(points::Path2D, ::GiftWrappingAlg; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol)
+function convex_hull(::GiftWrappingAlg, points::Path2D; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol)
     # https://www.geeksforgeeks.org/convex-hull-using-jarvis-algorithm-or-wrapping/    
     topleft = left_topmost(points)
     hull_idxs = Int[]
@@ -68,7 +68,7 @@ function left_topmost(points::Path2D)
     idx
 end
 
-function convex_hull(points::Path2D, ::GrahamScanAlg; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol)
+function convex_hull(::GrahamScanAlg, points::Path2D; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol)
     # https://www.geeksforgeeks.org/convex-hull-using-graham-scan/
     idx = bottom_leftmost(points)
     p0 = points[idx]

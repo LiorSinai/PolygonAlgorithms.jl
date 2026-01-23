@@ -35,25 +35,25 @@ end
         (1.0, 1.0), (1.0, 2.0), (2.0, 2.0), (2.0, 1.0)
     ])
     # difference
-    regions = difference_geometry(poly1, poly2, alg)
+    regions =  difference_geometry(alg, poly1, poly2)
     expected = [Polygon(poly1.exterior, holes=[poly2.exterior])]
     @test are_equivalent(regions, expected)
-    regions = difference_geometry(poly2, poly1, alg)
+    regions =  difference_geometry(alg, poly2, poly1)
     @test isempty(regions)
     # intersection
-    regions = intersect_geometry(poly1, poly2, alg)
+    regions =  intersect_geometry(alg, poly1, poly2)
     expected = [poly2]
     @test are_equivalent(regions, expected)
     # union
-    regions = union_geometry(poly1, poly2, alg)
+    regions = union_geometry(alg, poly1, poly2)
     expected = [poly1]
     @test are_equivalent(regions, expected)
     # in this case the polygon is treated as a hole
-    regions = union_geometry([poly1, poly2], Polygon{Float64}[])
+    regions = union_geometry(alg, [poly1, poly2], Polygon{Float64}[])
     expected = [Polygon(poly1.exterior, holes=[poly2.exterior])]
     @test are_equivalent(regions, expected)
     # XOR
-    regions = xor_geometry(poly1, poly2, alg)
+    regions = xor_geometry(alg, poly1, poly2)
     expected = [Polygon(poly1.exterior; holes=[poly2.exterior])]
     @test are_equivalent(regions, expected)
 end
@@ -62,14 +62,14 @@ end
     poly1 = Polygon([(1.0, 2.0), (1.0, 4.0), (3.0, 4.0), (3.0, 2.0)]);
     poly2 = Polygon([(1.0, 1.0), (2.0, 3.0), (3.0, 1.0)]);
     # union two different polygons
-    regions = union_geometry(poly1, poly2, alg)
+    regions =  union_geometry(alg, poly1, poly2)
     expected = [Polygon([
         (3.0, 4.0), (3.0, 2.0), (2.5, 2.0), (3.0, 1.0), (1.0, 1.0), 
         (1.5, 2.0), (1.5, 2.0), (1.0, 2.0), (1.0, 4.0)
     ])]
     @test are_equivalent(regions, expected)
     # both are part of the subject
-    regions = union_geometry([poly1, poly2], Polygon{Float64}[], alg)
+    regions = union_geometry(alg, [poly1, poly2], Polygon{Float64}[])
     push!(expected[1].holes, [(2.5, 2.0), (1.5, 2.0), (2.0, 3.0)])
     @test are_equivalent(regions, expected)
 end
@@ -81,45 +81,45 @@ end
     ])
     poly2 = poly1
     # difference
-    regions = difference_geometry(poly1, poly2, alg)
+    regions =  difference_geometry(alg, poly1, poly2)
     @test isempty(regions)
     # intersection
-    regions = intersect_geometry(poly1, poly2, alg)
+    regions =  intersect_geometry(alg, poly1, poly2)
     expected = [poly1]
     @test are_equivalent(regions, expected)
     # union
-    regions = union_geometry(poly1, poly2, alg)
+    regions =  union_geometry(alg, poly1, poly2)
     expected = [poly1]
     @test are_equivalent(regions, expected)
     # XOR
-    regions = xor_geometry(poly1, poly2, alg)
+    regions = xor_geometry(alg, poly1, poly2)
     @test isempty(regions)
 
     ## Overlap
     poly2 = translate(poly1, (1.0, 1.0))
     # difference
-    regions = difference_geometry(poly1, poly2, alg)
+    regions =  difference_geometry(alg, poly1, poly2)
     expected = [
         Polygon([(3.0, 1.0), (3.0, 0.0), (0.0, 0.0), (0.0, 3.0), (1.0, 3.0), (1.0, 3.0), (1.0, 1.0)])
     ]
     @test are_equivalent(regions, expected)
-    regions = difference_geometry(poly2, poly1, alg)
+    regions =  difference_geometry(alg, poly2, poly1)
     expected = [
         Polygon([(4.0, 4.0), (4.0, 1.0), (3.0, 1.0), (3.0, 3.0), (3.0, 3.0), (1.0, 3.0), (1.0, 4.0)])
     ]
     @test are_equivalent(regions, expected)
     # intersection
-    regions = intersect_geometry(poly1, poly2, alg)
+    regions =  intersect_geometry(alg, poly1, poly2)
     expected = [Polygon([(3.0, 3.0), (3.0, 1.0), (1.0, 1.0), (1.0, 3.0)])]
     @test are_equivalent(regions, expected)
     ## Union
-    regions = union_geometry(poly1, poly2, alg)
+    regions =  union_geometry(alg, poly1, poly2)
     expected = [
         Polygon([(4.0, 4.0), (4.0, 1.0), (3.0, 1.0), (3.0, 0.0), (0.0, 0.0), (0.0, 3.0), (1.0, 3.0), (1.0, 4.0)])
     ]
     @test are_equivalent(regions, expected)
     ## XOR
-    regions = xor_geometry(poly1, poly2, alg)
+    regions = xor_geometry(alg, poly1, poly2)
     expected = [
         Polygon([(3.0, 1.0), (3.0, 0.0), (0.0, 0.0), (0.0, 3.0), (1.0, 3.0), (1.0, 3.0), (1.0, 1.0)]),
         Polygon([(4.0, 4.0), (4.0, 1.0), (3.0, 1.0), (3.0, 3.0), (3.0, 3.0), (1.0, 3.0), (1.0, 4.0)]),
@@ -129,21 +129,21 @@ end
     ## No overlap
     poly2 = translate(poly1, (4.0, 3.0))
     # difference
-    regions = difference_geometry(poly1, poly2, alg)
+    regions =  difference_geometry(alg, poly1, poly2)
     expected = [poly1]
     @test are_equivalent(regions, expected)
-    regions = difference_geometry(poly2, poly1, alg)
+    regions =  difference_geometry(alg, poly2, poly1)
     expected = [poly2]
     @test are_equivalent(regions, expected)
     # intersection
-    regions = intersect_geometry(poly1, poly2, alg)
+    regions =  intersect_geometry(alg, poly1, poly2)
     @test isempty(regions)
     ## Union
-    regions = union_geometry(poly1, poly2, alg)
+    regions =  union_geometry(alg, poly1, poly2)
     expected = [poly1, poly2]
     @test are_equivalent(regions, expected)
     ## XOR
-    regions = xor_geometry(poly1, poly2, alg)
+    regions = xor_geometry(alg, poly1, poly2)
     expected = [poly1, poly2]
     @test are_equivalent(regions, expected)
 end
@@ -156,14 +156,14 @@ end
         (2.0, 0.0), (3.0, 1.0),  (-2.0, 6.0), (3.0, 11.0), (2.0, 12.0), (-4.0, 6.0),  
     ])
     # difference
-    regions = difference_geometry(poly1, poly2, alg)
+    regions =  difference_geometry(alg, poly1, poly2)
     expected = [
         Polygon([(-0.0, 2.0), (-1.0, 1.0), (0.0, 0.0), (1.0, 1.0)]),
         Polygon([(0.0, 12.0), (-1.0, 11.0), (0.0, 10.0), (1.0, 11.0)]),
         Polygon([(2.0, 10.0), (1.0, 9.0), (1.0, 9.0), (4.0, 6.0), (1.0, 3.0), (2.0, 2.0), (6.0, 6.0)]),
     ]
     @test are_equivalent(regions, expected)
-    regions = difference_geometry(poly2, poly1, alg)
+    regions =  difference_geometry(alg, poly2, poly1)
     expected = [
         Polygon([(0.0, 10.0), (-4.0, 6.0), (-0.0, 2.0), (1.0, 3.0), (-2.0, 6.0), (1.0, 9.0)]),
         Polygon([(2.0, 2.0), (1.0, 1.0), (2.0, 0.0), (3.0, 1.0)]),
@@ -171,14 +171,14 @@ end
     ]
     @test are_equivalent(regions, expected)
     # intersection
-    regions = intersect_geometry(poly1, poly2, alg)
+    regions =  intersect_geometry(alg, poly1, poly2)
     expected = [
         Polygon([(1.0, 3.0), (2.0, 2.0), (1.0, 1.0), (0.0, 2.0)]),
         Polygon([(0.0, 10.0), (1.0, 11.0), (2.0, 10.0), (1.0, 9.0)]),
     ]
     @test are_equivalent(regions, expected)
     ## Union
-    regions = union_geometry(poly1, poly2, alg)
+    regions =  union_geometry(alg, poly1, poly2)
     expected = [
         Polygon(
             [(2.0, 10.0), (3.0, 11.0), (3.0, 11.0), (2.0, 12.0), (1.0, 11.0), (0.0, 12.0), (-1.0, 11.0), (0.0, 10.0), (-4.0, 6.0), (-0.0, 2.0), (-1.0, 1.0), (0.0, 0.0), (1.0, 1.0), (2.0, 0.0), (3.0, 1.0), (2.0, 2.0), (6.0, 6.0)];
@@ -187,7 +187,7 @@ end
     ]
     @test are_equivalent(regions, expected)
     ## XOR
-    regions = xor_geometry(poly1, poly2, alg)
+    regions = xor_geometry(alg, poly1, poly2)
     expected = [
         Polygon([(0.0, 12.0), (-1.0, 11.0), (0.0, 10.0), (-4.0, 6.0), (-0.0, 2.0), (-1.0, 1.0), (0.0, 0.0), (1.0, 1.0), (-0.0, 2.0), (1.0, 3.0), (-2.0, 6.0), (1.0, 9.0), (0.0, 10.0), (1.0, 11.0)]),
         Polygon([(2.0, 10.0), (3.0, 11.0), (3.0, 11.0), (2.0, 12.0), (1.0, 11.0), (2.0, 10.0), (1.0, 9.0), (1.0, 9.0), (4.0, 6.0), (1.0, 3.0), (2.0, 2.0), (1.0, 1.0), (2.0, 0.0), (3.0, 1.0), (2.0, 2.0), (6.0, 6.0)]),
@@ -205,16 +205,16 @@ end
     poly1 = self_intersect
     poly2 = rectangle_horiz
     # difference
-    regions = difference_geometry(poly1, poly2, alg)
+    regions =  difference_geometry(alg, poly1, poly2)
     expected = [Polygon([(4.0, 0.0), (6.0, -2.0), (8.5, -0.0)])]
     @test are_equivalent(regions, expected)
-    regions = difference_geometry(poly2, poly1, alg)
+    regions =  difference_geometry(alg, poly2, poly1)
     expected = [
         Polygon([(12.0, 3.0), (12.0, 0.0), (11.0, 0.0), (11.0, 2.0), (11.0, 2.0), (8.5, -0.0), (4.0, 0.0), (2.0, 2.0), (0.0, 0.0), (-1.0, 0.0), (-1.0, 3.0)])
     ]
     @test are_equivalent(regions, expected)
     ## Intersection
-    regions = intersect_geometry(poly1, poly2, alg)
+    regions =  intersect_geometry(alg, poly1, poly2)
     expected = [
         Polygon([(4.0, 0.0), (0.0, 0.0), (2.0, 2.0)]),
         Polygon([(8.5, -0.0), (11.0, 0.0), (11.0, 2.0)]),
@@ -222,13 +222,13 @@ end
     ]
     @test are_equivalent(regions, expected)
     ## Union
-    regions = union_geometry(poly1, poly2, alg)
+    regions =  union_geometry(alg, poly1, poly2)
     expected = [
         Polygon([(12.0, 3.0), (12.0, 0.0), (8.5, 0.0), (6.0, -2.0), (4.0, 0.0), (-1.0, 0.0), (-1.0, 3.0)])
     ]
     @test are_equivalent(regions, expected)
     ## XOR
-    regions = xor_geometry(poly1, poly2, alg)
+    regions = xor_geometry(alg, poly1, poly2)
     expected = [
         Polygon([(12.0, 3.0), (12.0, 0.0), (11.0, 0.0), (11.0, 2.0), (11.0, 2.0), (6.0, -2.0), (2.0, 2.0), (0.0, 0.0), (-1.0, 0.0), (-1.0, 3.0)])
     ]
@@ -242,25 +242,25 @@ end
         )
     poly2 = Polygon([(3.0, 1.0), (-2.0, 6.0), (3.0, 11.0), (8.0, 6.0)])
     # difference
-    regions = difference_geometry(poly1, poly2, alg)
+    regions =  difference_geometry(alg, poly1, poly2)
     expected = [
         Polygon([(1.5, 2.5), (0.0, 1.0), (-4.0, 5.0), (0.0, 9.0), (0.5, 8.5), (1.0, 9.0), (1.0, 9.0), (0.0, 10.0), (-5.0, 5.0), (0.0, 0.0), (2.0, 2.0)]),
     ]
     @test are_equivalent(regions, expected)
-    regions = difference_geometry(poly2, poly1, alg)
+    regions =  difference_geometry(alg, poly2, poly1)
     expected = [
         Polygon([(4.0, 5.0), (1.5, 2.5), (-2.0, 6.0), (0.5, 8.5)]),
         Polygon([(3.0, 11.0), (1.0, 9.0), (1.0, 9.0), (5.0, 5.0), (2.0, 2.0), (3.0, 1.0), (8.0, 6.0)]),
     ]
     @test are_equivalent(regions, expected)
     ## Intersection
-    regions = intersect_geometry(poly1, poly2, alg)
+    regions =  intersect_geometry(alg, poly1, poly2)
     expected = [
         Polygon([(5.0, 5.0), (2.0, 2.0), (1.5, 2.5), (4.0, 5.0), (4.0, 5.0), (0.5, 8.5), (1.0, 9.0)])
     ]
     @test are_equivalent(regions, expected)
     ## Union
-    regions = union_geometry(poly1, poly2, alg)
+    regions =  union_geometry(alg, poly1, poly2)
     expected = [
         Polygon(
             [(3.0, 11.0), (1.0, 9.0), (0.0, 10.0), (-5.0, 5.0), (0.0, 0.0), (2.0, 2.0), (3.0, 1.0), (8.0, 6.0)];
@@ -269,7 +269,7 @@ end
     ]
     @test are_equivalent(regions, expected)
     ## XOR
-    regions = xor_geometry(poly1, poly2, alg)
+    regions = xor_geometry(alg, poly1, poly2)
     expected = [
         Polygon(
             [(0.5, 8.5), (1.0, 9.0), (1.0, 9.0), (0.0, 10.0), (-5.0, 5.0), (0.0, 0.0), (2.0, 2.0), (1.5, 2.5), (4.0, 5.0)];
@@ -289,27 +289,27 @@ end
         )
     poly2 = translate(poly1, (3.0, 1.0))
     # difference
-    regions = difference_geometry(poly1, poly2, alg)
+    regions =  difference_geometry(alg, poly1, poly2)
     expected = [
         Polygon([(1.5, 2.5), (0.0, 1.0), (-4.0, 5.0), (0.0, 9.0), (0.5, 8.5), (1.0, 9.0), (1.0, 9.0), (0.0, 10.0), (-5.0, 5.0), (0.0, 0.0), (2.0, 2.0)]),
         Polygon([(5.0, 5.0), (2.5, 2.5), (2.0, 3.0), (4.0, 5.0), (4.0, 5.0), (1.0, 8.0), (1.5, 8.5)]),
     ]
     @test are_equivalent(regions, expected)
-    regions = difference_geometry(poly2, poly1, alg)
+    regions =  difference_geometry(alg, poly2, poly1)
     expected = [
         Polygon([(2.0, 3.0), (1.5, 2.5), (-2.0, 6.0), (0.5, 8.5), (1.0, 8.0), (1.0, 8.0), (-1.0, 6.0)]),
         Polygon([(3.0, 11.0), (1.0, 9.0), (1.5, 8.5), (3.0, 10.0), (7.0, 6.0), (7.0, 6.0), (3.0, 2.0), (2.5, 2.5), (2.0, 2.0), (3.0, 1.0), (8.0, 6.0)]),
     ]
     @test are_equivalent(regions, expected)
     ## Intersection
-    regions = intersect_geometry(poly1, poly2, alg)
+    regions =  intersect_geometry(alg, poly1, poly2)
     expected = [
         Polygon([(1.0, 9.0), (0.5, 8.5), (1.0, 8.0), (1.5, 8.5)]),
         Polygon([(2.0, 3.0), (1.5, 2.5), (2.0, 2.0), (2.5, 2.5)]),
     ]
     @test are_equivalent(regions, expected)
     ## Union
-    regions = union_geometry(poly1, poly2, alg)
+    regions =  union_geometry(alg, poly1, poly2)
     expected = [
         Polygon(
             [(3.0, 11.0), (1.0, 9.0), (0.0, 10.0), (-5.0, 5.0), (0.0, 0.0), (2.0, 2.0), (3.0, 1.0), (8.0, 6.0)];
@@ -322,7 +322,7 @@ end
     ]
     @test are_equivalent(regions, expected)
     ## XOR
-    regions = xor_geometry(poly1, poly2, alg)
+    regions = xor_geometry(alg, poly1, poly2)
     expected = [
         Polygon(
             [(-1.0, 6.0), (1.0, 8.0), (0.5, 8.5), (1.0, 9.0), (1.0, 9.0), (0.0, 10.0), (-5.0, 5.0), (0.0, 0.0), (2.0, 2.0), (1.5, 2.5), (2.0, 3.0)];
@@ -346,7 +346,7 @@ end
     rect = Polygon([(0.5, 0.0), (0.5, 0.5), (2.0, 0.5), (2.0, 0.0)])
 
     ## Intersection
-    regions = intersect_geometry([elbow], [triangle, rect], alg)
+    regions = intersect_geometry(alg, [elbow], [triangle, rect])
     @test isempty(regions)
     # Union
     expected = [
@@ -358,7 +358,7 @@ end
             ]
         )
     ]
-    regions = union_geometry([elbow], [triangle, rect], alg)
+    regions = union_geometry(alg, [elbow], [triangle, rect])
     @test are_equivalent(regions, expected)
     ## Difference
     expected = [
@@ -369,7 +369,7 @@ end
             ]
         )
     ]
-    regions = difference_geometry([elbow, triangle], [rect], alg)
+    regions = difference_geometry(alg, [elbow, triangle], [rect])
     @test are_equivalent(regions, expected)
 
     # XOR
@@ -382,7 +382,7 @@ end
             ]
         ),
     ]
-    regions = xor_geometry([elbow], [triangle, rect], alg)
+    regions = xor_geometry(alg, [elbow], [triangle, rect])
     @test are_equivalent(regions, expected)
 end
 
