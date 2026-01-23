@@ -13,8 +13,8 @@ end
 
 @testset verbose = true "PolygonAlgorithms" begin
     # data structures
-    include("linked_list.jl")
-    include("point_set.jl")
+    include("data_structures/linked_list.jl")
+    include("data_structures/point_set.jl")
     # segments
     include("intersect.jl")
     include("line_sweep.jl")
@@ -25,7 +25,7 @@ end
     include("point_in_polygon.jl")
     include("data_structures/polygon.jl")
     # boolean
-    include("martinez_rueda.jl")
+    include("boolean/martinez_rueda.jl")
     include("intersect_convex.jl")
     include("intersect_concave.jl")
     include("polygon_boolean.jl")
