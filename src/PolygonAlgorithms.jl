@@ -23,7 +23,6 @@ include("data_structures/polygon.jl")
 include("polygon_boolean.jl")
 include("deprecations.jl")
 
-export Point2D, Path2D, Segment2D, Line2D
 export get_orientation, Orientation, on_segment
 export bounds, convex_hull
 export area_polygon, first_moment, centroid_polygon, is_counter_clockwise, is_clockwise

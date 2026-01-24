@@ -1,6 +1,6 @@
 using Test
 using PolygonAlgorithms
-using PolygonAlgorithms: translate, rotate, PointSet
+using PolygonAlgorithms: translate, rotate, Point2D, PointSet
 
 function are_regions_equal(r1::Vector{<:Vector{<:Point2D}}, r2::Vector{<:Vector{<:Point2D}})
     if length(r1) != length(r2)
