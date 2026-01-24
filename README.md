@@ -122,13 +122,54 @@ Several core functions make use of `atol` including:
 - `PolygonAlgorithms.intersect_geometry`: for the line method, two lines are considered parallel if the absolute value of the determinant of the intersection matrix is less than `atol`.
 
 Some functions make use of `rtol` including:
-= `PolygonAlgorithms.intersect_geometry`: for the segment method, an intersection is considered valid even if the segments intersect a proportion `rtol` outside of the line length.
+- `PolygonAlgorithms.intersect_geometry`: for the segment method, an intersection is considered valid even if the segments intersect a proportion `rtol` outside of the line length.
 
-The behaviour of this code is not fully controlled under the tolerance.
-It is strongly recommend to work with lines and points that are much further apart than the tolerance.
-Otherwise, errors may arise in the output.
+### Case studies
 
-Note: there is also a defunct `rtol` value that is current not used.
+In the first example, the tolerances are essential to avoid failure:
+
+<p align="center">
+  <img src="images/robustness_star.png" width="45%" style="padding:5px"/>
+</p>
+
+The polygons are defined by:
+```julia
+polygon1 = [
+    (0.0, 18.0), (3.0, 5.0), (15.0, 5.0), (5.0, 0.0), (10.0, -12.0), 
+    (0.0, -2.0), (-10.0, -12.0), (-5.0, 0.0), (-15.0, 5.0), (-3.0, 5.0)
+]
+polygon2 = PolygonAlgorithms.rotate(poly1, π/1.0, (0.0, 0.0));
+```
+
+Note that the second polygon is computationally rotated. 
+This is numerically accurate up to approximately `eps(Float64)=2.2e-16`.
+Therefore, the points will not exactly align below this tolerance.
+Because of this, running `intersect_geometry(polygon1, polygon2; atol=atol)` will only succeed for `atol>=1e-14`. 
+
+In the next example, the tolerances are the cause of the failure:
+
+<p align="center">
+  <img src="images/robustness_segments.png" width="45%" style="padding:5px"/>
+</p>
+
+These segments are defined by:
+```julia
+segment1 = ((340.0, 710.0), (1450.0, 860.0))
+segment2 = ((830.0, 1150.0), (1540.0, 600.0))
+segment3 = ((1180.0, 170.0), (1260.0, 1040.0))
+```
+
+These segments look like they intersect at a single point. 
+However, upon magnification by a factor of 1.5 million, it is evident that they intersect at 3 different points.
+The two black segments - the top half of `segment3` (green) and a middle section of `segment1` (blue) - at this magnification do not intersect.
+However, because the first segment is much larger than the first, they are considered to intersect for `rtol<=1e-6`.
+Yet if we do use `rtol<=1e-6`, this will cause the Martinez-Rueda algorithm to fail.
+This is because it maintains a precise order of segments and their intersections, and will fail if these are classified incorrectly.
+
+This example is from [Clipper2: test 141](https://github.com/AngusJohnson/Clipper2/blob/main/Tests/Polygons.txt).
+[Clipper2](https://www.angusj.com/clipper2/Docs/Robustness.htm) has a different approach to robustness: it casts all numbers to integers.
+Hence for this example the intersections will be collapsed to a single point, and the segments adjusted slightly.
+This means that the two halves of each segment will no longer lie perfectly on a straight line.
 
 ## Installation
 
@@ -142,6 +183,14 @@ julia> using PolygonAlgorithms
 Optionally, tests can be run with:
 ```
 (@v1.x) pkg> test PolygonAlgorithms
+```
+
+For locally development: download the GitHub repository. Then in the Julia REPL:
+```
+julia> ] #enter package mode
+(@v1.x) pkg> dev path\\to\\PolygonAlgorithms
+julia> using Revise # allows dynamic edits to code
+julia> using PolygonAlgorithms
 ```
 
 ## Related
