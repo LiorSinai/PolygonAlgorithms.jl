@@ -1,7 +1,10 @@
 @enum AnnotationFill BLANK=0 ABOVE=1 BELOW=2 EMPTY=3
 
 """
-    martinez_rueda_algorithm(selection_criteria, base, others...; atol=default_atol)
+    martinez_rueda_algorithm(
+    selection_criteria, base, others...
+    ; atol=default_atol, rtol=default_rtol, fuzzy_rtol=1.0
+    )
 
 The Martínez-Rueda-Feito polygon clipping algorithm.
 Returns regions and edges of intersection.
@@ -21,11 +24,16 @@ Segments are scanned from left to right, bottom to top.
 This makes the algorithm fast but also sensitive to determining these segments correctly.
 - The segment that is immediately below (or empty space) is used to determine the fill annotations for the current segment.
 - Once all annotations are done, the desired segments can be selected that match a given criteria.
+- These segments are then chained together to form the polygons.
 
 Limitations
 1. It can fail for improper polygons: polygons with lines sticking out.
 2. It is sensitive to numeric inaccuracies e.g. a line that is almost vertical or tiny regions 
 of intersection.
+3. Sometimes the segment chaining can fail. This might happen if the polygons are improper.
+
+For some cases when the segment chaining fails it is possible to "fuzzy" close them.
+The criteria is that the ratio of the remaining gap to the mean segment length is less than `fuzzy_rtol`.
 
 References 
 - paper: https://www.researchgate.net/publication/220163820_A_new_algorithm_for_computing_Boolean_operations_on_polygons
@@ -36,12 +44,12 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     base::Path2D{T},
     others::Vararg{Path2D{T}},
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol, options...
     ) where T
     event_queue_base = convert_to_event_queue(base; primary=true, atol=atol)
     event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
     region_segments = martinez_rueda_algorithm(
-        selection_criteria, event_queue_base, event_queue_others...; atol=atol, rtol=rtol
+        selection_criteria, event_queue_base, event_queue_others...; atol=atol, options...
     )
     map(segments -> map(event -> event.point, segments), region_segments)
 end
@@ -50,13 +58,13 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subjects::AbstractVector{<:Path2D{T}},
     others::Vararg{<:Path2D{T}},
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol, options...
     ) where T
     subject_queue = SegmentEvent{T}[]
     map(p -> convert_to_event_queue!(subject_queue, p; primary=true, atol=atol), subjects)
     event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
     region_segments = martinez_rueda_algorithm(
-        selection_criteria, subject_queue, event_queue_others...; atol=atol, rtol=rtol
+        selection_criteria, subject_queue, event_queue_others...; atol=atol, options...
     )
     map(segments -> map(event -> event.point, segments), region_segments)
 end
@@ -67,7 +75,7 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     base::Polygon{T},
     others::Vararg{Polygon{T}},
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol, options...
     ) where T
     event_queue_base = convert_to_event_queue(base.exterior; primary=true, atol=atol)
     for hole in base.holes
@@ -80,7 +88,7 @@ function martinez_rueda_algorithm(
         end
     end
     region_segments = martinez_rueda_algorithm(
-        selection_criteria, event_queue_base, event_queue_others...; atol=atol, rtol=rtol
+        selection_criteria, event_queue_base, event_queue_others...; atol=atol, options...
     )
     convert_segments_to_polygons(region_segments; atol=atol)
 end
@@ -89,7 +97,7 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subjects::AbstractVector{<:Polygon{T}},
     clips::Vararg{<:Polygon{T}},
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol, options...
     ) where T
     subject_queue = SegmentEvent{T}[]
     map(p -> convert_to_event_queue!(subject_queue, p.exterior; primary=true, atol=atol), subjects)
@@ -105,7 +113,7 @@ function martinez_rueda_algorithm(
         end
     end
     region_segments = martinez_rueda_algorithm(
-        selection_criteria, subject_queue, event_queue_clips...; atol=atol, rtol=rtol
+        selection_criteria, subject_queue, event_queue_clips...; atol=atol, options...
     )
     convert_segments_to_polygons(region_segments; atol=atol)
 end
@@ -116,7 +124,7 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     base::Vector{<:SegmentEvent{T}},
     polygons::Vararg{Vector{<:SegmentEvent{T}}},
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol, fuzzy_rtol::AbstractFloat=1.0
     ) where T
     base_annotated_segments = event_loop!(base; self_intersection=true, atol=atol, rtol=rtol)
     for polygon in polygons
@@ -137,7 +145,7 @@ function martinez_rueda_algorithm(
         base_annotated_segments = apply_selection_criteria(combined_annotated_segments, selection_criteria)
     end
     empty_segments, region_segments = separate(is_empty_segment, base_annotated_segments)
-    regions = chain_segments(region_segments; atol=atol, check_closes=true)
+    regions = chain_segments(region_segments; atol=atol, check_closes=true, fuzzy_rtol=fuzzy_rtol)
     segment_chains = chain_segments(empty_segments; atol=atol, check_closes=false)
     # It is also possible to attach some segment_chains to regions.
     # This will give consistent results with the Weiler-Atherton implementation.
@@ -557,7 +565,7 @@ end
 
 function chain_segments(
     segments::AbstractVector{SegmentEvent{T}}
-    ; atol::AbstractFloat=default_atol, check_closes::Bool=true
+    ; atol::AbstractFloat=default_atol, check_closes::Bool=true, fuzzy_rtol::AbstractFloat=1.0
     ) where T
     # Note: if any of the regions intersect at a vertex, than this is not guaranteed to give consistent results
     # They might be joined into one region or presented as separate regions.
@@ -612,7 +620,7 @@ function chain_segments(
     # - it is improper: the beginning and end is a segment(s) jutting out, so it can be closed with a segment in processing
     if check_closes
         if !isempty(chains)
-            fuzzy_close!(chains, regions; atol=atol)
+            fuzzy_close!(chains, regions; atol=atol, rtol=fuzzy_rtol)
         end
         @assert isempty(chains) "There are still open chains at the end of processing all segments."
         return regions
@@ -698,9 +706,13 @@ function closes_chain(chain::Vector{<:SegmentEvent}, candidate::SegmentChainCand
     end
 end
 
-function fuzzy_close!(chains::Vector{<:Vector{<:SegmentEvent}}, regions::Vector{<:Vector{<:SegmentEvent}}; atol)
+function fuzzy_close!(
+    chains::Vector{<:Vector{<:SegmentEvent}},
+    regions::Vector{<:Vector{<:SegmentEvent}}
+    ; atol::AbstractFloat, rtol::AbstractFloat=1.0
+    )
     for idx in reverse(eachindex(chains))
-        if is_fuzzy_closed(chains[idx], length(regions) + 1; atol=atol)
+        if is_fuzzy_closed(chains[idx], length(regions) + 1; atol=atol, rtol=rtol)
             push!(regions, popat!(chains, idx))
         end
     end
@@ -716,7 +728,8 @@ function is_fuzzy_closed(chain::Vector{<:SegmentEvent}, idx::Int; atol::Abstract
     gaps = norm.(path[1:(end-1)], path[2:end])
     mean_gap = sum(gaps) / length(gaps)
     if gap / mean_gap <= rtol
-        @warn("Region $idx was not closed, but it has a relatively small gap and will be considered closed.")
+        @warn("Region $idx was not closed, but it has a relatively small gap and will be considered closed.
+        |gap| / |mean_segment| = $gap / $mean_gap < $rtol.")
         return true
     end
     false
