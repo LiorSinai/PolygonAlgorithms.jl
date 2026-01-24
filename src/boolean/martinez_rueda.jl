@@ -60,7 +60,7 @@ end
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subjects::AbstractVector{<:Path2D{T}},
-    others::Vararg{<:Path2D{T}},
+    others::Vararg{Path2D{T}},
     ; atol::AbstractFloat=default_atol, options...
     ) where T
     subject_queue = SegmentEvent{T}[]
@@ -99,7 +99,7 @@ end
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subjects::AbstractVector{<:Polygon{T}},
-    clips::Vararg{<:Polygon{T}},
+    clips::Vararg{Polygon{T}},
     ; atol::AbstractFloat=default_atol, options...
     ) where T
     subject_queue = SegmentEvent{T}[]
