@@ -135,6 +135,14 @@ end
     @test !fully_contains(exterior, polygon2)
 end
 
+@testset "polygon in polygon - edge case" begin
+    hour_glass = [(0.0, 0.0), (4.0, 5.0), (0.0, 10.0), (10.0, 10.0), (6.0, 5.0), (10.0, 0.0)]
+    rectangle = [(2.0, 1.0),(2.0, 8.0), (8.0, 8.0), (8.0, 1.0)]
+    @test all(p -> contains(hour_glass, p), rectangle)
+    @test !fully_contains(hour_glass, rectangle)
+end
+
+
 @testset "polygon in polygon - self-intersect" begin
     pentagon = [
         (-0.8, 0.0), (0.0, 0.6), (0.8, 0.0), (0.5, -1.0), (-0.5, -1.0)
