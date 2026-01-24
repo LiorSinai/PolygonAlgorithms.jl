@@ -2,7 +2,7 @@
 
 """
     martinez_rueda_algorithm(
-    selection_criteria, base, others...
+    selection_criteria, subject, others...
     ; atol=default_atol, rtol=default_rtol, fuzzy_rtol=1.0
     )
 
@@ -12,16 +12,20 @@ It runs in `O((n+m+k)log(n+m))` time where `n` and `m` are the number of vertice
 and `polygon2` respectively and `k` is the total number of intersections between all segments.
 Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
 
-The `base` and `others` must both be either:
-- Polygons: `Vector{Tuple{Float64, Float64}}`.
-- Multi-polygons: `Vector{Vector{Tuple{Float64, Float64}}}`. Note: these are not interpreted as holes.
-- Segment event queue: `Vector{<:SegmentEvent{Float64}}`. The core algorithm uses this representation.
+The input polygons can be:
+- A list of points: `Vector{Tuple{Float64, Float64}}`.
+- Polygons: `Vector{Polygon{T}}`.
+- A Segment event queue: `Vector{<:SegmentEvent{Float64}}`. The core algorithm uses this representation.
+- The `subject` can also be a list of polygons. This enables the output to be an input. 
+    Note that in this case the `subject` list is treated as a single polygon.
+    If any of the polygons overlap, this is equivalent to passing a self-intersecting polygon and
+    some areas might be classified as holes according to the even-odd rule
 
 Description:
 - Operates at a segment level and is an extension of the Bentley-Ottman line intersection algorithm.
-Segments are scanned from left to right, bottom to top. 
+    Segments are scanned from left to right, bottom to top. 
 - The key assumption is that only the segments immediately above and below the current segment need to be inspected for intersections.
-This makes the algorithm fast but also sensitive to determining these segments correctly.
+    This makes the algorithm fast but also sensitive to determining these segments correctly.
 - The segment that is immediately below (or empty space) is used to determine the fill annotations for the current segment.
 - Once all annotations are done, the desired segments can be selected that match a given criteria.
 - These segments are then chained together to form the polygons.
@@ -29,11 +33,10 @@ This makes the algorithm fast but also sensitive to determining these segments c
 Limitations
 1. It can fail for improper polygons: polygons with lines sticking out.
 2. It is sensitive to numeric inaccuracies e.g. a line that is almost vertical or tiny regions 
-of intersection.
+    of intersection.
 3. Sometimes the segment chaining can fail. This might happen if the polygons are improper.
-
-For some cases when the segment chaining fails it is possible to "fuzzy" close them.
-The criteria is that the ratio of the remaining gap to the mean segment length is less than `fuzzy_rtol`.
+    For some cases when the segment chaining fails it is possible to "fuzzy" close them.
+    The criteria is that the ratio of the remaining gap to the mean segment length is less than `fuzzy_rtol`.
 
 References 
 - paper: https://www.researchgate.net/publication/220163820_A_new_algorithm_for_computing_Boolean_operations_on_polygons
@@ -42,11 +45,11 @@ References
 """
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
-    base::Path2D{T},
+    subject::Path2D{T},
     others::Vararg{Path2D{T}},
     ; atol::AbstractFloat=default_atol, options...
     ) where T
-    event_queue_base = convert_to_event_queue(base; primary=true, atol=atol)
+    event_queue_base = convert_to_event_queue(subject; primary=true, atol=atol)
     event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
     region_segments = martinez_rueda_algorithm(
         selection_criteria, event_queue_base, event_queue_others...; atol=atol, options...
@@ -73,12 +76,12 @@ end
 
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
-    base::Polygon{T},
+    subject::Polygon{T},
     others::Vararg{Polygon{T}},
     ; atol::AbstractFloat=default_atol, options...
     ) where T
-    event_queue_base = convert_to_event_queue(base.exterior; primary=true, atol=atol)
-    for hole in base.holes
+    event_queue_base = convert_to_event_queue(subject.exterior; primary=true, atol=atol)
+    for hole in subject.holes
         convert_to_event_queue!(event_queue_base, hole; primary=true, atol=atol)
     end
     event_queue_others = map(p -> convert_to_event_queue(p.exterior; primary=false, atol=atol), others)
@@ -122,11 +125,11 @@ end
 
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
-    base::Vector{<:SegmentEvent{T}},
+    subject::Vector{<:SegmentEvent{T}},
     polygons::Vararg{Vector{<:SegmentEvent{T}}},
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol, fuzzy_rtol::AbstractFloat=1.0
     ) where T
-    base_annotated_segments = event_loop!(base; self_intersection=true, atol=atol, rtol=rtol)
+    base_annotated_segments = event_loop!(subject; self_intersection=true, atol=atol, rtol=rtol)
     for polygon in polygons
         annotated_segments = event_loop!(polygon; self_intersection=true, atol=atol, rtol=rtol)
         queue = SegmentEvent{T}[]
