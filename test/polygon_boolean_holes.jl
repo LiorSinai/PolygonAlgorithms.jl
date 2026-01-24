@@ -49,7 +49,7 @@ end
     expected = [poly1]
     @test are_equivalent(regions, expected)
     # in this case the polygon is treated as a hole
-    regions = union_geometry(alg, [poly1, poly2], Polygon{Float64}[])
+    regions = union_geometry(alg, [poly1, poly2])
     expected = [Polygon(poly1.exterior, holes=[poly2.exterior])]
     @test are_equivalent(regions, expected)
     # XOR
@@ -69,7 +69,7 @@ end
     ])]
     @test are_equivalent(regions, expected)
     # both are part of the subject
-    regions = union_geometry(alg, [poly1, poly2], Polygon{Float64}[])
+    regions = union_geometry(alg, [poly1, poly2])
     push!(expected[1].holes, [(2.5, 2.0), (1.5, 2.0), (2.0, 3.0)])
     @test are_equivalent(regions, expected)
 end
@@ -346,7 +346,7 @@ end
     rect = Polygon([(0.5, 0.0), (0.5, 0.5), (2.0, 0.5), (2.0, 0.0)])
 
     ## Intersection
-    regions = intersect_geometry(alg, [elbow], [triangle, rect])
+    regions = intersect_geometry(alg, elbow, triangle, rect)
     @test isempty(regions)
     # Union
     expected = [
@@ -358,7 +358,7 @@ end
             ]
         )
     ]
-    regions = union_geometry(alg, [elbow], [triangle, rect])
+    regions = union_geometry(alg, elbow, triangle, rect)
     @test are_equivalent(regions, expected)
     ## Difference
     expected = [
@@ -369,7 +369,7 @@ end
             ]
         )
     ]
-    regions = difference_geometry(alg, [elbow, triangle], [rect])
+    regions = difference_geometry(alg, [elbow, triangle], rect)
     @test are_equivalent(regions, expected)
 
     # XOR
@@ -382,7 +382,7 @@ end
             ]
         ),
     ]
-    regions = xor_geometry(alg, [elbow], [triangle, rect])
+    regions = xor_geometry(alg, elbow, triangle, rect)
     @test are_equivalent(regions, expected)
 end
 
