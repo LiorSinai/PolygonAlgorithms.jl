@@ -1,5 +1,8 @@
 """
-    contains(vertices, point; on_border_is_inside=true; rtol=1e-10)
+    contains(vertices, point;
+        on_border_is_inside=true,
+        atol=default_atol
+    )
 
 Runs in `O(n)` time where `n=length(vertices)`.
 
@@ -8,22 +11,23 @@ It is based on "A Simple and Correct Even-Odd Algorithm for the Point-in-Polygon
 by Michael Galetzka and Patrick Glauner (2017). 
 It skips vertices that are on the ray. To compensate, the ray is projected backwards (to the left) so that an 
 intersection can be found for a skipped vertex if needed.
-
-`rtol` should be small because of the extreme points used in the algorithm.
 """
-function contains(vertices::Polygon2D, point::Point2D{T}; on_border_is_inside::Bool=true, rtol::AbstractFloat=1e-10) where T
+function contains(
+    vertices::Path2D, point::Point2D{T}
+    ; on_border_is_inside::Bool=true, rtol::AbstractFloat=default_rtol, atol::AbstractFloat=default_atol
+    ) where T
     n = length(vertices)
     num_intersections = 0
 
     x = x_coords(vertices)
-    extreme_left =  (minimum(x) - T(1e3), point[2])
-    extreme_right = (maximum(x) + T(1e3), point[2])
+    extreme_left =  (minimum(x) - one(T), point[2])
+    extreme_right = (maximum(x) + one(T), point[2])
 
     # step 1: point intersects a vertex or edge
     for i in 1:n
         next_i = (i % n) + 1
         segment = (vertices[i], vertices[next_i])
-        if (point == segment[1]) || on_segment(point, segment)
+        if (point == segment[1]) || on_segment(point, segment; atol=atol)
             return on_border_is_inside
         end
     end
@@ -43,8 +47,8 @@ function contains(vertices::Polygon2D, point::Point2D{T}; on_border_is_inside::B
         skipped_right = false
         for i in 0:n
             next_s = (next_s) % n + 1
-            if (vertices[next_s][2] != point[2]) && 
-                (vertices[s] != vertices[next_s]) # TODO tolerance
+            if abs(vertices[next_s][2] - point[2]) > atol && 
+                !is_same_point(vertices[s], vertices[next_s]; atol=atol)
                 break
             end
             skipped_right = skipped_right || (vertices[next_s][1] > point[1])
@@ -53,9 +57,9 @@ function contains(vertices::Polygon2D, point::Point2D{T}; on_border_is_inside::B
         edge = (vertices[s], vertices[next_s])
         intersect = false
         if (next_s - s) == 1 || (s == n && next_s ==1) # 3b.i
-            intersect = do_intersect(edge, (point, extreme_right); rtol=rtol)
+            intersect = do_intersect(edge, (point, extreme_right); atol=atol)
         elseif skipped_right # 3b.ii
-            intersect = do_intersect(edge, (extreme_left, extreme_right); rtol=rtol)
+            intersect = do_intersect(edge, (extreme_left, extreme_right); atol=atol)
         end
         num_intersections += intersect
         if next_s <= s  # gone in a full loop
@@ -64,4 +68,27 @@ function contains(vertices::Polygon2D, point::Point2D{T}; on_border_is_inside::B
         s = next_s
     end
     return (num_intersections % 2) == 1
+end
+
+"""
+    on_border(vertices, point; atol=default_atol)
+
+Return true if `point` lies on any segment between the `vertices`.
+
+Runs in `O(n)` time where `n=length(vertices)`.
+"""
+function on_border(
+    vertices::Path2D, point::Point2D{T}
+    ; atol::AbstractFloat=default_atol
+    ) where T
+    n = length(vertices)
+    # step 1: point intersects a vertex or edge
+    for i in 1:n
+        next_i = (i % n) + 1
+        segment = (vertices[i], vertices[next_i])
+        if on_segment(point, segment; atol=atol)
+            return true
+        end
+    end
+    false
 end

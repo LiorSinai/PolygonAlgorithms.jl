@@ -33,7 +33,7 @@ function plot_regions!(canvas, regions)
     end
 end
 
-order = 4
+order = 6
 points = hilbert_curve((0.0, 0.0), (1.0, 0.0), (0.0, 1.0), order);
 tail = points[end]
 head = points[1]
@@ -51,7 +51,7 @@ canvas_base = plot(x_coords(poly1[idxs1]), y_coords(poly1[idxs1]), fill=(0, 0.5)
 canvas_both = deepcopy(canvas_base)
 plot!(canvas_both, x_coords(poly2[idxs2]), y_coords(poly2[idxs2]), fill=(0, 0.3))
 
-regions_intersect = intersect_geometry(poly1, poly2, PolygonAlgorithms.WeilerAthertonAlg())
+regions_intersect = intersect_geometry(PolygonAlgorithms.MartinezRuedaAlg(), poly1, poly2)
 canvas_intersect = deepcopy(canvas_both)
 plot_regions!(canvas_intersect, regions_intersect)
 

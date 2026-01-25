@@ -10,7 +10,7 @@ using PolygonAlgorithms: GiftWrappingAlg, GrahamScanAlg
     poly = [
         (0.0, 0.0), (0.0, h), (w, h), (w, 0.0)
     ]
-    hull = convex_hull(poly, alg)
+    hull = convex_hull(alg, poly)
     expected = 1:4
     @test issetequal(hull, expected)
 
@@ -20,7 +20,7 @@ using PolygonAlgorithms: GiftWrappingAlg, GrahamScanAlg
         (w, h), (w, h/2), 
         (w, 0.0), (w/2, 0.0),
     ]
-    hull = convex_hull(poly, alg)
+    hull = convex_hull(alg, poly)
     expected = [1, 3, 5, 7]
     @test issetequal(hull, expected)
 
@@ -34,14 +34,14 @@ end;
         (2.0, 10.0), (4.0, 10.0), (4.0, 6.0), (6.0, 6.0), (6.0, 10.0), (8.0, 10.0), 
         (8.0, 1.0), (6.0, 1.0), (6.0, 4.0), (4.0, 4.0), (4.0, 1.0), (2.0, 1.0)
     ]
-    hull = convex_hull(poly, alg)
+    hull = convex_hull(alg, poly)
     expected = [1, 6, 7, 12]
     @test issetequal(hull, expected)
 end;
 
 @testset "convex hull grid" begin
     points = [(i, j) for i in 1.0:10.0 for j in 1.0:10.0]
-    hull = convex_hull(points, alg)
+    hull = convex_hull(alg, points)
     expected = [1, 10, 91, 100]
     @test issetequal(hull, expected)
 end
@@ -64,7 +64,7 @@ end
         (0.7, 0.6),
     ]
     ;
-    hull = convex_hull(points, alg)
+    hull = convex_hull(alg, points)
     expected = [4, 8, 9, 10, 11, 12]
     @test issetequal(hull, expected)
 end
@@ -74,7 +74,7 @@ end
     n = 10
     angles = 2π * rand(n)
     points = [(sin(t), cos(t)) for t in angles]
-    hull = convex_hull(points, alg)
+    hull = convex_hull(alg, points)
     expected = 1:n
     @test issetequal(hull, expected)
 end

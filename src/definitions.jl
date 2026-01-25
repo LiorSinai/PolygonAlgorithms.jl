@@ -1,6 +1,8 @@
 const Point2D{T<:AbstractFloat} = NTuple{2,T}
 const Segment2D{T<:AbstractFloat} = NTuple{2,Point2D{T}}
-const Polygon2D{T<:AbstractFloat} = Vector{<:Point2D{T}}
+const Path2D{T<:AbstractFloat} = Vector{<:Point2D{T}}
+const default_atol = 1e-6
+const default_rtol = 1e-6
 
 """
     Line2D(a, b, c)
@@ -36,7 +38,13 @@ end
 norm2(p::Point2D, q::Point2D) = (p[1] - q[1]) * (p[1] - q[1]) + (p[2] - q[2]) * (p[2] - q[2])
 norm(p::Point2D, q::Point2D) = sqrt(norm2(p, q))
 
-is_same_point(p::Point2D, q::Point2D; atol::AbstractFloat=1e-6) = norm(p, q) <= atol
+is_same_point(p::Point2D, q::Point2D; atol::AbstractFloat=default_atol) = norm(p, q) <= atol
+
+"""
+    translate(points::Vector{<:Point2D}, t::Point2D)
+
+Translate a set of points by delta `t`.
+"""
 translate(points::Vector{<:Point2D}, t::Point2D) = [(p[1] + t[1], p[2] + t[2]) for p in points]
 
 """
@@ -53,7 +61,7 @@ end
 rotate(points::Vector{<:Point2D}, θ::AbstractFloat, p0::Point2D) = 
     translate(rotate(translate(points, (-p0[1], -p0[2])), θ), p0)
 
-x_coords(points::Polygon2D) = [p[1] for p in points]
-x_coords(points::Polygon2D, idxs::AbstractVector{Int}) = [p[1] for p in points[idxs]]
-y_coords(points::Polygon2D) = [p[2] for p in points]
-y_coords(points::Polygon2D, idxs::AbstractVector{Int}) = [p[2] for p in points[idxs]]
+x_coords(points::Path2D) = [p[1] for p in points]
+x_coords(points::Path2D, idxs::AbstractVector{Int}) = [p[1] for p in points[idxs]]
+y_coords(points::Path2D) = [p[2] for p in points]
+y_coords(points::Path2D, idxs::AbstractVector{Int}) = [p[2] for p in points[idxs]]

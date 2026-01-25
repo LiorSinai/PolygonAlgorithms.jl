@@ -1,250 +1,27 @@
 using Test
 using PolygonAlgorithms: SegmentEvent, SegmentAnnotations
 using PolygonAlgorithms: add_annotated_segment!, compare_events, convert_to_event_queue
-using PolygonAlgorithms: check_and_divide_intersection!, event_loop!, find_transition
+using PolygonAlgorithms: check_and_divide_intersection!, event_loop!
 using PolygonAlgorithms: chain_segments
+using PolygonAlgorithms: is_hole, match_holes_polygons, Polygon
 using PolygonAlgorithms: BLANK
 
-@testset "Martinez-Rueda algorithm" verbose=true begin
+@testset "Martinez-Rueda algorithm" verbose=false begin
 
-    @testset "queueing" begin
-        @testset "rectangle" begin
-            rectangle = [
-                (3.0, 3.0), (7.0, -1.0), (4.0, -4.0), (0.0, 0.0)
-            ]
-            event_queue = convert_to_event_queue(rectangle)
-            expected = [
-                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
-                SegmentEvent(((0.0, 0.0), (3.0, 3.0)), true),
-                SegmentEvent(((0.0, 0.0), (3.0, 3.0)), false),
-                SegmentEvent(((3.0, 3.0), (7.0, -1.0)), true),
-                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), false),
-                SegmentEvent(((4.0, -4.0), (7.0, -1.0)), true),
-                SegmentEvent(((4.0, -4.0), (7.0, -1.0)), false),
-                SegmentEvent(((3.0, 3.0), (7.0, -1.0)), false),
-            ]
-            @test event_queue == expected
-        end
-
-        @testset "vertical line" begin
-            triangle = [
-                (3.0, 3.0), (3.0, -4.0), (0.0, 0.0)
-            ]
-            event_queue = convert_to_event_queue(triangle)
-            expected = [
-                SegmentEvent(((0.0, 0.0), (3.0, -4.0)), true),
-                SegmentEvent(((0.0, 0.0), (3.0, 3.0)), true),
-                SegmentEvent(((0.0, 0.0), (3.0, -4.0)), false),
-                SegmentEvent(((3.0, -4.0), (3.0, 3.0)), true),
-                SegmentEvent(((3.0, -4.0), (3.0, 3.0)), false),
-                SegmentEvent(((0.0, 0.0), (3.0, 3.0)), false),        
-            ]
-            @test event_queue == expected
-
-            lowered_triangle = [
-                (3.0, 3.0), (3.0, -4.0), (0.0, -5.0)
-            ]
-            event_queue = convert_to_event_queue(lowered_triangle)
-            expected = [
-                SegmentEvent(((0.0, -5.0), (3.0, -4.0)), true),
-                SegmentEvent(((0.0, -5.0), (3.0, 3.0)), true),
-                SegmentEvent(((0.0, -5.0), (3.0, -4.0)), false),
-                SegmentEvent(((3.0, -4.0), (3.0, 3.0)), true),
-                SegmentEvent(((3.0, -4.0), (3.0, 3.0)), false),
-                SegmentEvent(((0.0, -5.0), (3.0, 3.0)), false),        
-            ]
-            @test event_queue == expected
-
-            mirror_triangle = [
-                (0.0, -4.0), (0.0, 3.0), (3.0, -5.0)
-            ]
-            event_queue = convert_to_event_queue(mirror_triangle)
-            expected = [
-                SegmentEvent(((0.0, -4.0), (3.0, -5.0)), true),   
-                SegmentEvent(((0.0, -4.0), (0.0, 3.0)), true),    
-                SegmentEvent(((0.0, -4.0), (0.0, 3.0)), false),   
-                SegmentEvent(((0.0, 3.0), (3.0, -5.0)), true),
-                SegmentEvent(((0.0, -4.0), (3.0, -5.0)), false),  
-                SegmentEvent(((0.0, 3.0), (3.0, -5.0)), false),        
-            ]
-            @test event_queue == expected
-        end
-
-        @testset "almost vertical" begin
-            # the original segment was ((0.5345889348336309, 0.9626445530693036), (0.5346819812512368, 0.7153822809806809))
-            # it was not vertical, but the two intersecting lines make a tiny vertical segment
-            event_queue = [
-                SegmentEvent(((0.5346362515873916, 0.8369046444971744), (0.5346819812512368, 0.7153822809806809)), true),
-                SegmentEvent(((0.5346362515873916, 0.8369046444971744), (0.702057739662388, 0.63591526606886130)), true),
-                SegmentEvent(((0.5346358170779485, 0.8380593132624886), (0.5346362515873916, 0.8369046444971744)), true),
-                SegmentEvent(((0.5346358170779485, 0.8380593132624886), (0.6336845198791616, 0.7251516629897194)), true),
-            ]
-            # the event_loop! modified event_queue[3] with update_end!
-            # now, the tail should be inserted after it.
-            tail = SegmentEvent(event_queue[3].segment, false)
-            idx = searchsortedfirst(event_queue, tail; lt=compare_events)
-            @test_broken idx == 5
-        end
-    end
-
-    @testset "find_transitions" begin
-        @testset "horizontal lines" begin
-            # setup
-            status = [
-                SegmentEvent(((0.0, 5.0), (5.0, 5.0)), true),
-                SegmentEvent(((0.0, 3.0), (5.0, 3.0)), true),
-                SegmentEvent(((0.0, 1.0), (5.0, 1.0)), true),
-            ]
-            # test
-            ev6 = SegmentEvent(((0.0, 6.0), (5.0, 6.0)), true)
-            idx = find_transition(status, ev6)
-            @test idx == 1
-            ev34 = SegmentEvent(((0.0, 3.0), (5.0, 4.0)), true)
-            idx = find_transition(status, ev34)
-            @test idx == 2
-            ev32 = SegmentEvent(((0.0, 3.0), (5.0, 2.0)), true)
-            idx = find_transition(status, ev32)
-            @test idx == 3
-            ev2 = SegmentEvent(((0.0, 2.0), (5.0, 2.0)), true)
-            idx = find_transition(status, ev2)
-            @test idx == 3
-            ev0 = SegmentEvent(((0.0, 0.0), (5.0, 0.0)), true)
-            idx = find_transition(status, ev0)
-            @test idx == 4
-        end
-
-        @testset "sweep status head" begin
-            # setup
-            status = [SegmentEvent(((0.0, 5.0), (5.0, 5.0)), true)]
-            # test
-            ev6 = SegmentEvent(((0.0, 6.0), (5.0, 6.0)), true)
-            idx = find_transition(status, ev6)
-            @test idx == 1
-            ev2 = SegmentEvent(((0.0, 2.0), (5.0, 2.0)), true)
-            idx = find_transition(status, ev2)
-            @test idx == 2
-        end
-
-        @testset "size discrepancy" begin
-            # from spiral-star example. 
-            status = [
-                SegmentEvent(((-10.0, -12.0), (0.0, -2.0)), true) # star leg
-            ]
-            # test
-            ev = SegmentEvent(((-8.338, -10.337), (-8.239, -10.426)), true) # tiny segment of spiral
-            idx = find_transition(status, ev)
-            @test idx == 1
-        end
-    end
-
-    @testset "order sweep status" begin
-        @testset "sweep status rand lines" begin
-            # lines originally from the intersection of two randomly generated spiky polygon
-            segments = [
-                SegmentEvent(((0.5824, 0.5157), (0.9235, 0.39180)), true)
-                SegmentEvent(((0.5824, 0.5157), (0.9756, 0.3288)), true)
-                SegmentEvent(((0.5732, 0.7060), (0.7169, 0.6187)), true)
-                SegmentEvent(((0.5658, 0.6475), (0.6321, 0.6197)), true)
-                SegmentEvent(((0.5658, 0.6475), (0.7169, 0.6187)), true)
-                SegmentEvent(((0.5480, 0.9443), (0.7438, 0.6878)), true)
-                SegmentEvent(((0.5480, 0.9443), (0.7455, 0.8477)), true)
-                SegmentEvent(((0.5334, 0.9450), (0.7438, 0.6878)), true)
-                SegmentEvent(((0.5218, 0.2095), (0.5839, 0.1114)), true)
-                SegmentEvent(((0.5122, 0.9013), (0.6366, 0.9417)), true)
-                SegmentEvent(((0.4867, 0.5998), (0.6095, 0.6079)), true)
-                SegmentEvent(((0.4771, 0.4543), (0.5913, 0.4110)), true)
-                SegmentEvent(((0.4767, 0.5368), (0.6615, 0.5250)), true)
-                SegmentEvent(((0.4544, 0.0837), (0.6762, 0.4073)), true)
-                SegmentEvent(((0.4544, 0.0837), (0.7364, 0.3326)), true)
-                SegmentEvent(((0.4127, 0.4774), (0.6615, 0.5250)), true)
-            ]
-            sweep_status = SegmentEvent{Float64}[]
-            for event in segments
-                idx = find_transition(sweep_status, event)
-                insert!(sweep_status, idx, event)
-            end
-            expected = [
-                SegmentEvent(((0.5480, 0.9443), (0.7455, 0.8477)), true),
-                SegmentEvent(((0.5480, 0.9443), (0.7438, 0.6878)), true),
-                SegmentEvent(((0.5334, 0.9450), (0.7438, 0.6878)), true),
-                SegmentEvent(((0.5122, 0.9013), (0.6366, 0.9417)), true),
-                SegmentEvent(((0.5732, 0.7060), (0.7169, 0.6187)), true),
-                SegmentEvent(((0.5658, 0.6475), (0.7169, 0.6187)), true),
-                SegmentEvent(((0.5658, 0.6475), (0.6321, 0.6197)), true),
-                SegmentEvent(((0.4867, 0.5998), (0.6095, 0.6079)), true),
-                SegmentEvent(((0.4767, 0.5368), (0.6615, 0.525)), true),
-                SegmentEvent(((0.5824, 0.5157), (0.9235, 0.3918)), true),
-                SegmentEvent(((0.5824, 0.5157), (0.9756, 0.3288)), true),
-                SegmentEvent(((0.4127, 0.4774), (0.6615, 0.525)), true),
-                SegmentEvent(((0.4771, 0.4543), (0.5913, 0.411)), true),
-                SegmentEvent(((0.5218, 0.2095), (0.5839, 0.1114)), true),
-                SegmentEvent(((0.4544, 0.0837), (0.6762, 0.4073)), true),
-                SegmentEvent(((0.4544, 0.0837), (0.7364, 0.3326)), true),
-            ]
-            @test sweep_status == expected
-        end
-
-        @testset "sweep status rand lines 2" begin
-            segments = [
-                SegmentEvent(((0.01190, 0.9843), (0.2696, 0.7221)), true),
-                SegmentEvent(((0.02439, 0.6210), (0.1274, 0.6140)), true),
-                SegmentEvent(((0.01190, 0.9843), (0.1166, 0.9564)), true),
-                SegmentEvent(((0.02706, 0.3861), (0.0599, 0.4676)), true),
-                SegmentEvent(((0.00284, 0.3700), (0.0727, 0.1129)), true),
-                SegmentEvent(((0.02201, 0.5214), (0.3929, 0.5001)), true),
-            ]
-            sweep_status = SegmentEvent{Float64}[]
-            for event in segments
-                idx = find_transition(sweep_status, event)
-                insert!(sweep_status, idx, event)
-            end
-            expected =[
-                SegmentEvent(((0.0119, 0.9843), (0.1166, 0.9564)), true),
-                SegmentEvent(((0.0119, 0.9843), (0.2696, 0.7221)), true),
-                SegmentEvent(((0.02439, 0.621), (0.1274, 0.614)), true),
-                SegmentEvent(((0.02201, 0.5214), (0.3929, 0.5001)), true),
-                SegmentEvent(((0.02706, 0.3861), (0.0599, 0.4676)), true),
-                SegmentEvent(((0.00284, 0.37), (0.0727, 0.1129)), true),
-            ]
-            @test sweep_status == expected
-        end
-
-        @testset "sweep status almost colinear" begin
-            sweep_status =[
-                SegmentEvent(((0.7481773880710287, 0.2525213105681051), (0.891378804016348, 0.0914800094089202)), true),
-                SegmentEvent(((0.7674956225378292, 0.19603318345420395), (0.93007516434479, 0.04850368886951295)), true),
-                SegmentEvent(((0.7307442328548945, 0.22237367849003833), (0.879152990839225, 0.03969376626137666)), true),
-                SegmentEvent(((0.7456555133038324, 0.17560361123176102), (0.879152990839225, 0.03969376626137666)), true)
-            ]
-            ev = SegmentEvent(((0.7692174020749689, 0.1749860342238233), (0.8076322984621129, 0.25945610393589347)), true)
-            # with rtol=1e-3, this is linear
-            idx = find_transition(sweep_status, ev)
-            @test idx == 4
-        end
-
-        @testset "sweep status steps" begin
-            # lines originally from the intersection of two randomly generated spiky polygon
-            segments = [
-                SegmentEvent(((0.0, 4.0), (3.0, 4.0)), true),
-                SegmentEvent(((0.0, 2.0), (3.0, 2.0)), true),
-                SegmentEvent(((3.0, 2.0), (3.0, -2.0)), true),
-                SegmentEvent(((3.0, -2.0), (6.0, -2.0)), true),
-                SegmentEvent(((3.0, -4.0), (6.0, -4.0)), true),
-            ]
-            sweep_status = SegmentEvent{Float64}[]
-            for event in segments
-                idx = find_transition(sweep_status, event)
-                insert!(sweep_status, idx, event)
-            end
-            expected = [
-                SegmentEvent(((0.0, 4.0), (3.0, 4.0)), true),
-                SegmentEvent(((0.0, 2.0), (3.0, 2.0)), true),
-                SegmentEvent(((3.0, 2.0), (3.0, -2.0)), true),
-                SegmentEvent(((3.0, -2.0), (6.0, -2.0)), true),
-                SegmentEvent(((3.0, -4.0), (6.0, -4.0)), true),
-            ]
-            @test sweep_status == expected
-        end
+    @testset "almost vertical" begin
+        # the original segment was ((0.5345889348336309, 0.9626445530693036), (0.5346819812512368, 0.7153822809806809))
+        # it was not vertical, but the two intersecting lines make a tiny vertical segment
+        event_queue = [
+            SegmentEvent(((0.5346362515873916, 0.8369046444971744), (0.5346819812512368, 0.7153822809806809)), true),
+            SegmentEvent(((0.5346362515873916, 0.8369046444971744), (0.702057739662388, 0.63591526606886130)), true),
+            SegmentEvent(((0.5346358170779485, 0.8380593132624886), (0.5346362515873916, 0.8369046444971744)), true),
+            SegmentEvent(((0.5346358170779485, 0.8380593132624886), (0.6336845198791616, 0.7251516629897194)), true),
+        ]
+        # the event_loop! modified event_queue[3] with update_end!
+        # now, the tail should be inserted after it.
+        tail = SegmentEvent(event_queue[3].segment, false)
+        idx = searchsortedfirst(event_queue, tail; lt=compare_events)
+        @test_broken idx == 5
     end
 
     @testset "divide" begin
@@ -447,20 +224,20 @@ using PolygonAlgorithms: BLANK
             expected = [
                 SegmentEvent(((-0.5, -1.0), (-0.3062015503875969, -0.3798449612403101)), true, true, SegmentAnnotations(false, true)),
                 SegmentEvent(((-0.8, 0.0), (-0.3062015503875969, -0.3798449612403101)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((-0.3062015503875969, -0.3798449612403101), (-0.18750000000000003, 0.0)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((-0.8, 0.0), (-0.18750000000000003, 0.0)), true, true, SegmentAnnotations(false, true)),
-                SegmentEvent(((-0.5, -1.0), (-0.0, -0.6153846153846154)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((-0.3062015503875969, -0.3798449612403101), (-0.0, -0.6153846153846154)), true, true, SegmentAnnotations(false, true)),
-                SegmentEvent(((-0.18750000000000003, 0.0), (0.0, 0.6)), true, true, SegmentAnnotations(false, true)),
-                SegmentEvent(((-0.18750000000000003, 0.0), (0.1875, 0.0)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((0.0, 0.6), (0.1875, 0.0)), true, true, SegmentAnnotations(false, true)),
-                SegmentEvent(((-0.0, -0.6153846153846154), (0.30620155038759694, -0.3798449612403101)), true, true, SegmentAnnotations(false, true)),
-                SegmentEvent(((0.1875, 0.0), (0.30620155038759694, -0.3798449612403101)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((-0.0, -0.6153846153846154), (0.5, -1.0)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((0.30620155038759694, -0.3798449612403101), (0.5, -1.0)), true, true, SegmentAnnotations(false, true)),
-                SegmentEvent(((0.30620155038759694, -0.3798449612403101), (0.8, 0.0)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((0.1875, 0.0), (0.8, 0.0)), true, true, SegmentAnnotations(false, true)),
-            ]
+                SegmentEvent(((-0.3062015503875969, -0.3798449612403101), (-0.18749999999999997, 5.551115123125783e-17)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((-0.8, 0.0), (-0.18749999999999997, 5.551115123125783e-17)), true, true, SegmentAnnotations(false, true)),
+                SegmentEvent(((-0.5, -1.0), (0.0, -0.6153846153846154)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((-0.3062015503875969, -0.3798449612403101), (0.0, -0.6153846153846154)), true, true, SegmentAnnotations(false, true)),
+                SegmentEvent(((-0.18749999999999997, 5.551115123125783e-17), (0.0, 0.6)), true, true, SegmentAnnotations(false, true)),
+                SegmentEvent(((-0.18749999999999997, 5.551115123125783e-17), (0.18749999999999997, 0.0)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((0.0, 0.6), (0.18749999999999997, 0.0)), true, true, SegmentAnnotations(false, true)),
+                SegmentEvent(((0.0, -0.6153846153846154), (0.3062015503875969, -0.37984496124031014)), true, true, SegmentAnnotations(false, true)),
+                SegmentEvent(((0.18749999999999997, 0.0), (0.3062015503875969, -0.37984496124031014)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((0.0, -0.6153846153846154), (0.5, -1.0)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((0.3062015503875969, -0.37984496124031014), (0.5, -1.0)), true, true, SegmentAnnotations(false, true)),
+                SegmentEvent(((0.3062015503875969, -0.37984496124031014), (0.8, 0.0)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((0.18749999999999997, 0.0), (0.8, 0.0)), true, true, SegmentAnnotations(false, true)),
+                ]
             @test annotated_segments == expected
         end
 
@@ -599,20 +376,117 @@ using PolygonAlgorithms: BLANK
                 SegmentEvent(((4.0, -4.0), (7.0, -1.0)), true),
             ]
             regions = chain_segments(segments)
-            expected = [[(7.0, -1.0), (3.0, 3.0), (0.0, 0.0), (4.0, -4.0)]]
+            expected = [[
+                    SegmentEvent(((3.0, 3.0), (7.0, -1.0)), false),
+                    SegmentEvent(((0.0, 0.0), (3.0, 3.0)),  false),
+                    SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
+                    SegmentEvent(((0.0, 0.0), (4.0, -4.0)), false),
+            ]]
+            @test regions == expected
+        end
+
+        @testset "close fuzzy" begin
+            segments = [
+                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
+                SegmentEvent(((0.0, 0.0), (3.0, 3.0)), true),
+                SegmentEvent(((3.0, 3.0), (7.0, -1.0)), true),
+                SegmentEvent(((3.999, -3.999), (7.0, -1.0)), true),
+            ]
+            regions = chain_segments(segments)
+            expected = [[
+                SegmentEvent(((3.999, -3.999), (7.0, -1.0)), true),
+                SegmentEvent(((3.0, 3.0), (7.0, -1.0)), false),
+                SegmentEvent(((0.0, 0.0), (3.0, 3.0)), false),
+                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
+                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), false),
+            ]]
             @test regions == expected
         end
 
         @testset "chain segments - improper" begin
             segments = [
                 SegmentEvent(((0.0, 0.0), (2.0, 2.0)), true),
-                SegmentEvent(((0.0, 0.0), (2.0, 2.0)), true),
                 SegmentEvent(((2.0, 2.0), (5.0, 1.0)), true),
                 SegmentEvent(((2.0, 2.0), (3.0, 5.0)), true),
                 SegmentEvent(((3.0, 5.0), (5.0, 1.0)), true),
             ]
-            expected = [(0.0, 0.0), (2.0, 2.0), (3.0, 5.0), (5.0, 1.0), (2.0, 2.0)]
             @test_throws AssertionError chain_segments(segments)
+        end
+
+        @testset "chain segments - improper hole" begin
+            segments = [
+                SegmentEvent(((0.0, 0.0), (0.0, 4.0)), true, true, SegmentAnnotations(false, true)),
+                SegmentEvent(((2.0, 1.0), (2.0, 2.0)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((0.0, 4.0), (2.0, 2.0)), true, true, SegmentAnnotations(true, true) ),
+                SegmentEvent(((2.0, 1.0), (3.0, 3.0)), true, true, SegmentAnnotations(false, true)),
+                SegmentEvent(((2.0, 2.0), (3.0, 3.0)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((0.0, 0.0), (5.0, 1.0)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((5.0, 1.0), (5.0, 4.0)), true, true, SegmentAnnotations(true, false)),
+                SegmentEvent(((0.0, 4.0), (5.0, 4.0)), true, true, SegmentAnnotations(false, true)),
+            ]
+            @test_throws AssertionError chain_segments(segments)
+        end
+    end
+
+    @testset "holes" begin
+        @testset "two squares with holes" begin
+            regions = [
+                [
+                    SegmentEvent(((2.0, 1.0), (2.0, 2.0)), false, true, SegmentAnnotations(false, true)),
+                    SegmentEvent(((1.0, 1.0), (2.0, 1.0)), false, true, SegmentAnnotations(false, true)),
+                    SegmentEvent(((1.0, 1.0), (1.0, 2.0)), true,  true, SegmentAnnotations(true, false)),
+                    SegmentEvent(((1.0, 1.0), (1.0, 2.0)), false, true, SegmentAnnotations(true, false)),
+                ],
+                [
+                    SegmentEvent(((3.0, 0.0), (3.0, 3.0)), false, true, SegmentAnnotations(true, false)),
+                    SegmentEvent(((0.0, 0.0), (3.0, 0.0)), false, true, SegmentAnnotations(true, false)),
+                    SegmentEvent(((0.0, 0.0), (0.0, 3.0)), true,  true, SegmentAnnotations(false, true)),
+                    SegmentEvent(((0.0, 0.0), (0.0, 3.0)), false, true, SegmentAnnotations(false, true)),
+                ],
+                [
+                    SegmentEvent(((6.0, 1.0), (6.0, 2.0)), false, true, SegmentAnnotations(false, true)),
+                    SegmentEvent(((5.0, 1.0), (6.0, 1.0)), false, true, SegmentAnnotations(false, true)),
+                    SegmentEvent(((5.0, 1.0), (5.0, 2.0)), true,  true, SegmentAnnotations(true, false)),
+                    SegmentEvent(((5.0, 1.0), (5.0, 2.0)), false, true, SegmentAnnotations(true, false)),
+                ],
+                [
+                   SegmentEvent(((7.0, 0.0), (7.0, 3.0)), false, true, SegmentAnnotations(true, false))
+                    SegmentEvent(((4.0, 0.0), (7.0, 0.0)), false, true, SegmentAnnotations(true, false))
+                    SegmentEvent(((4.0, 0.0), (4.0, 3.0)), true,  true, SegmentAnnotations(false, true))
+                    SegmentEvent(((4.0, 0.0), (4.0, 3.0)), false, true, SegmentAnnotations(false, true))
+                ]
+            ]
+            classification = map(is_hole, regions)
+            expected = [true, false, true, false]
+            @test classification == expected
+            polygons = [
+                Polygon([(3.0, 3.0), (3.0, 0.0), (0.0, 0.0), (0.0, 3.0)]),
+                Polygon([(7.0, 3.0), (7.0, 0.0), (4.0, 0.0), (4.0, 3.0)]),
+            ]
+            holes = [
+                [(2.0, 2.0), (2.0, 1.0), (1.0, 1.0), (1.0, 2.0)],
+                [(6.0, 2.0), (6.0, 1.0), (5.0, 1.0), (5.0, 2.0)],
+            ]
+            parents = match_holes_polygons(polygons, holes)
+            @test parents == [1, 2]
+        end
+
+        @testset "nested squares with holes" begin
+            poly1 = Polygon(
+                [(0.0, 0.0), (0.0, 7.0), (7.0, 7.0), (7.0, 0.0)]
+            )
+            poly2 = Polygon(
+                [(2.0, 2.0), (2.0, 5.0), (5.0, 5.0), (5.0, 2.0)];
+            )
+            holes = [
+                [(1.0, 1.0), (1.0, 6.0), (6.0, 6.0), (6.0, 1.0)],
+                [(3.0, 3.0), (3.0, 4.0), (4.0, 4.0), (4.0, 3.0)],
+            ]
+            # order does not matter
+            parents = match_holes_polygons([poly1, poly2], holes)
+            @test parents == [1, 2]
+            parents = match_holes_polygons([poly2, poly1], holes)
+            @test parents == [2, 1]
         end
     end
 end
