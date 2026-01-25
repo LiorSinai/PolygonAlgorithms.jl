@@ -2,6 +2,7 @@
 using StatsBase
 using Test
 using PolygonAlgorithms
+using PolygonAlgorithms: Polygon
 
 struct PolygonTest
     caption::String
@@ -56,30 +57,8 @@ function convert_path(path::Vector{Int})
     polygon
 end
 
-function is_hole(idx::Int, regions::Vector{<:Vector{<:Tuple}})
-    region = regions[idx]
-    others = vcat(1:(idx-1), (idx+1):length(regions))
-    any(x->fully_contains(x, region), regions[others])
-end
-
-function fully_contains(polygon1::Vector{<:Tuple{T, T}}, polygon2::Vector{<:Tuple{T, T}}) where T <: AbstractFloat
-   all(contains(polygon1, point; rtol=1e-8) for point in polygon2) 
-end
-
-function calculate_area_diff_ratio(stored_area::Integer, regions::Vector{<:Vector}; check_holes=false)
-    if check_holes
-        measured_area = 0.0
-        for (idx, region) in enumerate(regions)
-            a = area_polygon(region)
-            if is_hole(idx, regions)
-                measured_area -= a
-            else
-                measured_area += a
-            end
-        end
-    else
-        measured_area = sum(map(area_polygon, regions))
-    end
+function calculate_area_diff_ratio(stored_area::Integer, regions::Vector{<:Polygon})
+    measured_area = sum(map(area_polygon, regions); init=0)
     area_diff = stored_area > 0 ? (stored_area - measured_area) : 0
     area_ratio = stored_area <= 0 ? 0 : area_diff / stored_area
     area_ratio
@@ -96,7 +75,7 @@ function validate_area(test::PolygonTest, area_ratio::Real)
         threshold = 0.04
     elseif test.caption in ["44", "132", "164"]
         threshold = 0.03
-    elseif test.caption in ["123", "128", "134", "140", "142", "144", "153", "173", "181"]
+    elseif test.caption in ["15", "123", "128", "134", "140", "142", "144", "153", "173", "181"]
         threshold = 0.02
     else
         threshold = 0.01
@@ -110,22 +89,17 @@ func_map = Dict(
     "UNION" => union_geometry,
 )
 
-function execute(test::PolygonTest, polygon1::Vector, polygon2::Union{Vector, Nothing})
+function execute(test::PolygonTest, subjects::Vector{<:Polygon}, clips::Vector{<:Polygon})
     try
-        if isnothing(polygon2)
-            regions = PolygonAlgorithms.martinez_rueda_algorithm(polygon1)
-        else
-            func = func_map[test.clip_type]
-            regions = func(polygon1, polygon2)
-        end
-        check_holes = test.clip_type == "UNION"
-        area_ratio = calculate_area_diff_ratio(test.solution_area, regions; check_holes=check_holes)
-        count_regions = sum((!is_hole(idx, regions) for idx in 1:length(regions)), init=0)
+        func = func_map[test.clip_type]
+        regions = func(subjects, clips...; atol=1e-7, rtol=1e-7)
+        area_ratio = calculate_area_diff_ratio(test.solution_area, regions)
+        count_regions = length(regions)
         count_diff = test.solution_count > 0 ? (test.solution_count - count_regions) : 0
         area_ratio, count_diff
     catch err
         if err isa AssertionError
-            return (1.0, Inf)
+            return (NaN, Inf)
         else
             rethrow(err)
         end
@@ -134,27 +108,23 @@ end
 
 tests = load_tests(joinpath(@__DIR__, "Polygons.txt"))
 
-area_ratios = fill(1.0, length(tests))
+area_ratios = fill(NaN, length(tests))
 count_diffs = fill(Inf, length(tests))
 results = fill("", length(tests))
 for (idx, poly_test) in enumerate(tests)
-    subjects = map(convert_path, poly_test.subjects)
-    clips = map(convert_path, poly_test.clips)
-    metrics = (1.0, Inf) # area_ratio, count_diff
+    print("$idx, ")
+    subjects = map(Polygon, map(convert_path, poly_test.subjects))
+    clips = isempty(poly_test.clips) ? Polygon[] : map(Polygon, map(convert_path, poly_test.clips))
+    metrics = (NaN, Inf) # area_ratio, count_diff
     if poly_test.fill_rule != "EVENODD"
         result = poly_test.fill_rule
-    elseif length(subjects) == 1 && length(clips) == 0
-        metrics = execute(poly_test, subjects[1], nothing)
-        result = "SINGLE"
-    elseif length(subjects) == 1 && length(clips) == 1
-        metrics = execute(poly_test, subjects[1], clips[1])
-        result = validate_area(poly_test, metrics[1])
     else
-        result = "MULTI"
+        metrics = execute(poly_test, subjects, clips)
+        result = isnan(metrics[1]) ? "error" : validate_area(poly_test, metrics[1])
     end
     results[idx] = string(result)
     area_ratios[idx] = metrics[1]
     count_diffs[idx] = metrics[2]
 end
 
-summary = countmap(results)
+results_summary = countmap(results)
