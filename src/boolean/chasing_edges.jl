@@ -52,9 +52,9 @@ function chasing_edges_algorithm(
         end
     end
     if isempty(points)
-        if contains(polygon2, polygon1[1])
+        if contains(polygon2, polygon1[1]; atol=atol)
             return polygon1
-        elseif contains(polygon1, polygon2[1])
+        elseif contains(polygon1, polygon2[1]; atol=atol)
             return polygon2
         end
     end
