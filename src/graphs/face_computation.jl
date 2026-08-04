@@ -10,7 +10,7 @@ function directed_graph_from_segments(events::AbstractVector{<:SegmentEvent{T}};
     graph = Dict{Point2D{T}, Vector{SegmentEvent{T}}}() # point => half_edges
     for ev in events
         # tolerance
-        segment = (round.(ev.segment[1], digits=digits), round.(ev.segment[2], digits=digits))
+        segment = (round.(ev.segment[1], digits=digits) .+ zero(T), round.(ev.segment[2], digits=digits) .+ zero(T))
         # create segments
         current = SegmentEvent(segment, true, true, ev.self_annotations, SegmentAnnotations())
         other = SegmentEvent(reverse(segment), true, true, ev.self_annotations, SegmentAnnotations())

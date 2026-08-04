@@ -47,13 +47,9 @@ function push!(s::PointSet, x::Tuple)
     s
 end
 
-function fudge(point::Tuple, digits::Int)
-    point = round.(point, digits=digits)
-    if (point[1] == -0 || point[2] == -0)
-        x, y = point
-        point = (x == -0 ? zero(x) : x, y == -0 ? zero(y) : y)
-    end
-    point
+function fudge(point::Tuple{T1, T2}, digits::Int) where {T1 <: Number, T2 <: Number}
+    # add 0.0 to cast -0.0 to 0.0
+    round.(point, digits=digits) .+ zero(T1)
 end
 
 function show(io::IO, s::PointSet)
