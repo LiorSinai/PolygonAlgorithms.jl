@@ -591,11 +591,7 @@ function paths_to_polygons(
     polygons = Polygon.(exteriors)
     parents = match_holes_polygons(polygons, holes; atol=atol)
     for (idx, hole) in zip(parents, holes)
-        if idx == 0
-            compact_vec = "[$(hole[1])...$(hole[end])]"
-            @warn "Hole $(compact_vec) has no parent. Casting to Polygon."
-            push!(polygons, Polygon(hole))
-        else
+        if idx != 0
             push!(polygons[idx].holes, hole)
         end
     end
