@@ -9,7 +9,9 @@ where each half edge points to another node and are sorted clockwise around the 
 function directed_graph_from_segments(events::AbstractVector{<:SegmentEvent{T}}; digits::Int=6) where {T}
     graph = Dict{Point2D{T}, Vector{SegmentEvent{T}}}() # point => half_edges
     for ev in events
-        # tolerance
+        # To ensure exact matches, cast the points to a grid by rounding.
+        # Another dict could be used to map back to the original points.
+        # However it is preferred to carry through the loss in precision
         segment = (round.(ev.segment[1], digits=digits) .+ zero(T), round.(ev.segment[2], digits=digits) .+ zero(T))
         # create segments
         current = SegmentEvent(segment, true, true, ev.self_annotations, SegmentAnnotations())
