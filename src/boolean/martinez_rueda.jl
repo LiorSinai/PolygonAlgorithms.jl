@@ -4,13 +4,15 @@
     is_hole(polygon::Vector{<:SegmentEvent})
 
 A necessary and sufficient condition for a polygon to be classified as a hole is that
-at its lowest point it must be filled below and not above.
+its lowest segment must be filled below and not above.
 """
 function is_hole(polygon::AbstractVector{<:SegmentEvent{T}}) where {T}
-    y = minimum(event -> event.point[2], polygon)
-    touch_lowest = filter(event -> event.point[2] == y || event.other_point[2] == y, polygon)
-    # of the segments which touch the lowest point, choose the one with (1) lowest other point and (2) the largest gap
-    lowest = argmin(segment -> (max(segment[1][2], segment[2][2]) .+ zero(T), -abs(segment[1][1] - segment[2][1])), touch_lowest)
+    cmp(event) = (
+        min(event.point[2], event.other_point[2]) .+ 0.0, # lowest y-value
+        max(event.point[2], event.other_point[2]) .+ 0.0, # lowest other y-value
+        -abs(event.point[1] - event.other_point[1]) # widest segment, not vertical
+    )
+    lowest = argmin(cmp, polygon)
     annotations = lowest.self_annotations
     annotations.fill_below && !annotations.fill_above
 end
