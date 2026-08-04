@@ -1,9 +1,37 @@
 @enum AnnotationFill BLANK=0 ABOVE=1 BELOW=2 EMPTY=3
 
 """
+    is_hole(polygon::Vector{<:SegmentEvent})
+
+A necessary and sufficient condition for a polygon to be classified as a hole is that
+at its lowest point it must be filled below and not above.
+"""
+function is_hole(polygon::AbstractVector{<:SegmentEvent})
+    y = minimum(event -> event.point[2], polygon)
+    touch_lowest = filter(event -> event.point[2] == y || event.other_point[2] == y, polygon)
+    # of the segments which touch the lowest point, choose the one with (1) lowest other point and (2) the largest gap
+    lowest = argmin(segment -> (max(segment[1][2], segment[2][2]), -abs(segment[1][1] - segment[2][1])), touch_lowest)
+    annotations = lowest.self_annotations
+    annotations.fill_below && !annotations.fill_above
+end
+
+function segments_to_paths(segments::Vector{<:SegmentEvent}; digits::Integer=6)
+    # segments → faces → paths
+    graph = directed_graph_from_segments(segments; digits=digits)
+    faces = compute_graph_faces(graph)
+    polygons = map(segments -> map(event -> event.point, segments), faces)
+    # paths → exteriors, holes
+    exteriors = is_counter_clockwise.(polygons)
+    not_holes = .!is_hole.(faces[exteriors]) # ignore exteriors of holes
+    interiors = .!exteriors
+    holes = is_hole.(faces[interiors]) # ignore repeated interiors
+    polygons[exteriors][not_holes], polygons[interiors][holes]
+end
+
+"""
     martinez_rueda_algorithm(
     selection_criteria, subject, others...
-    ; atol=default_atol, rtol=default_rtol, fuzzy_rtol=1.0
+    ; atol=default_atol, rtol=default_rtol
     )
 
 The Martínez-Rueda-Feito polygon clipping algorithm.
@@ -31,12 +59,8 @@ Description:
 - These segments are then chained together to form the polygons.
 
 Limitations
-1. It can fail for improper polygons: polygons with lines sticking out.
-2. It is sensitive to numeric inaccuracies e.g. a line that is almost vertical or tiny regions 
+1. It is sensitive to numeric inaccuracies e.g. a line that is almost vertical or tiny regions 
     of intersection.
-3. Sometimes the segment chaining can fail. This might happen if the polygons are improper.
-    For some cases when the segment chaining fails it is possible to "fuzzy" close them.
-    The criteria is that the ratio of the remaining gap to the mean segment length is less than `fuzzy_rtol`.
 
 References 
 - paper: https://www.researchgate.net/publication/220163820_A_new_algorithm_for_computing_Boolean_operations_on_polygons
@@ -51,12 +75,14 @@ function martinez_rueda_algorithm(
     ) where T
     event_queue_base = convert_to_event_queue(subject; primary=true, atol=atol)
     event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
-    region_segments = martinez_rueda_algorithm(
+    segments = martinez_rueda_algorithm(
         selection_criteria, event_queue_base, event_queue_others...; atol=atol, options...
     )
-    map(segments -> map(event -> event.point, segments), region_segments)
+    exteriors, holes = segments_to_paths(segments; digits=significant_digits(atol))
+    vcat(exteriors, holes)
 end
 
+# Multiple subjects
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subjects::AbstractVector{<:Path2D{T}},
@@ -66,14 +92,14 @@ function martinez_rueda_algorithm(
     subject_queue = SegmentEvent{T}[]
     map(p -> convert_to_event_queue!(subject_queue, p; primary=true, atol=atol), subjects)
     event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
-    region_segments = martinez_rueda_algorithm(
+    segments = martinez_rueda_algorithm(
         selection_criteria, subject_queue, event_queue_others...; atol=atol, options...
     )
-    map(segments -> map(event -> event.point, segments), region_segments)
+    exteriors, holes = segments_to_paths(segments; digits=significant_digits(atol))
+    vcat(exteriors, holes)
 end
 
-# Polygon with hole input
-
+# Polygons with holes
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subject::Polygon{T},
@@ -90,12 +116,14 @@ function martinez_rueda_algorithm(
             convert_to_event_queue!(queue, hole; primary=false, atol=atol)
         end
     end
-    region_segments = martinez_rueda_algorithm(
+    segments = martinez_rueda_algorithm(
         selection_criteria, event_queue_base, event_queue_others...; atol=atol, options...
     )
-    convert_segments_to_polygons(region_segments; atol=atol)
+    exteriors, holes = segments_to_paths(segments; digits=significant_digits(atol))
+    paths_to_polygons(exteriors, holes; atol=atol)
 end
 
+# Multiple subjects with holes
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subjects::AbstractVector{<:Polygon{T}},
@@ -115,19 +143,19 @@ function martinez_rueda_algorithm(
             convert_to_event_queue!(queue, hole; primary=false, atol=atol)
         end
     end
-    region_segments = martinez_rueda_algorithm(
+    segments = martinez_rueda_algorithm(
         selection_criteria, subject_queue, event_queue_clips...; atol=atol, options...
     )
-    convert_segments_to_polygons(region_segments; atol=atol)
+    exteriors, holes = segments_to_paths(segments; digits=significant_digits(atol))
+    paths_to_polygons(exteriors, holes; atol=atol)
 end
 
 # Core algorithm: SegmentEvent input
-
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subject::Vector{<:SegmentEvent{T}},
     polygons::Vararg{Vector{<:SegmentEvent{T}}},
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol, fuzzy_rtol::AbstractFloat=1.0
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) where T
     base_annotated_segments = event_loop!(subject; self_intersection=true, atol=atol, rtol=rtol)
     for polygon in polygons
@@ -147,13 +175,7 @@ function martinez_rueda_algorithm(
         end
         base_annotated_segments = apply_selection_criteria(combined_annotated_segments, selection_criteria)
     end
-    empty_segments, region_segments = separate(is_empty_segment, base_annotated_segments)
-    regions = chain_segments(region_segments; atol=atol, check_closes=true, fuzzy_rtol=fuzzy_rtol)
-    segment_chains = chain_segments(empty_segments; atol=atol, check_closes=false)
-    # It is also possible to attach some segment_chains to regions.
-    # This will give consistent results with the Weiler-Atherton implementation.
-    # For now, skipping this step.
-    vcat(regions, segment_chains)
+    base_annotated_segments
 end
 
 function add_annotated_segment!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent)
@@ -556,247 +578,26 @@ function apply_selection_criteria(annotated_segments::Vector{<:SegmentEvent{T}},
 end
 
 #############################################################
-##                 Segment Chaining                        ##
-#############################################################
-
-is_empty_segment(ev::SegmentEvent) = (ev.self_annotations.fill_above == false) && (ev.self_annotations.fill_below == false)
-struct SegmentChainCandidate{T}
-    chain_idx::Int
-    match_chain_start::Bool
-    segment_event::SegmentEvent{T}
-end
-
-function chain_segments(
-    segments::AbstractVector{SegmentEvent{T}}
-    ; atol::AbstractFloat=default_atol, check_closes::Bool=true, fuzzy_rtol::AbstractFloat=1.0
-    ) where T
-    # Note: if any of the regions intersect at a vertex, than this is not guaranteed to give consistent results
-    # They might be joined into one region or presented as separate regions.
-    # This algorithm can fail if the polygon is improper (it has lines jutting out)
-    chains = Vector{SegmentEvent{T}}[]
-    regions = Vector{SegmentEvent{T}}[]
-    processed = Set{Segment2D{T}}()
-    for event in segments
-        if event.segment in processed
-            continue
-        end
-        push!(processed, event.segment)
-        candidates = SegmentChainCandidate{T}[]
-        @debug("[chain_segment]: event=$event")
-        @debug("[chain_segment]: candidates=$candidates")
-        for (chain_idx, chain) in enumerate(chains)
-            insert_matching_candidate!(candidates, chain, chain_idx, event; atol=atol)
-        end
-        if length(candidates) == 0 # start a new open chain
-            chain = [
-                SegmentEvent(event.segment, true, true, deepcopy(event.self_annotations)),
-                SegmentEvent(event.segment, false, true, deepcopy(event.self_annotations))
-            ]
-            @debug("[chain_segment]: new chain")
-            push!(chains, chain)
-        elseif length(candidates) == 1 # check if it closes else append to chain
-            candidate = candidates[1]
-            chain = chains[candidate.chain_idx]
-            if check_closes && closes_chain(chain, candidate; atol=atol)
-                popat!(chains, candidate.chain_idx)
-                push!(regions, chain)
-                @debug("[chain_segment]: closed chain")
-            else
-                append_candidate!(chain, candidate)
-                @debug("[chain_segment]: appended chain")
-            end
-        elseif length(candidates) == 2 # join two chains together
-            cand1 = candidates[1]
-            cand2 = candidates[2]
-            chain1 = chains[cand1.chain_idx]
-            chain2 = chains[cand2.chain_idx]
-            append_candidate!(chain1, cand1)
-            new_chain = join_chains!(chain1, chain2, cand1.match_chain_start, cand2.match_chain_start)
-            chains[cand1.chain_idx] = new_chain
-            @debug("[chain_segment]: combined chains")
-            deleteat!(chains, cand2.chain_idx)
-        else # confused
-            throw("Matched segment $(candidate.segment) to more than 2 chains.")
-        end
-    end
-    # TODO: it might be possible to close some open chains
-    # - it is improper: the beginning and end is a segment(s) jutting out, so it can be closed with a segment in processing
-    if check_closes
-        if !isempty(chains)
-            fuzzy_close!(chains, regions; atol=atol, rtol=fuzzy_rtol)
-        end
-        @assert isempty(chains) "There are still open chains at the end of processing all segments."
-        return regions
-    else
-        return chains
-    end
-end
-
-function insert_matching_candidate!(
-    candidates::Vector{<:SegmentChainCandidate},
-    chain::Vector{<:SegmentEvent},
-    chain_idx::Int,
-    event::SegmentEvent
-    ; atol::AbstractFloat=default_atol
-    )
-    segment = event.segment
-    is_match = false
-    if is_same_point(chain[1].point, segment[1]; atol=atol)
-        is_match = true
-        match_chain_start = true
-        match_idx = 1
-    elseif is_same_point(chain[1].point, segment[2]; atol=atol)
-        is_match = true
-        match_chain_start = true
-        match_idx = 2
-    elseif is_same_point(chain[end].point, segment[1]; atol=atol)
-        is_match = true
-        match_chain_start = false
-        match_idx = 1
-    elseif is_same_point(chain[end].point, segment[2]; atol=atol)
-        is_match = true
-        match_chain_start = false
-        match_idx = 2
-    end
-    if is_match
-        is_start = match_idx == 1
-        candidate = SegmentChainCandidate(
-            chain_idx,
-            match_chain_start,
-            # add segment for the other point
-            SegmentEvent(segment, !is_start, true, deepcopy(event.self_annotations))
-        )
-        push!(candidates, candidate)
-    end
-end
-
-function append_candidate!(
-    chain::Vector{<:SegmentEvent},
-    candidate::SegmentChainCandidate
-    ; atol::AbstractFloat=default_atol
-    )
-    if candidate.match_chain_start
-        if length(chain) > 1 && 
-            get_orientation(
-                candidate.segment_event.point,
-                chain[1].point,
-                chain[2].point
-                ; atol=atol
-            ) == COLINEAR
-            popfirst!(chain)
-        end
-        insert!(chain, 1, candidate.segment_event)
-    else
-        if length(chain) > 1 && 
-            get_orientation(
-                chain[end-1].point,
-                chain[end].point,
-                candidate.segment_event.point
-                ; atol=atol
-            ) == COLINEAR
-            pop!(chain)
-        end
-        push!(chain, candidate.segment_event)
-    end
-end
-
-function closes_chain(chain::Vector{<:SegmentEvent}, candidate::SegmentChainCandidate; atol::AbstractFloat=default_atol)
-    candidate_point = candidate.segment_event.point
-    if candidate.match_chain_start
-        return is_same_point(chain[end].point, candidate_point; atol=atol)
-    else
-        return is_same_point(chain[1].point, candidate_point; atol=atol)
-    end
-end
-
-function fuzzy_close!(
-    chains::Vector{<:Vector{<:SegmentEvent}},
-    regions::Vector{<:Vector{<:SegmentEvent}}
-    ; atol::AbstractFloat, rtol::AbstractFloat=1.0
-    )
-    for idx in reverse(eachindex(chains))
-        if is_fuzzy_closed(chains[idx], length(regions) + 1; atol=atol, rtol=rtol)
-            push!(regions, popat!(chains, idx))
-        end
-    end
-    regions
-end
-
-function is_fuzzy_closed(chain::Vector{<:SegmentEvent}, idx::Int; atol::AbstractFloat, rtol::AbstractFloat=1.0)
-    if is_same_point(chain[1].point, chain[end].point; atol=atol)
-        return true
-    end
-    gap = norm(chain[1].point, chain[end].point)
-    path = map(event -> event.point, chain)
-    gaps = norm.(path[1:(end-1)], path[2:end])
-    mean_gap = sum(gaps) / length(gaps)
-    if gap / mean_gap <= rtol
-        @warn("Region $idx was not closed, but it has a relatively small gap and will be considered closed.
-        |gap| / |mean_segment| = $gap / $mean_gap < $rtol.")
-        return true
-    end
-    false
-end
-
-function join_chains!(chain1::Vector{<:SegmentEvent}, chain2::Vector{<:SegmentEvent}, match_chain1_start, match_chain2_start)
-    # Note: with clever use of reverse! can change this to always modify chain1 in place for the same output
-    if match_chain1_start && match_chain2_start
-        # <--- --->
-        return push!(reverse!(chain2), chain1...)
-    elseif match_chain1_start && !match_chain2_start
-        # <--- <----
-        return push!(chain2, chain1...)
-    elseif !match_chain1_start && match_chain2_start
-        # ---> --->
-        return push!(chain1, chain2...) 
-    else # !match_chain1_start && !match_chain2_start
-        # ----> <-----
-        return push!(chain1, reverse!(chain2)...) 
-    end
-end
-
-#############################################################
 ##                  Polygons and Holes                     ##
 #############################################################
 
-function convert_segments_to_polygons(
-    regions::Vector{<:Vector{<:SegmentEvent}}
+function paths_to_polygons(
+    exteriors::Vector{<:Vector{<:Point2D}},
+    holes::Vector{<:Vector{<:Point2D}},
     ; atol::AbstractFloat=default_rtol
     )
-    candidates, exteriors  = separate(p -> is_hole(p; atol=atol), regions)
-    polygons = map(segments -> Polygon(map(event -> event.point, segments)), exteriors)
-    holes = map(segments -> map(event -> event.point, segments), candidates)
+    polygons = Polygon.(exteriors)
     parents = match_holes_polygons(polygons, holes; atol=atol)
     for (idx, hole) in zip(parents, holes)
         if idx == 0
             compact_vec = "[$(hole[1])...$(hole[end])]"
-            @debug "Hole $(compact_vec) has no parent. Casting to Polygon."
+            @warn "Hole $(compact_vec) has no parent. Casting to Polygon."
             push!(polygons, Polygon(hole))
         else
             push!(polygons[idx].holes, hole)
         end
     end
     polygons
-end
-
-"""
-    is_hole(polygon::Vector{<:SegmentEvent}; atol=default_atol)
-
-A necessary and sufficient condition for a polygon to be classified as a hole is that
-at its lowest point it must be filled below and not above.
-
-The `self_annotations` must therefore not be `nothing`.
-
-Note: if the direction of the polygon was known (clockwise/counter-clockwise) then any point could be used.
-"""
-function is_hole(polygon::Vector{<:SegmentEvent}; atol::AbstractFloat=default_atol)
-    # instead of sorting the whole vector, get the lowest segments first
-    y = minimum(event -> event.point[2], polygon)
-    lowest_segments = filter(event -> event.point[2] == y || event.other_point[2] == y, polygon)
-    # sort and check annotations
-    sort!(lowest_segments, lt=(x, y) -> is_above(x, y; atol=atol))
-    annotations = lowest_segments[end].self_annotations
-    annotations.fill_below && !annotations.fill_above
 end
 
 """

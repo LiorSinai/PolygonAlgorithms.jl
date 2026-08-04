@@ -23,7 +23,7 @@ end
 
 function SegmentEvent(
     segment::Segment2D,
-    is_start::Bool,
+    is_start::Bool=true,
     primary::Bool=true,
     self_annotations::SegmentAnnotations=SegmentAnnotations(),
     other_annotations::SegmentAnnotations=SegmentAnnotations(),
@@ -64,3 +64,6 @@ function Base.show(io::IO, event::SegmentEvent)
     #print(io, ", ", event.other_point)
     print(io, ")")
 end
+
+getindex(ev::SegmentEvent, idx::Integer) = ev.segment[idx]
+

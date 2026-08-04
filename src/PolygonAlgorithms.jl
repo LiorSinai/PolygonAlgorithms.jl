@@ -1,6 +1,6 @@
 module PolygonAlgorithms
 
-import Base: contains, insert!, iterate, merge!, push!, ==
+import Base: contains, getindex, insert!, iterate, merge!, push!, ==
 import Base: length, show
 
 include("definitions.jl")
@@ -20,7 +20,9 @@ include("line_sweep.jl")
 
 include("data_structures/polygon.jl")
 
+include("graphs/face_computation.jl")
 include("polygon_boolean.jl")
+
 include("deprecations.jl")
 
 export get_orientation, Orientation, on_segment
