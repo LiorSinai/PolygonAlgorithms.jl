@@ -7,14 +7,34 @@ A necessary and sufficient condition for a polygon to be classified as a hole is
 its lowest segment must be filled below and not above.
 """
 function is_hole(polygon::AbstractVector{<:SegmentEvent{T}}) where {T}
-    cmp(event) = (
-        min(event.point[2], event.other_point[2]) .+ 0.0, # lowest y-value
-        max(event.point[2], event.other_point[2]) .+ 0.0, # lowest other y-value
-        -abs(event.point[1] - event.other_point[1]) # widest segment, not vertical
-    )
-    lowest = argmin(cmp, polygon)
-    annotations = lowest.self_annotations
-    annotations.fill_below && !annotations.fill_above
+    points = [segment[1] for segment in polygon]
+    counter_clockwise = is_counter_clockwise(points)
+    # for robustness, use majority voting for all points
+    votes_face = 0
+    votes_hole = 0
+    for segment in polygon
+        Δx = segment[2][1] - segment[1][1]
+        ann = segment.self_annotations
+        if (Δx == 0) || (ann.fill_above == ann.fill_below)
+            # skip vertical segments || filled both sides or neither
+            continue
+        end
+        if counter_clockwise
+            # inner normal is left normal (-Δy, Δx)
+            # Therefore Δx > 0 ? above : below
+            filled_inner = Δx > 0 ? ann.fill_above : ann.fill_below
+        else
+            # inner normal is right normal (Δy, -Δx)
+            # Therefore -Δx < 0 ? below : above
+            filled_inner = Δx > 0 ? ann.fill_below : ann.fill_above
+        end
+        if filled_inner
+            votes_face += 1
+        else
+            votes_hole += 1
+        end
+    end
+    votes_hole > votes_face
 end
 
 function segments_to_paths(segments::Vector{<:SegmentEvent}; digits::Integer=6)
