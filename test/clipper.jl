@@ -38,11 +38,11 @@ end
 function load_tests(filepath)
     tests = open(filepath, "r") do f
         data = read(f, String)
-        data = strip(replace(data, r"#.+\n" => "\n")) # remove comments
-        specs = split(data, "\n\n")
+        data = strip(replace(data, r"#.+\r?\n" => "\n")) # remove comments
+        specs = split(data, r"\r?\n\r?\n")
         out = Vector{PolygonTest}()
         for (idx, spec) in enumerate(specs)
-            push!(out, load_test_specification(split(spec, "\n")))
+            push!(out, load_test_specification(split(spec, r"\r?\n")))
         end
         out
     end
