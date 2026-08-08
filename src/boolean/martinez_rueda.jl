@@ -3,8 +3,17 @@
 """
     is_hole(polygon::Vector{<:SegmentEvent})
 
-A necessary and sufficient condition for a polygon to be classified as a hole is that
-its lowest segment must be filled below and not above.
+A polygon is a hole if its outer face is filled but not its inner face.
+
+For robustness, the annotations of all segments are checked
+and a decision is made based on the majority outcome.
+
+For a counter-clockwise polygon, the inner face is to the left of each segment.
+For a clockwise polygon, the inner face is to the right of each segment.
+
+Filled above/below annotations are converted to left/right annotations using the normal
+vector.
+This is `(-Δy, Δx)` for a counter-clockwise polygon and `(Δy, -Δx)` for a clockwise polygon.
 """
 function is_hole(polygon::AbstractVector{<:SegmentEvent{T}}) where {T}
     points = [segment[1] for segment in polygon]
@@ -16,15 +25,15 @@ function is_hole(polygon::AbstractVector{<:SegmentEvent{T}}) where {T}
         Δx = segment[2][1] - segment[1][1]
         ann = segment.self_annotations
         if (Δx == 0) || (ann.fill_above == ann.fill_below)
-            # skip vertical segments || filled both sides or neither
+            # skip vertical segments or filled both sides or filled on neither
             continue
         end
         if counter_clockwise
-            # inner normal is left normal (-Δy, Δx)
+            # inner face on left with normal (-Δy, Δx)
             # Therefore Δx > 0 ? above : below
             filled_inner = Δx > 0 ? ann.fill_above : ann.fill_below
         else
-            # inner normal is right normal (Δy, -Δx)
+            # inner face on right with normal (Δy, -Δx)
             # Therefore -Δx < 0 ? below : above
             filled_inner = Δx > 0 ? ann.fill_below : ann.fill_above
         end
@@ -649,15 +658,10 @@ function match_holes_polygons(
     idxs = sortperm(areas)
     parents = zeros(Int, length(holes))
     for (idx_h, candidate) in enumerate(holes)
-        found = false
         for (idx_p, parent) in zip(idxs, polygons[idxs])
             # Assume that no segments intersect after the Martínez-Rueda algorithm.
-            # Then only need to check a point not on the exterior.
-            j = 1
-            while (j < length(candidate)) && on_border(parent.exterior, candidate[j])
-                j += 1
-            end
-            found = contains(parent.exterior, candidate[j]; atol=atol, on_border_is_inside=false)
+            # Then only need to check a point.
+            found = contains(parent.exterior, candidate[1]; atol=atol, on_border_is_inside=true)
             if found
                 parents[idx_h] = idx_p
                 break
