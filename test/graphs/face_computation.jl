@@ -1,5 +1,5 @@
 using PolygonAlgorithms: directed_graph_from_segments, map_connections, compute_graph_faces
-using PolygonAlgorithms: SegmentEvent
+using PolygonAlgorithms: SegmentEvent, AnnotatedSegment
 
 @testset "graph face computation segments" begin
     diamond = [
@@ -9,10 +9,10 @@ using PolygonAlgorithms: SegmentEvent
         SegmentEvent(((3.0, -2.0), (1.0, 1.0)), true),
     ];
     cross = [
-        SegmentEvent(((1.0, 1.0), (3.0, 1.0)), true),
-        SegmentEvent(((3.0, 1.0), (6.0, 1.0)), false),
-        SegmentEvent(((3.0, 1.0), (3.0, 4.0)), true),
-        SegmentEvent(((3.0, 1.0), (3.0, -2.0)), true),
+        AnnotatedSegment((1.0, 1.0), (3.0, 1.0)),
+        AnnotatedSegment((3.0, 1.0), (6.0, 1.0)),
+        AnnotatedSegment((3.0, 1.0), (3.0, 4.0)),
+        AnnotatedSegment((3.0, 1.0), (3.0, -2.0)),
     ];
     improper = [
         SegmentEvent(((1.0, 1.0), (3.0, 4.0)), true),
@@ -29,15 +29,15 @@ using PolygonAlgorithms: SegmentEvent
         graph = directed_graph_from_segments(cross)
         expected = Dict(
             (3.0, 1.0)  => [
-                SegmentEvent(((3.0, 1.0), (1.0, 1.0))),
-                SegmentEvent(((3.0, 1.0), (3.0, 4.0))),
-                SegmentEvent(((3.0, 1.0), (6.0, 1.0))),
-                SegmentEvent(((3.0, 1.0), (3.0, -2.0))),
+                AnnotatedSegment((3.0, 1.0), (1.0, 1.0)),
+                AnnotatedSegment((3.0, 1.0), (3.0, 4.0)),
+                AnnotatedSegment((3.0, 1.0), (6.0, 1.0)),
+                AnnotatedSegment((3.0, 1.0), (3.0, -2.0)),
             ],
-            (1.0, 1.0)  => [SegmentEvent(((1.0, 1.0), (3.0, 1.0)))],
-            (6.0, 1.0)  => [SegmentEvent(((6.0, 1.0), (3.0, 1.0)))],
-            (3.0, 4.0)  => [SegmentEvent(((3.0, 4.0), (3.0, 1.0)))],
-            (3.0, -2.0) => [SegmentEvent(((3.0, -2.0), (3.0, 1.0)))],
+            (1.0, 1.0)  => [AnnotatedSegment((1.0, 1.0), (3.0, 1.0))],
+            (6.0, 1.0)  => [AnnotatedSegment((6.0, 1.0), (3.0, 1.0))],
+            (3.0, 4.0)  => [AnnotatedSegment((3.0, 4.0), (3.0, 1.0))],
+            (3.0, -2.0) => [AnnotatedSegment((3.0, -2.0), (3.0, 1.0))],
         )
         @test graph == expected
     end
@@ -45,10 +45,10 @@ using PolygonAlgorithms: SegmentEvent
     @testset "diamond from segments" begin
         graph = directed_graph_from_segments(diamond)
         expected = Dict(
-            (1.0, 1.0)  => [SegmentEvent(((1.0, 1.0), (3.0, 4.0))), SegmentEvent(((1.0, 1.0), (3.0, -2.0)))],
-            (5.0, 1.0)  => [SegmentEvent(((5.0, 1.0), (3.0, 4.0))), SegmentEvent(((5.0, 1.0), (3.0, -2.0)))],
-            (3.0, 4.0)  => [SegmentEvent(((3.0, 4.0), (5.0, 1.0))), SegmentEvent(((3.0, 4.0), (1.0, 1.0)))],
-            (3.0, -2.0) => [SegmentEvent(((3.0, -2.0), (1.0, 1.0))), SegmentEvent(((3.0, -2.0), (5.0, 1.0)))],
+            (1.0, 1.0)  => [AnnotatedSegment((1.0, 1.0), (3.0, 4.0)), AnnotatedSegment((1.0, 1.0), (3.0, -2.0))],
+            (5.0, 1.0)  => [AnnotatedSegment((5.0, 1.0), (3.0, 4.0)), AnnotatedSegment((5.0, 1.0), (3.0, -2.0))],
+            (3.0, 4.0)  => [AnnotatedSegment((3.0, 4.0), (5.0, 1.0)), AnnotatedSegment((3.0, 4.0), (1.0, 1.0))],
+            (3.0, -2.0) => [AnnotatedSegment((3.0, -2.0), (1.0, 1.0)), AnnotatedSegment((3.0, -2.0), (5.0, 1.0))],
         )
         @test graph == expected
     end
@@ -56,13 +56,13 @@ using PolygonAlgorithms: SegmentEvent
     @testset "improper from segments" begin
         graph = directed_graph_from_segments(improper)
         expected = Dict(
-            (8.0, 1.0) => [SegmentEvent(((8.0, 1.0), (7.0, 2.0))), SegmentEvent(((8.0, 1.0), (8.0, 3.0)))],
-            (1.0, 1.0) => [SegmentEvent(((1.0, 1.0), (3.0, 4.0))), SegmentEvent(((1.0, 1.0), (3.0, -2.0)))],
-            (8.0, 3.0) => [SegmentEvent(((8.0, 3.0), (8.0, 1.0))), SegmentEvent(((8.0, 3.0), (7.0, 2.0)))],
-            (5.0, 1.0) => [SegmentEvent(((5.0, 1.0), (3.0, 4.0))), SegmentEvent(((5.0, 1.0), (7.0, 2.0))), SegmentEvent(((5.0, 1.0), (3.0, -2.0)))],
-            (7.0, 2.0) => [SegmentEvent(((7.0, 2.0), (8.0, 3.0))), SegmentEvent(((7.0, 2.0), (8.0, 1.0))), SegmentEvent(((7.0, 2.0), (5.0, 1.0)))],
-            (3.0, 4.0) => [SegmentEvent(((3.0, 4.0), (5.0, 1.0))), SegmentEvent(((3.0, 4.0), (1.0, 1.0)))],
-            (3.0, -2.0) => [SegmentEvent(((3.0, -2.0), (1.0, 1.0))), SegmentEvent(((3.0, -2.0), (5.0, 1.0))),],
+            (8.0, 1.0) => [AnnotatedSegment((8.0, 1.0), (7.0, 2.0)), AnnotatedSegment((8.0, 1.0), (8.0, 3.0))],
+            (1.0, 1.0) => [AnnotatedSegment((1.0, 1.0), (3.0, 4.0)), AnnotatedSegment((1.0, 1.0), (3.0, -2.0))],
+            (8.0, 3.0) => [AnnotatedSegment((8.0, 3.0), (8.0, 1.0)), AnnotatedSegment((8.0, 3.0), (7.0, 2.0))],
+            (5.0, 1.0) => [AnnotatedSegment((5.0, 1.0), (3.0, 4.0)), AnnotatedSegment((5.0, 1.0), (7.0, 2.0)), AnnotatedSegment((5.0, 1.0), (3.0, -2.0))],
+            (7.0, 2.0) => [AnnotatedSegment((7.0, 2.0), (8.0, 3.0)), AnnotatedSegment((7.0, 2.0), (8.0, 1.0)), AnnotatedSegment((7.0, 2.0), (5.0, 1.0))],
+            (3.0, 4.0) => [AnnotatedSegment((3.0, 4.0), (5.0, 1.0)), AnnotatedSegment((3.0, 4.0), (1.0, 1.0))],
+            (3.0, -2.0) => [AnnotatedSegment((3.0, -2.0), (1.0, 1.0)), AnnotatedSegment((3.0, -2.0), (5.0, 1.0)),],
         )
         @test graph == expected
     end
@@ -70,47 +70,47 @@ using PolygonAlgorithms: SegmentEvent
     @testset "connections - cross" begin
         graph = Dict(
             (3.0, 1.0)  => [
-                SegmentEvent(((3.0, 1.0), (1.0, 1.0))),
-                SegmentEvent(((3.0, 1.0), (3.0, 4.0))),
-                SegmentEvent(((3.0, 1.0), (6.0, 1.0))),
-                SegmentEvent(((3.0, 1.0), (3.0, -2.0))),
+                AnnotatedSegment((3.0, 1.0), (1.0, 1.0)),
+                AnnotatedSegment((3.0, 1.0), (3.0, 4.0)),
+                AnnotatedSegment((3.0, 1.0), (6.0, 1.0)),
+                AnnotatedSegment((3.0, 1.0), (3.0, -2.0)),
             ],
-            (1.0, 1.0)  => [SegmentEvent(((1.0, 1.0), (3.0, 1.0)))],
-            (6.0, 1.0)  => [SegmentEvent(((6.0, 1.0), (3.0, 1.0)))],
-            (3.0, 4.0)  => [SegmentEvent(((3.0, 4.0), (3.0, 1.0)))],
-            (3.0, -2.0) => [SegmentEvent(((3.0, -2.0), (3.0, 1.0)))],
+            (1.0, 1.0)  => [AnnotatedSegment((1.0, 1.0), (3.0, 1.0))],
+            (6.0, 1.0)  => [AnnotatedSegment((6.0, 1.0), (3.0, 1.0))],
+            (3.0, 4.0)  => [AnnotatedSegment((3.0, 4.0), (3.0, 1.0))],
+            (3.0, -2.0) => [AnnotatedSegment((3.0, -2.0), (3.0, 1.0))],
         )
         connections = map_connections(graph)
         expected = Dict(
-            ((6.0, 1.0), (3.0, 1.0))  => SegmentEvent(((3.0, 1.0), (3.0, 4.0)), true),
-            ((3.0, 4.0), (3.0, 1.0))  => SegmentEvent(((3.0, 1.0), (1.0, 1.0)), true),
-            ((3.0, 1.0), (1.0, 1.0))  => SegmentEvent(((1.0, 1.0), (3.0, 1.0)), true),
-            ((3.0, -2.0), (3.0, 1.0)) => SegmentEvent(((3.0, 1.0), (6.0, 1.0)), true),
-            ((3.0, 1.0), (6.0, 1.0))  => SegmentEvent(((6.0, 1.0), (3.0, 1.0)), true),
-            ((3.0, 1.0), (3.0, -2.0)) => SegmentEvent(((3.0, -2.0), (3.0, 1.0)), true),
-            ((3.0, 1.0), (3.0, 4.0))  => SegmentEvent(((3.0, 4.0), (3.0, 1.0)), true),
-            ((1.0, 1.0), (3.0, 1.0))  => SegmentEvent(((3.0, 1.0), (3.0, -2.0)), true),
+            ((6.0, 1.0), (3.0, 1.0))  => AnnotatedSegment((3.0, 1.0), (3.0, 4.0)),
+            ((3.0, 4.0), (3.0, 1.0))  => AnnotatedSegment((3.0, 1.0), (1.0, 1.0)),
+            ((3.0, 1.0), (1.0, 1.0))  => AnnotatedSegment((1.0, 1.0), (3.0, 1.0)),
+            ((3.0, -2.0), (3.0, 1.0)) => AnnotatedSegment((3.0, 1.0), (6.0, 1.0)),
+            ((3.0, 1.0), (6.0, 1.0))  => AnnotatedSegment((6.0, 1.0), (3.0, 1.0)),
+            ((3.0, 1.0), (3.0, -2.0)) => AnnotatedSegment((3.0, -2.0), (3.0, 1.0)),
+            ((3.0, 1.0), (3.0, 4.0))  => AnnotatedSegment((3.0, 4.0), (3.0, 1.0)),
+            ((1.0, 1.0), (3.0, 1.0))  => AnnotatedSegment((3.0, 1.0), (3.0, -2.0)),
         )
         @test connections == expected
     end
 
     @testset "connections - diamond" begin
         graph = Dict(
-            (1.0, 1.0)  => [SegmentEvent(((1.0, 1.0), (3.0, 4.0))), SegmentEvent(((1.0, 1.0), (3.0, -2.0)))],
-            (5.0, 1.0)  => [SegmentEvent(((5.0, 1.0), (3.0, 4.0))), SegmentEvent(((5.0, 1.0), (3.0, -2.0)))],
-            (3.0, 4.0)  => [SegmentEvent(((3.0, 4.0), (5.0, 1.0))), SegmentEvent(((3.0, 4.0), (1.0, 1.0)))],
-            (3.0, -2.0) => [SegmentEvent(((3.0, -2.0), (1.0, 1.0))), SegmentEvent(((3.0, -2.0), (5.0, 1.0)))],
+            (1.0, 1.0)  => [AnnotatedSegment((1.0, 1.0), (3.0, 4.0)), AnnotatedSegment((1.0, 1.0), (3.0, -2.0))],
+            (5.0, 1.0)  => [AnnotatedSegment((5.0, 1.0), (3.0, 4.0)), AnnotatedSegment((5.0, 1.0), (3.0, -2.0))],
+            (3.0, 4.0)  => [AnnotatedSegment((3.0, 4.0), (5.0, 1.0)), AnnotatedSegment((3.0, 4.0), (1.0, 1.0))],
+            (3.0, -2.0) => [AnnotatedSegment((3.0, -2.0), (1.0, 1.0)), AnnotatedSegment((3.0, -2.0), (5.0, 1.0))],
         )
         connections = map_connections(graph)
         expected = Dict(
-            ((3.0, 4.0), (5.0, 1.0))  => SegmentEvent(((5.0, 1.0), (3.0, -2.0)), true),
-            ((5.0, 1.0), (3.0, 4.0))  => SegmentEvent(((3.0, 4.0), (1.0, 1.0)), true,),
-            ((3.0, -2.0), (1.0, 1.0)) => SegmentEvent(((1.0, 1.0), (3.0, 4.0)), true,),
-            ((3.0, -2.0), (5.0, 1.0)) => SegmentEvent(((5.0, 1.0), (3.0, 4.0)), true,),
-            ((1.0, 1.0), (3.0, -2.0)) => SegmentEvent(((3.0, -2.0), (5.0, 1.0)), true),
-            ((5.0, 1.0), (3.0, -2.0)) => SegmentEvent(((3.0, -2.0), (1.0, 1.0)), true),
-            ((3.0, 4.0), (1.0, 1.0))  => SegmentEvent(((1.0, 1.0), (3.0, -2.0)), true),
-            ((1.0, 1.0), (3.0, 4.0))  => SegmentEvent(((3.0, 4.0), (5.0, 1.0)), true,),
+            ((3.0, 4.0), (5.0, 1.0))  => AnnotatedSegment((5.0, 1.0), (3.0, -2.0)),
+            ((5.0, 1.0), (3.0, 4.0))  => AnnotatedSegment((3.0, 4.0), (1.0, 1.0)),
+            ((3.0, -2.0), (1.0, 1.0)) => AnnotatedSegment((1.0, 1.0), (3.0, 4.0)),
+            ((3.0, -2.0), (5.0, 1.0)) => AnnotatedSegment((5.0, 1.0), (3.0, 4.0)),
+            ((1.0, 1.0), (3.0, -2.0)) => AnnotatedSegment((3.0, -2.0), (5.0, 1.0)),
+            ((5.0, 1.0), (3.0, -2.0)) => AnnotatedSegment((3.0, -2.0), (1.0, 1.0)),
+            ((3.0, 4.0), (1.0, 1.0))  => AnnotatedSegment((1.0, 1.0), (3.0, -2.0)),
+            ((1.0, 1.0), (3.0, 4.0))  => AnnotatedSegment((3.0, 4.0), (5.0, 1.0)),
         )
         @test connections == expected
     end
@@ -118,52 +118,52 @@ using PolygonAlgorithms: SegmentEvent
     @testset "faces - cross" begin
         graph = Dict(
             (3.0, 1.0)  => [
-                SegmentEvent(((3.0, 1.0), (1.0, 1.0))),
-                SegmentEvent(((3.0, 1.0), (3.0, 4.0))),
-                SegmentEvent(((3.0, 1.0), (6.0, 1.0))),
-                SegmentEvent(((3.0, 1.0), (3.0, -2.0))),
+                AnnotatedSegment((3.0, 1.0), (1.0, 1.0)),
+                AnnotatedSegment((3.0, 1.0), (3.0, 4.0)),
+                AnnotatedSegment((3.0, 1.0), (6.0, 1.0)),
+                AnnotatedSegment((3.0, 1.0), (3.0, -2.0)),
             ],
-            (1.0, 1.0)  => [SegmentEvent(((1.0, 1.0), (3.0, 1.0)))],
-            (6.0, 1.0)  => [SegmentEvent(((6.0, 1.0), (3.0, 1.0)))],
-            (3.0, 4.0)  => [SegmentEvent(((3.0, 4.0), (3.0, 1.0)))],
-            (3.0, -2.0) => [SegmentEvent(((3.0, -2.0), (3.0, 1.0)))],
+            (1.0, 1.0)  => [AnnotatedSegment((1.0, 1.0), (3.0, 1.0))],
+            (6.0, 1.0)  => [AnnotatedSegment((6.0, 1.0), (3.0, 1.0))],
+            (3.0, 4.0)  => [AnnotatedSegment((3.0, 4.0), (3.0, 1.0))],
+            (3.0, -2.0) => [AnnotatedSegment((3.0, -2.0), (3.0, 1.0))],
         )
         faces = compute_graph_faces(graph)
         expected = [[
-            SegmentEvent(((3.0, 1.0), (3.0, 4.0)), true, true,),
-            SegmentEvent(((3.0, 4.0), (3.0, 1.0)), true, true,),
-            SegmentEvent(((3.0, 1.0), (1.0, 1.0)), true, true,),
-            SegmentEvent(((1.0, 1.0), (3.0, 1.0)), true, true,),
-            SegmentEvent(((3.0, 1.0), (3.0, -2.0)), true, true),
-            SegmentEvent(((3.0, -2.0), (3.0, 1.0)), true, true),
-            SegmentEvent(((3.0, 1.0), (6.0, 1.0)), true, true,),
-            SegmentEvent(((6.0, 1.0), (3.0, 1.0)), true, true,),
+            AnnotatedSegment((3.0, 1.0), (3.0, 4.0)),
+            AnnotatedSegment((3.0, 4.0), (3.0, 1.0)),
+            AnnotatedSegment((3.0, 1.0), (1.0, 1.0)),
+            AnnotatedSegment((1.0, 1.0), (3.0, 1.0)),
+            AnnotatedSegment((3.0, 1.0), (3.0, -2.0)),
+            AnnotatedSegment((3.0, -2.0), (3.0, 1.0)),
+            AnnotatedSegment((3.0, 1.0), (6.0, 1.0)),
+            AnnotatedSegment((6.0, 1.0), (3.0, 1.0)),
         ]]
         @test faces == expected
     end
 
     @testset "faces - diamond" begin
         graph = Dict(
-            (1.0, 1.0)  => [SegmentEvent(((1.0, 1.0), (3.0, 4.0))), SegmentEvent(((1.0, 1.0), (3.0, -2.0)))],
-            (5.0, 1.0)  => [SegmentEvent(((5.0, 1.0), (3.0, 4.0))), SegmentEvent(((5.0, 1.0), (3.0, -2.0)))],
-            (3.0, 4.0)  => [SegmentEvent(((3.0, 4.0), (5.0, 1.0))), SegmentEvent(((3.0, 4.0), (1.0, 1.0)))],
-            (3.0, -2.0) => [SegmentEvent(((3.0, -2.0), (1.0, 1.0))), SegmentEvent(((3.0, -2.0), (5.0, 1.0)))],
+            (1.0, 1.0)  => [AnnotatedSegment((1.0, 1.0), (3.0, 4.0)), AnnotatedSegment((1.0, 1.0), (3.0, -2.0))],
+            (5.0, 1.0)  => [AnnotatedSegment((5.0, 1.0), (3.0, 4.0)), AnnotatedSegment((5.0, 1.0), (3.0, -2.0))],
+            (3.0, 4.0)  => [AnnotatedSegment((3.0, 4.0), (5.0, 1.0)), AnnotatedSegment((3.0, 4.0), (1.0, 1.0))],
+            (3.0, -2.0) => [AnnotatedSegment((3.0, -2.0), (1.0, 1.0)), AnnotatedSegment((3.0, -2.0), (5.0, 1.0))],
         )
         faces = compute_graph_faces(graph)
         expected = [
             # exterior
             [
-                SegmentEvent(((5.0, 1.0),(3.0, -2.0))),
-                SegmentEvent(((3.0, -2.0), (1.0, 1.0))),
-                SegmentEvent(((1.0, 1.0), (3.0, 4.0))),
-                SegmentEvent(((3.0, 4.0), (5.0, 1.0))),
+                AnnotatedSegment((5.0, 1.0),(3.0, -2.0)),
+                AnnotatedSegment((3.0, -2.0), (1.0, 1.0)),
+                AnnotatedSegment((1.0, 1.0), (3.0, 4.0)),
+                AnnotatedSegment((3.0, 4.0), (5.0, 1.0)),
             ],
             # interior
             [
-                SegmentEvent(((3.0, 4.0), (1.0, 1.0))),
-                SegmentEvent(((1.0, 1.0), (3.0, -2.0))),
-                SegmentEvent(((3.0, -2.0), (5.0, 1.0))),
-                SegmentEvent(((5.0, 1.0),(3.0, 4.0))),
+                AnnotatedSegment((3.0, 4.0), (1.0, 1.0)),
+                AnnotatedSegment((1.0, 1.0), (3.0, -2.0)),
+                AnnotatedSegment((3.0, -2.0), (5.0, 1.0)),
+                AnnotatedSegment((5.0, 1.0),(3.0, 4.0)),
             ],
         ]
         @test faces == expected
@@ -171,30 +171,30 @@ using PolygonAlgorithms: SegmentEvent
 
     @testset "faces - diamond with diagonal" begin
         graph = Dict(
-            (1.0, 1.0)  => [SegmentEvent(((1.0, 1.0), (3.0, -2.0))), SegmentEvent(((1.0, 1.0), (5.0, 1.0))), SegmentEvent(((1.0, 1.0), (3.0, 4.0)))],
-            (5.0, 1.0)  => [SegmentEvent(((5.0, 1.0), (3.0, -2.0))), SegmentEvent(((5.0, 1.0), (3.0, 4.0))), SegmentEvent(((5.0, 1.0), (1.0, 1.0)))],
-            (3.0, 4.0)  => [SegmentEvent(((3.0, 4.0), (1.0, 1.0))), SegmentEvent(((3.0, 4.0), (5.0, 1.0)))],
-            (3.0, -2.0) => [SegmentEvent(((3.0, -2.0), (5.0, 1.0))), SegmentEvent(((3.0, -2.0), (1.0, 1.0)))],
+            (1.0, 1.0)  => [AnnotatedSegment((1.0, 1.0), (3.0, -2.0)), AnnotatedSegment((1.0, 1.0), (5.0, 1.0)), AnnotatedSegment((1.0, 1.0), (3.0, 4.0))],
+            (5.0, 1.0)  => [AnnotatedSegment((5.0, 1.0), (3.0, -2.0)), AnnotatedSegment((5.0, 1.0), (3.0, 4.0)), AnnotatedSegment((5.0, 1.0), (1.0, 1.0))],
+            (3.0, 4.0)  => [AnnotatedSegment((3.0, 4.0), (1.0, 1.0)), AnnotatedSegment((3.0, 4.0), (5.0, 1.0))],
+            (3.0, -2.0) => [AnnotatedSegment((3.0, -2.0), (5.0, 1.0)), AnnotatedSegment((3.0, -2.0), (1.0, 1.0))],
         )
         faces = compute_graph_faces(graph)
         expected = [
             # exterior
             [
-                SegmentEvent(((5.0, 1.0),(3.0, -2.0))),
-                SegmentEvent(((3.0, -2.0), (1.0, 1.0))),
-                SegmentEvent(((1.0, 1.0), (3.0, 4.0))),
-                SegmentEvent(((3.0, 4.0), (5.0, 1.0))),
+                AnnotatedSegment((5.0, 1.0),(3.0, -2.0)),
+                AnnotatedSegment((3.0, -2.0), (1.0, 1.0)),
+                AnnotatedSegment((1.0, 1.0), (3.0, 4.0)),
+                AnnotatedSegment((3.0, 4.0), (5.0, 1.0)),
             ],
             # interior
             [
-                SegmentEvent(((3.0, 4.0), (1.0, 1.0))),
-                SegmentEvent(((1.0, 1.0), (5.0, 1.0))),
-                SegmentEvent(((5.0, 1.0), (3.0, 4.0))),
+                AnnotatedSegment((3.0, 4.0), (1.0, 1.0)),
+                AnnotatedSegment((1.0, 1.0), (5.0, 1.0)),
+                AnnotatedSegment((5.0, 1.0), (3.0, 4.0)),
             ],
             [
-                SegmentEvent(((5.0, 1.0), (1.0, 1.0))),
-                SegmentEvent(((1.0, 1.0), (3.0, -2.0))),
-                SegmentEvent(((3.0, -2.0), (5.0, 1.0))),
+                AnnotatedSegment((5.0, 1.0), (1.0, 1.0)),
+                AnnotatedSegment((1.0, 1.0), (3.0, -2.0)),
+                AnnotatedSegment((3.0, -2.0), (5.0, 1.0)),
             ],
         ]
         @test faces == expected
@@ -207,29 +207,29 @@ using PolygonAlgorithms: SegmentEvent
         expected = [
             # interior diamond
             [
-                SegmentEvent(((5.0, 1.0), (3.0, -2.0))),
-                SegmentEvent(((3.0, -2.0), (1.0, 1.0))),
-                SegmentEvent(((1.0, 1.0), (3.0, 4.0))),
-                SegmentEvent(((3.0, 4.0), (5.0, 1.0)))
+                AnnotatedSegment((5.0, 1.0), (3.0, -2.0)),
+                AnnotatedSegment((3.0, -2.0), (1.0, 1.0)),
+                AnnotatedSegment((1.0, 1.0), (3.0, 4.0)),
+                AnnotatedSegment((3.0, 4.0), (5.0, 1.0)),
             ],
             # exterior diamond
             [
-                SegmentEvent(((5.0, 1.0), (3.0, 4.0)), ),
-                SegmentEvent(((3.0, 4.0), (1.0, 1.0)), ),
-                SegmentEvent(((1.0, 1.0), (3.0, -2.0)),),
-                SegmentEvent(((3.0, -2.0), (5.0, 1.0)),),
+                AnnotatedSegment((5.0, 1.0), (3.0, 4.0)),
+                AnnotatedSegment((3.0, 4.0), (1.0, 1.0)),
+                AnnotatedSegment((1.0, 1.0), (3.0, -2.0)),
+                AnnotatedSegment((3.0, -2.0), (5.0, 1.0)),
             ],
             # interior triangle
             [
-                SegmentEvent(((8.0, 3.0), (8.0, 1.0))),
-                SegmentEvent(((8.0, 1.0), (7.0, 2.0))),
-                SegmentEvent(((7.0, 2.0), (8.0, 3.0))),
+                AnnotatedSegment((8.0, 3.0), (8.0, 1.0)),
+                AnnotatedSegment((8.0, 1.0), (7.0, 2.0)),
+                AnnotatedSegment((7.0, 2.0), (8.0, 3.0)),
             ],
             # exterior triangle
             [
-                SegmentEvent(((8.0, 1.0), (8.0, 3.0))),
-                SegmentEvent(((8.0, 3.0), (7.0, 2.0))),
-                SegmentEvent(((7.0, 2.0), (8.0, 1.0))),
+                AnnotatedSegment((8.0, 1.0), (8.0, 3.0)),
+                AnnotatedSegment((8.0, 3.0), (7.0, 2.0)),
+                AnnotatedSegment((7.0, 2.0), (8.0, 1.0)),
             ],
         ]
         @test faces == expected
@@ -239,23 +239,23 @@ using PolygonAlgorithms: SegmentEvent
         expected = [
             # interior
             [
-                SegmentEvent(((5.0, 1.0), (3.0, -2.0)), true),
-                SegmentEvent(((3.0, -2.0), (1.0, 1.0)), true),
-                SegmentEvent(((1.0, 1.0), (3.0, 4.0)),  true),
-                SegmentEvent(((3.0, 4.0), (5.0, 1.0)),  true),
+                AnnotatedSegment((5.0, 1.0), (3.0, -2.0)),
+                AnnotatedSegment((3.0, -2.0), (1.0, 1.0)),
+                AnnotatedSegment((1.0, 1.0), (3.0, 4.0)),
+                AnnotatedSegment((3.0, 4.0), (5.0, 1.0)),
             ],
             # exterior
             [
-                SegmentEvent(((5.0, 1.0), (7.0, 2.0)), true),    
-                SegmentEvent(((7.0, 2.0), (8.0, 3.0)), true),
-                SegmentEvent(((8.0, 3.0), (8.0, 1.0)), true),
-                SegmentEvent(((8.0, 1.0), (8.0, 3.0)), true),
-                SegmentEvent(((8.0, 3.0), (7.0, 2.0)), true),
-                SegmentEvent(((7.0, 2.0), (5.0, 1.0)), true),
-                SegmentEvent(((5.0, 1.0), (3.0, 4.0)), true),
-                SegmentEvent(((3.0, 4.0), (1.0, 1.0)), true),
-                SegmentEvent(((1.0, 1.0), (3.0, -2.0)), true),
-                SegmentEvent(((3.0, -2.0), (5.0, 1.0)), true),
+                AnnotatedSegment((5.0, 1.0), (7.0, 2.0)),
+                AnnotatedSegment((7.0, 2.0), (8.0, 3.0)),
+                AnnotatedSegment((8.0, 3.0), (8.0, 1.0)),
+                AnnotatedSegment((8.0, 1.0), (8.0, 3.0)),
+                AnnotatedSegment((8.0, 3.0), (7.0, 2.0)),
+                AnnotatedSegment((7.0, 2.0), (5.0, 1.0)),
+                AnnotatedSegment((5.0, 1.0), (3.0, 4.0)),
+                AnnotatedSegment((3.0, 4.0), (1.0, 1.0)),
+                AnnotatedSegment((1.0, 1.0), (3.0, -2.0)),
+                AnnotatedSegment((3.0, -2.0), (5.0, 1.0)),
             ]
         ]
         @test faces == expected
@@ -265,28 +265,28 @@ using PolygonAlgorithms: SegmentEvent
         expected = [
             # interior diamond
             [
-                SegmentEvent(((5.0, 1.0), (3.0, -2.0)), true),
-                SegmentEvent(((3.0, -2.0), (1.0, 1.0)), true),
-                SegmentEvent(((1.0, 1.0), (3.0, 4.0)),  true),
-                SegmentEvent(((3.0, 4.0), (5.0, 1.0)),  true),
+                AnnotatedSegment((5.0, 1.0), (3.0, -2.0)),
+                AnnotatedSegment((3.0, -2.0), (1.0, 1.0)),
+                AnnotatedSegment((1.0, 1.0), (3.0, 4.0)),
+                AnnotatedSegment((3.0, 4.0), (5.0, 1.0)),
             ],
             # exterior
             [
-                SegmentEvent(((5.0, 1.0), (7.0, 2.0)), true),
-                SegmentEvent(((7.0, 2.0), (8.0, 1.0)), true,),
-                SegmentEvent(((8.0, 1.0), (8.0, 3.0)), true,),
-                SegmentEvent(((8.0, 3.0), (7.0, 2.0)), true,),
-                SegmentEvent(((7.0, 2.0), (5.0, 1.0)), true,),
-                SegmentEvent(((5.0, 1.0), (3.0, 4.0)), true,),
-                SegmentEvent(((3.0, 4.0), (1.0, 1.0)), true,),
-                SegmentEvent(((1.0, 1.0), (3.0, -2.0)), true),
-                SegmentEvent(((3.0, -2.0), (5.0, 1.0)), true),
+                AnnotatedSegment((5.0, 1.0), (7.0, 2.0)),
+                AnnotatedSegment((7.0, 2.0), (8.0, 1.0)),
+                AnnotatedSegment((8.0, 1.0), (8.0, 3.0)),
+                AnnotatedSegment((8.0, 3.0), (7.0, 2.0)),
+                AnnotatedSegment((7.0, 2.0), (5.0, 1.0)),
+                AnnotatedSegment((5.0, 1.0), (3.0, 4.0)),
+                AnnotatedSegment((3.0, 4.0), (1.0, 1.0)),
+                AnnotatedSegment((1.0, 1.0), (3.0, -2.0)),
+                AnnotatedSegment((3.0, -2.0), (5.0, 1.0)),
             ],
             # interior triangle
             [
-                SegmentEvent(((8.0, 3.0), (8.0, 1.0)), true),
-                SegmentEvent(((8.0, 1.0), (7.0, 2.0)), true),
-                SegmentEvent(((7.0, 2.0), (8.0, 3.0)), true),
+                AnnotatedSegment((8.0, 3.0), (8.0, 1.0)),
+                AnnotatedSegment((8.0, 1.0), (7.0, 2.0)),
+                AnnotatedSegment((7.0, 2.0), (8.0, 3.0)),
             ],
         ]
         @test faces == expected

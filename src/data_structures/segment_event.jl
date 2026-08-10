@@ -8,6 +8,14 @@ SegmentAnnotations() = SegmentAnnotations(nothing, nothing)
 ==(ann1::SegmentAnnotations, ann2::SegmentAnnotations) = 
     (ann1.fill_above == ann2.fill_above) && (ann1.fill_below == ann2.fill_below)
 
+"""
+    SegmentEvent(segment, is_start, primary=true, [self_annotations, other_annotations])
+
+An event in a line sweep algorithm marking a change in state, either the 
+start of a segment or the end of it.
+
+See `any_intersect` and `martinez_rueda_algorithm`.
+"""
 mutable struct SegmentEvent{T}
     segment::Segment2D{T}
     is_start::Bool
@@ -23,7 +31,7 @@ end
 
 function SegmentEvent(
     segment::Segment2D,
-    is_start::Bool=true,
+    is_start::Bool,
     primary::Bool=true,
     self_annotations::SegmentAnnotations=SegmentAnnotations(),
     other_annotations::SegmentAnnotations=SegmentAnnotations(),
@@ -67,3 +75,27 @@ end
 
 getindex(ev::SegmentEvent, idx::Integer) = ev.segment[idx]
 
+
+"""
+    AnnotatedSegment(point1, point2, annotations)
+"""
+struct AnnotatedSegment{T}
+    segment::Segment2D{T}
+    self_annotations::SegmentAnnotations
+end
+
+function AnnotatedSegment(
+    point1::Point2D,
+    point2::Point2D,
+    ann::SegmentAnnotations=SegmentAnnotations(),
+    )
+    AnnotatedSegment((point1, point2), ann)
+end
+
+getindex(seg::AnnotatedSegment, idx::Integer) = seg.segment[idx]
+
+==(seg1::AnnotatedSegment, seg2::AnnotatedSegment) = 
+    (seg1.segment == seg2.segment) &&
+    (seg1.self_annotations == seg2.self_annotations)
+
+reverse(segment::AnnotatedSegment) = AnnotatedSegment(reverse(segment.segment), segment.self_annotations)

@@ -24,8 +24,9 @@ end
     include("bounds.jl")
     include("point_in_polygon.jl")
     include("data_structures/polygon.jl")
-    # boolean
     include("graphs/face_computation.jl")
+    include("mappings.jl")
+    # boolean
     include("boolean/martinez_rueda.jl")
     include("intersect_convex.jl")
     include("intersect_concave.jl")
