@@ -1,6 +1,6 @@
 using Test
 using PolygonAlgorithms: AnnotatedSegment, SegmentAnnotations, Polygon
-using PolygonAlgorithms: is_hole, match_holes_polygons, events_to_paths
+using PolygonAlgorithms: is_hole, match_holes_polygons, events_to_paths, events_to_polygons
 
 @testset "mappings" begin
     reverse_chain(vec::Vector{<:AnnotatedSegment}) = reverse!([reverse(x) for x in vec])
@@ -118,10 +118,10 @@ using PolygonAlgorithms: is_hole, match_holes_polygons, events_to_paths
 
         @testset "small gap" begin
             segments = [
-                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
-                SegmentEvent(((0.0, 0.0), (3.0, 3.0)), true),
-                SegmentEvent(((3.0, 3.0), (7.0, -1.0)), true),
-                SegmentEvent(((3.999, -3.999), (7.0, -1.0)), true),
+                AnnotatedSegment((0.0, 0.0), (4.0, -4.0)),
+                AnnotatedSegment((0.0, 0.0), (3.0, 3.0)),
+                AnnotatedSegment((3.0, 3.0), (7.0, -1.0)),
+                AnnotatedSegment((3.999, -3.999), (7.0, -1.0)),
             ]
             # open chain, gap not closed
             exteriors, holes = events_to_paths(segments)
@@ -177,6 +177,27 @@ using PolygonAlgorithms: is_hole, match_holes_polygons, events_to_paths
                 [(2.0, 1.0), (2.0, 2.0), (3.0, 3.0)]
             ]
             @test holes == expected
+        end
+    end
+
+    @testset "events to polygons" begin
+        @testset "boundary hole" begin
+            segments = [
+                # exterior
+                AnnotatedSegment(((1.0, 1.0), (5.0, 4.0)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((5.0, 4.0), (9.0, 1.0)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((9.0, 1.0), (1.0, 1.0)), SegmentAnnotations(true, false)),
+                # hole
+                AnnotatedSegment(((3.0, 2.5), (7.0, 2.5)), SegmentAnnotations(true, false)),
+                AnnotatedSegment(((7.0, 2.5), (5.0, 1.0)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((5.0, 1.0), (3.0, 2.5)), SegmentAnnotations(false, true)),
+            ]
+            polygons = events_to_polygons(segments)
+            expected = Polygon(
+                [(1.0, 1.0), (9.0, 1.0), (5.0, 4.0)];
+                holes=[[(3.0, 2.5), (7.0, 2.5), (5.0, 1.0)]]
+            )
+            @test polygons[1] == expected
         end
     end
 end

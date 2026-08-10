@@ -55,7 +55,10 @@ function is_hole(polygon::AbstractVector{<:AnnotatedSegment{T}}, counter_clockwi
     votes_hole > votes_face
 end
 
-function events_to_paths(events::Vector{<:SegmentEvent}; digits::Integer=6)
+function events_to_paths(
+    events::Union{Vector{<:SegmentEvent}, Vector{<:AnnotatedSegment}}
+    ; digits::Integer=6
+    )
     # event → segments
     graph = directed_graph_from_segments(events; digits=digits)
     # faces → paths
@@ -131,7 +134,7 @@ function paths_to_polygons(
 end
 
 function events_to_polygons(
-    events::Vector{<:SegmentEvent}
+    events::Union{Vector{<:SegmentEvent}, Vector{<:AnnotatedSegment}}
     ; digits::Integer=6, atol::AbstractFloat=default_atol
     )
     exteriors, holes = events_to_paths(events; digits=digits)
