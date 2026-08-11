@@ -27,8 +27,11 @@ Description:
 - The key assumption is that only the segments immediately above and below the current segment need to be inspected for intersections.
     This makes the algorithm fast but also sensitive to determining these segments correctly.
 - The segment that is immediately below (or empty space) is used to determine the fill annotations for the current segment.
-- Once all annotations are done, the desired segments can be selected that match a given criteria.
-- These segments are then chained together to form the polygons.
+- Once all annotations are done, the desired segments can be selected based on a given criteria.
+- These segments are then chained back to paths and polygons.
+    This requires casting to a grid to match starting and end points of segments.
+    This is achieved by rounding any decimal places, by default to the 6th decimal place.
+    See `PolygonAlgorithms.segments_to_paths` and `PolygonAlgorithms.segments_to_polygons` for more detail. 
 
 Limitations
 1. It is sensitive to numeric inaccuracies e.g. a line that is almost vertical or tiny regions 
@@ -50,7 +53,7 @@ function martinez_rueda_algorithm(
     segments = martinez_rueda_algorithm(
         selection_criteria, event_queue_base, event_queue_others...; atol=atol, options...
     )
-    exteriors, holes = events_to_paths(segments; digits=significant_digits(atol))
+    exteriors, holes = segments_to_paths(segments; digits=decimal_tolerance(atol))
     vcat(exteriors, holes)
 end
 
@@ -67,7 +70,7 @@ function martinez_rueda_algorithm(
     segments = martinez_rueda_algorithm(
         selection_criteria, subject_queue, event_queue_others...; atol=atol, options...
     )
-    exteriors, holes = events_to_paths(segments; digits=significant_digits(atol))
+    exteriors, holes = segments_to_paths(segments; digits=decimal_tolerance(atol))
     vcat(exteriors, holes)
 end
 
@@ -91,7 +94,7 @@ function martinez_rueda_algorithm(
     segments = martinez_rueda_algorithm(
         selection_criteria, event_queue_base, event_queue_others...; atol=atol, options...
     )
-    events_to_polygons(segments; digits=significant_digits(atol), atol=atol)
+    segments_to_polygons(segments; digits=decimal_tolerance(atol), atol=atol)
 end
 
 # Multiple subjects with holes
@@ -117,7 +120,7 @@ function martinez_rueda_algorithm(
     segments = martinez_rueda_algorithm(
         selection_criteria, subject_queue, event_queue_clips...; atol=atol, options...
     )
-    events_to_polygons(segments; digits=significant_digits(atol), atol=atol)
+    segments_to_polygons(segments; digits=decimal_tolerance(atol), atol=atol)
 end
 
 # Core algorithm: SegmentEvent input

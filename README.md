@@ -16,9 +16,8 @@ There are several ways to represent polygons:
 Validation is not performed by default. Pass `validate=true` to the constructor to enable it.
 - As a list of segments. This representation naturally allows multi-polygons and holes. 
 It is used internally for some algorithms including the `martinez_rueda_algorithm`.
-    - Segments are converted back to paths and polygons using `PolygonAlgorithms.events_to_paths` and `PolygonAlgorithms.events_to_polygons`. This requires casting to a grid to match starting and end points of segments.
-    This is achieved by rounding any decimal places, by default to the 6th decimal.
-    See `PolygonAlgorithms.directed_graph_from_segments` and `PolygonAlgorithms.compute_graph_faces` for more detail.
+    - Segments are converted back to paths and polygons using `PolygonAlgorithms.segments_to_paths` and `PolygonAlgorithms.segments_to_polygons`. This requires casting to a grid to match starting and end points of segments.
+    This is achieved by rounding any decimal places, by default to the 6th decimal place.
 
 For indexing use `x_coords` and `y_coords`. 
 Common broadcasting operations are supplied such as `translate` and `rotate`.

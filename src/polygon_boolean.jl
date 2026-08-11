@@ -53,13 +53,12 @@ struct WeilerAthertonAlg <: PolygonIntersectionAlgorithm end
 - Works for convex and concave polygons including with holes and self-intersections.
 - Description: operates at a segment level and is an extension of the Bentley-Ottman line intersection algorithm.
     - Segments are scanned from left to right, bottom to top. 
-    - The key assumption is that only the segments immediately above and below the current segment need to be inspected for intersections.
-    This makes the algorithm fast but also sensitive to determining these segments correctly.
+    - The key assumption is that only the segments immediately above and below the current segment need to be inspected for intersections. This makes the algorithm fast but also sensitive to determining these segments correctly.
     - The segment that is immediately below (or empty space) is used to determine the fill annotations for the current segment.
     - Once all annotations are done, the desired segments can be selected that match a given criteria.
+    - Finally, segments are chained back to paths and polygons. This requires casting to a grid to match starting and end points of segments. This is achieved by rounding any decimal places, by default to the 6th decimal place. See `PolygonAlgorithms.segments_to_paths` and `PolygonAlgorithms.segments_to_polygons` for more detail. 
 - Limitations:
-    1. It can fail for improper polygons: polygons with lines sticking out.
-    2. It is sensitive to numeric inaccuracies e.g. a line that is almost vertical or 
+    1. It is sensitive to numeric inaccuracies e.g. a line that is almost vertical or 
     tiny regions of intersection.
 """
 struct MartinezRuedaAlg <: PolygonIntersectionAlgorithm end
