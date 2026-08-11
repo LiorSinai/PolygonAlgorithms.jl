@@ -1,5 +1,5 @@
 using Test
-using PolygonAlgorithms: AnnotatedSegment, SegmentAnnotations, Polygon
+using PolygonAlgorithms: AnnotatedSegment, SegmentEvent, SegmentAnnotations, Polygon
 using PolygonAlgorithms: is_hole, match_holes_polygons, events_to_paths, events_to_polygons
 
 @testset "mappings" begin
@@ -181,21 +181,59 @@ using PolygonAlgorithms: is_hole, match_holes_polygons, events_to_paths, events_
     end
 
     @testset "events to polygons" begin
-        @testset "boundary hole" begin
+        @testset "hole in centre" begin
             segments = [
                 # exterior
-                AnnotatedSegment(((1.0, 1.0), (5.0, 4.0)), SegmentAnnotations(false, true)),
-                AnnotatedSegment(((5.0, 4.0), (9.0, 1.0)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((1.0, 1.0), (5.0, 6.0)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((5.0, 6.0), (9.0, 1.0)), SegmentAnnotations(false, true)),
                 AnnotatedSegment(((9.0, 1.0), (1.0, 1.0)), SegmentAnnotations(true, false)),
                 # hole
-                AnnotatedSegment(((3.0, 2.5), (7.0, 2.5)), SegmentAnnotations(true, false)),
-                AnnotatedSegment(((7.0, 2.5), (5.0, 1.0)), SegmentAnnotations(false, true)),
-                AnnotatedSegment(((5.0, 1.0), (3.0, 2.5)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((4.0, 3.5), (6.0, 3.5)), SegmentAnnotations(true, false)),
+                AnnotatedSegment(((6.0, 3.5), (5.0, 2.0)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((5.0, 2.0), (4.0, 3.5)), SegmentAnnotations(false, true)),
             ]
             polygons = events_to_polygons(segments)
             expected = Polygon(
-                [(1.0, 1.0), (9.0, 1.0), (5.0, 4.0)];
-                holes=[[(3.0, 2.5), (7.0, 2.5), (5.0, 1.0)]]
+                [(9.0, 1.0), (5.0, 6.0), (1.0, 1.0)];
+                holes=[[(4.0, 3.5), (6.0, 3.5), (5.0, 2.0)]]
+            )
+            @test polygons[1] == expected
+        end
+
+        @testset "hole touching edge" begin
+            segments = [
+                # exterior
+                AnnotatedSegment(((1.0, 1.0), (5.0, 6.0)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((5.0, 6.0), (9.0, 1.0)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((9.0, 1.0), (1.0, 1.0)), SegmentAnnotations(true, false)),
+                # hole
+                AnnotatedSegment(((3.0, 3.5), (6.0, 3.5)), SegmentAnnotations(true, false)),
+                AnnotatedSegment(((6.0, 3.5), (5.0, 1.0)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((5.0, 1.0), (3.0, 3.5)), SegmentAnnotations(false, true)),
+            ]
+            polygons = events_to_polygons(segments)
+            expected = Polygon(
+                [(9.0, 1.0), (5.0, 6.0), (1.0, 1.0)];
+                holes=[[(3.0, 3.5), (6.0, 3.5), (5.0, 1.0)]]
+            )
+            @test polygons[1] == expected
+        end
+
+        @testset "hole only touching edges" begin
+            segments = [
+                # exterior
+                AnnotatedSegment(((1.0, 1.0), (5.0, 6.0)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((5.0, 6.0), (9.0, 1.0)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((9.0, 1.0), (1.0, 1.0)), SegmentAnnotations(true, false)),
+                # hole
+                AnnotatedSegment(((3.0, 3.5), (7.0, 3.5)), SegmentAnnotations(true, false)),
+                AnnotatedSegment(((7.0, 3.5), (5.0, 1.0)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((5.0, 1.0), (3.0, 3.5)), SegmentAnnotations(false, true)),
+            ]
+            polygons = events_to_polygons(segments)
+            expected = Polygon(
+                [(9.0, 1.0), (5.0, 6.0), (1.0, 1.0)];
+                holes=[[(3.0, 3.5), (7.0, 3.5), (5.0, 1.0)]]
             )
             @test polygons[1] == expected
         end
