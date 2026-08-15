@@ -55,25 +55,101 @@ function is_hole(polygon::AbstractVector{<:AnnotatedSegment{T}}, counter_clockwi
     votes_hole > votes_face
 end
 
+function remove_boundary_holes!(
+    holes::AbstractVector{<:AbstractVector},
+    exteriors::AbstractVector{<:AbstractVector},
+    graph::Dict{<:Point2D, <:Vector},
+    )
+    intersection_points = filter(node -> length(node[2]) > 2, graph)
+    exterior_points = Set(vcat(exteriors...)) # could maybe do this more efficiently
+    boundary_points = filter!(node -> node[1] in exterior_points, intersection_points)
+    filter!(pts -> !any(pt -> haskey(boundary_points, pt), pts), holes)
+end
+
+@enum FaceSelectionStrategy MERGE_FACES SPLIT_FACES CLOCKWISE_FACES COUNTER_CLOCKWISE_FACES
+
+"""
+    segments_to_paths(segments; atol=default_atol, face_selection=SPLIT_FACES)
+
+Assumes there are no intersections between the segments.
+
+The segments are joined in a graph. 
+Each face with non-zero area will return two faces, a counter-clockwise face with positive area
+and a clockwise face with negative area.
+The following selection strategies are used to return half the faces:
+- `SPLIT_FACES`: select interior faces only, then classify as exteriors or holes. Reverse the exteriors to counter-clockwise. Remove exteriors that are in larger exteriors, and holes that are not in any exterior. This splits connected graphs across multiple interiors and returns more smaller polygons with fewer explicit holes.
+- `MERGE_FACES`: selects all exterior faces that are not holes with interior faces that are holes, resulting in connected graphs being be merged together. This returns fewer, larger polygons with holes.
+- `CLOCKWISE_FACES`: all clockwise faces.
+- `COUNTER_CLOCKWISE_FACES`: all counter-clockwise faces.
+"""
 function segments_to_paths(
-    events::Union{AbstractVector{<:SegmentEvent}, AbstractVector{<:AnnotatedSegment}}
-    ; digits::Integer=6
+    segments::Union{AbstractVector{<:SegmentEvent}, AbstractVector{<:AnnotatedSegment}}
+    ;
+    atol::AbstractFloat=default_atol,
+    face_selection::FaceSelectionStrategy=SPLIT_FACES,
     )
     # event → segments
-    graph = directed_graph_from_segments(events; digits=digits)
+    graph = directed_graph_from_segments(segments; digits=decimal_tolerance(atol))
     # faces → paths
     faces = compute_graph_faces(graph)
     polygons = map(segments -> map(event -> event[1], segments), faces)
     # paths → exteriors, holes
-    exteriors = is_counter_clockwise.(polygons)
-    not_holes = .!is_hole.(faces[exteriors], true) # ignore exteriors of holes
-    interiors = .!exteriors
-    holes = is_hole.(faces[interiors], false) # ignore repeated interiors
-    polygons[exteriors][not_holes], polygons[interiors][holes]
+    if face_selection == CLOCKWISE_FACES
+        exteriors = filter(is_clockwise, polygons)
+        holes = empty(exteriors)
+    elseif face_selection == COUNTER_CLOCKWISE_FACES
+        exteriors = filter(is_counter_clockwise, polygons)
+        holes = empty(exteriors)
+    elseif face_selection == MERGE_FACES
+        are_exteriors = is_counter_clockwise.(polygons)
+        not_holes = .!is_hole.(faces[are_exteriors], true) # ignore exteriors of holes
+        are_interiors = .!are_exteriors
+        are_holes = is_hole.(faces[are_interiors], false) # ignore repeated interiors
+        exteriors = polygons[are_exteriors][not_holes]
+        holes = polygons[are_interiors][are_holes]
+    else # SPLIT_FACES
+        are_interiors = is_clockwise.(polygons)
+        are_holes = is_hole.(faces[are_interiors], false)
+        interiors = polygons[are_interiors]
+        exteriors = interiors[.!are_holes]
+        is_inside = match_interiors(exteriors; atol=atol)
+        exteriors = exteriors[is_inside .== 0]
+        exteriors = map(reverse!, exteriors)
+        holes = interiors[are_holes]
+        holes = remove_boundary_holes!(holes, exteriors, graph)
+    end
+    exteriors, holes
+end
+
+function match_interiors(polygons::Vector{<:Path2D}; atol::AbstractFloat=default_atol)
+    areas = map(area_polygon, polygons)
+    # sort by descending areas. Therefore largest parent is matched first.
+    idxs = sortperm(areas, rev=true)
+    parents = zeros(Int, length(polygons))
+    for (idx1, polygon) in zip(idxs, polygons[idxs])
+        for idx2 in 1:(idx1 - 1) # can only be in larger polygons
+            if parents[idx2] != 0
+                continue
+            end
+            # Assume that no segments intersect.
+            # Then only need to check a single point
+            parent = polygons[idx2]
+            j = 1
+            while (j < length(polygon)) && on_border(parent, polygon[j]; atol=atol)
+                j += 1
+            end
+            found = contains(parent, polygon[1]; atol=atol, on_border_is_inside=false)
+            if found
+                parents[idx1] = idx2
+                break
+            end
+        end
+    end
+    parents
 end
 
 """
-    match_holes_polygons(polygons::Vector{<:Polygon}, holes::Vector{<:Tuple})
+    match_holes_polygons(polygons::Vector, holes::Vector; atol=default_atol)
 
 An algorithm for matching holes to polygons.
 Returns the index of each parent for each hole.
@@ -90,7 +166,7 @@ Then this runs in `O(phn)` time where `p` is the number polygons,
 `h` is the number of holes and `n` is the average number of vertices defining each polygon.
 """
 function match_holes_polygons(
-    polygons::Vector{<:Polygon},
+    polygons::Vector{<:Path2D},
     holes::Vector{<:Path2D}
     ; atol::AbstractFloat=default_atol
     )
@@ -106,9 +182,9 @@ function match_holes_polygons(
     parents = zeros(Int, length(holes))
     for (idx_h, candidate) in enumerate(holes)
         for (idx_p, parent) in zip(idxs, polygons[idxs])
-            # Assume that no segments intersect after the Martínez-Rueda algorithm.
+            # Assume that no segments intersect.
             # Then only need to check a point.
-            found = contains(parent.exterior, candidate[1]; atol=atol, on_border_is_inside=true)
+            found = contains(parent, candidate[1]; atol=atol, on_border_is_inside=true)
             if found
                 parents[idx_h] = idx_p
                 break
@@ -124,7 +200,7 @@ function paths_to_polygons(
     ; atol::AbstractFloat=default_rtol
     )
     polygons = Polygon.(exteriors)
-    parents = match_holes_polygons(polygons, holes; atol=atol)
+    parents = match_holes_polygons(exteriors, holes; atol=atol)
     for (idx, hole) in zip(parents, holes)
         if idx != 0
             push!(polygons[idx].holes, hole)
@@ -134,9 +210,11 @@ function paths_to_polygons(
 end
 
 function segments_to_polygons(
-    events::Union{AbstractVector{<:SegmentEvent}, AbstractVector{<:AnnotatedSegment}}
-    ; digits::Integer=6, atol::AbstractFloat=default_atol
+    segments::Union{AbstractVector{<:SegmentEvent}, AbstractVector{<:AnnotatedSegment}}
+    ; 
+    atol::AbstractFloat=default_atol,
+    face_selection::FaceSelectionStrategy=SPLIT_FACES,
     )
-    exteriors, holes = segments_to_paths(events; digits=digits)
+    exteriors, holes = segments_to_paths(segments; atol=atol, face_selection=face_selection)
     paths_to_polygons(exteriors, holes; atol=atol)
 end

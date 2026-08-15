@@ -3,7 +3,7 @@
 """
     martinez_rueda_algorithm(
     selection_criteria, subject, others...
-    ; atol=default_atol, rtol=default_rtol
+    ; atol=default_atol, rtol=default_rtol, face_selection=SPLIT_FACES
     )
 
 The Martínez-Rueda-Feito polygon clipping algorithm.
@@ -11,6 +11,8 @@ Returns regions and edges of intersection.
 It runs in `O((n+m+k)log(n+m))` time where `n` and `m` are the number of vertices of `polygon1` 
 and `polygon2` respectively and `k` is the total number of intersections between all segments.
 Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
+
+See `PolygonAlgorithms.segments_to_events` for details on the `face_selection` parameter.
 
 The input polygons can be:
 - A list of points: `Vector{Tuple{Float64, Float64}}`.
@@ -46,14 +48,20 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subject::Path2D{T},
     others::Vararg{Path2D{T}},
-    ; atol::AbstractFloat=default_atol, options...
+    ;
+    atol::AbstractFloat=default_atol,
+    face_selection::FaceSelectionStrategy=SPLIT_FACES,
+    options...
     ) where T
     event_queue_base = convert_to_event_queue(subject; primary=true, atol=atol)
     event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
     segments = martinez_rueda_algorithm(
         selection_criteria, event_queue_base, event_queue_others...; atol=atol, options...
     )
-    exteriors, holes = segments_to_paths(segments; digits=decimal_tolerance(atol))
+    exteriors, holes = segments_to_paths(
+        segments;
+        face_selection=face_selection
+    )
     vcat(exteriors, holes)
 end
 
@@ -62,7 +70,10 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subjects::AbstractVector{<:Path2D{T}},
     others::Vararg{Path2D{T}},
-    ; atol::AbstractFloat=default_atol, options...
+    ;
+    atol::AbstractFloat=default_atol,
+    face_selection::FaceSelectionStrategy=SPLIT_FACES,
+    options...
     ) where T
     subject_queue = SegmentEvent{T}[]
     map(p -> convert_to_event_queue!(subject_queue, p; primary=true, atol=atol), subjects)
@@ -70,7 +81,10 @@ function martinez_rueda_algorithm(
     segments = martinez_rueda_algorithm(
         selection_criteria, subject_queue, event_queue_others...; atol=atol, options...
     )
-    exteriors, holes = segments_to_paths(segments; digits=decimal_tolerance(atol))
+    exteriors, holes = segments_to_paths(
+        segments;
+        face_selection=face_selection
+    )
     vcat(exteriors, holes)
 end
 
@@ -79,7 +93,10 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subject::Polygon{T},
     others::Vararg{Polygon{T}},
-    ; atol::AbstractFloat=default_atol, options...
+    ;
+    atol::AbstractFloat=default_atol,
+    face_selection::FaceSelectionStrategy=SPLIT_FACES,
+    options...
     ) where T
     event_queue_base = convert_to_event_queue(subject.exterior; primary=true, atol=atol)
     for hole in subject.holes
@@ -94,7 +111,11 @@ function martinez_rueda_algorithm(
     segments = martinez_rueda_algorithm(
         selection_criteria, event_queue_base, event_queue_others...; atol=atol, options...
     )
-    segments_to_polygons(segments; digits=decimal_tolerance(atol), atol=atol)
+    segments_to_polygons(
+        segments
+        ; atol=atol,
+        face_selection=face_selection,
+    )
 end
 
 # Multiple subjects with holes
@@ -102,7 +123,10 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subjects::AbstractVector{<:Polygon{T}},
     clips::Vararg{Polygon{T}},
-    ; atol::AbstractFloat=default_atol, options...
+    ;
+    atol::AbstractFloat=default_atol,
+    face_selection::FaceSelectionStrategy=SPLIT_FACES,
+    options...
     ) where T
     subject_queue = SegmentEvent{T}[]
     map(p -> convert_to_event_queue!(subject_queue, p.exterior; primary=true, atol=atol), subjects)
@@ -120,7 +144,11 @@ function martinez_rueda_algorithm(
     segments = martinez_rueda_algorithm(
         selection_criteria, subject_queue, event_queue_clips...; atol=atol, options...
     )
-    segments_to_polygons(segments; digits=decimal_tolerance(atol), atol=atol)
+    segments_to_polygons(
+        segments
+        ; atol=atol,
+        face_selection=face_selection,
+    )
 end
 
 # Core algorithm: SegmentEvent input
