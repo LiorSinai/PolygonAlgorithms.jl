@@ -91,6 +91,23 @@ skew_H = (
         0  0  0  0  0  0  0  0  0  0  0
     ])
     )
+triangle = (
+    [(5.0, 2.0), (2.0, 9.0), (8.0, 9.0)],
+    BitArray([
+        0 0 0 0 0 0 0 0 0 0 0;
+        0 0 0 0 0 0 0 0 0 0 0;
+        0 0 0 0 0 1 0 0 0 0 0;
+        0 0 0 0 0 1 0 0 0 0 0;
+        0 0 0 0 0 1 0 0 0 0 0;
+        0 0 0 0 1 1 1 0 0 0 0;
+        0 0 0 0 1 1 1 0 0 0 0;
+        0 0 0 1 1 1 1 1 0 0 0;
+        0 0 0 1 1 1 1 1 0 0 0;
+        0 0 1 1 1 1 1 1 1 0 0;
+        0 0 0 0 0 0 0 0 0 0 0;
+        0 0 0 0 0 0 0 0 0 0 0
+    ])
+)
 
 @testset "centre points" begin
     @test contains(rectangle[1], (5.0, 5.0),)
@@ -105,6 +122,7 @@ skew_H = (
 
     @test contains(pentagon[1], (5.0, 5.0))
     @test contains(pentagon[1], (5.0, 8.0))
+
 end;
 
 @testset "outside points" begin
@@ -121,9 +139,12 @@ end;
 
     @test !contains(pentagon[1], (2.0, 9.0))
     @test !contains(pentagon[1], (8.0, 9.0))
+
+    @test !contains(triangle[1], (0.0, 8.0))
+    @test !contains(triangle[1], (0.0, 9.0))
 end;
 
-@testset "horiztonal edges" begin
+@testset "horizontal edges" begin
     @test contains(H_polygon[1], (5.0, 6.0))
     @test !contains(H_polygon[1], (5.0, 10.0))
     @test contains(H_polygon[1], (3.0, 6.0))
@@ -162,7 +183,8 @@ end;
         L_polygon,
         rectangle,
         pentagon,
-        skew_H
+        skew_H,
+        triangle
     ]
     for (polygon, expected) in polygons
         grid_ =  BitArray(undef, 12, 11)

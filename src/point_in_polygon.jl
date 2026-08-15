@@ -45,7 +45,7 @@ function contains(
         # step 3a: find the next vertex not on the horizontal ray
         next_s = s
         skipped_right = false
-        for i in 0:n
+        for i in 0:(n-1)
             next_s = (next_s) % n + 1
             if abs(vertices[next_s][2] - point[2]) > atol && 
                 !is_same_point(vertices[s], vertices[next_s]; atol=atol)
@@ -53,13 +53,17 @@ function contains(
             end
             skipped_right = skipped_right || (vertices[next_s][1] > point[1])
         end
+        if next_s == s
+            # gone in a full loop
+            break
+        end
         # step 3b: edge intersect with the ray
         edge = (vertices[s], vertices[next_s])
         intersect = false
-        if (next_s - s) == 1 || (s == n && next_s ==1) # 3b.i
-            intersect = do_intersect(edge, (point, extreme_right); atol=atol)
-        elseif skipped_right # 3b.ii
+        if skipped_right # 3b.ii
             intersect = do_intersect(edge, (extreme_left, extreme_right); atol=atol)
+        elseif (next_s - s) == 1 || (s == n && next_s == 1) # 3b.i
+            intersect = do_intersect(edge, (point, extreme_right); atol=atol)
         end
         num_intersections += intersect
         if next_s <= s  # gone in a full loop
