@@ -200,21 +200,22 @@ using PolygonAlgorithms: is_hole, match_holes_polygons, segments_to_paths, segme
             @test polygons[1] == expected
         end
 
-        @testset "hole touching edge" begin
+        @testset "hole touch edge" begin
             segments = [
                 # exterior
-                AnnotatedSegment(((1.0, 1.0), (5.0, 6.0)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((1.0, 1.0), (3.0, 3.5)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((3.0, 3.5), (5.0, 6.0)), SegmentAnnotations(false, true)),
                 AnnotatedSegment(((5.0, 6.0), (9.0, 1.0)), SegmentAnnotations(false, true)),
                 AnnotatedSegment(((9.0, 1.0), (1.0, 1.0)), SegmentAnnotations(true, false)),
                 # hole
                 AnnotatedSegment(((3.0, 3.5), (6.0, 3.5)), SegmentAnnotations(true, false)),
-                AnnotatedSegment(((6.0, 3.5), (5.0, 1.0)), SegmentAnnotations(false, true)),
-                AnnotatedSegment(((5.0, 1.0), (3.0, 3.5)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((6.0, 3.5), (5.0, 2.0)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((5.0, 2.0), (3.0, 3.5)), SegmentAnnotations(false, true)),
             ]
             polygons = segments_to_polygons(segments)
             expected = Polygon(
-                [(9.0, 1.0), (5.0, 6.0), (1.0, 1.0)];
-                holes=[[(3.0, 3.5), (6.0, 3.5), (5.0, 1.0)]]
+                [(3.0, 3.5), (1.0, 1.0), (9.0, 1.0), (5.0, 6.0)];
+                holes=[[(6.0, 3.5), (5.0, 2.0), (3.0, 3.5)]]
             )
             @test polygons[1] == expected
         end
@@ -222,9 +223,12 @@ using PolygonAlgorithms: is_hole, match_holes_polygons, segments_to_paths, segme
         @testset "hole only touching edges" begin
             segments = [
                 # exterior
-                AnnotatedSegment(((1.0, 1.0), (5.0, 6.0)), SegmentAnnotations(false, true)),
-                AnnotatedSegment(((5.0, 6.0), (9.0, 1.0)), SegmentAnnotations(false, true)),
-                AnnotatedSegment(((9.0, 1.0), (1.0, 1.0)), SegmentAnnotations(true, false)),
+                AnnotatedSegment(((1.0, 1.0), (3.0, 3.5)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((3.0, 3.5), (5.0, 6.0)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((5.0, 6.0), (7.0, 3.5)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((7.0, 3.5), (9.0, 1.0)), SegmentAnnotations(false, true)),
+                AnnotatedSegment(((9.0, 1.0), (5.0, 1.0)), SegmentAnnotations(true, false)),
+                AnnotatedSegment(((5.0, 1.0), (1.0, 1.0)), SegmentAnnotations(true, false)),
                 # hole
                 AnnotatedSegment(((3.0, 3.5), (7.0, 3.5)), SegmentAnnotations(true, false)),
                 AnnotatedSegment(((7.0, 3.5), (5.0, 1.0)), SegmentAnnotations(false, true)),
@@ -232,7 +236,7 @@ using PolygonAlgorithms: is_hole, match_holes_polygons, segments_to_paths, segme
             ]
             polygons = segments_to_polygons(segments)
             expected = Polygon(
-                [(9.0, 1.0), (5.0, 6.0), (1.0, 1.0)];
+                [(3.0, 3.5), (1.0, 1.0), (5.0, 1.0), (9.0, 1.0), (7.0, 3.5), (5.0, 6.0)];
                 holes=[[(3.0, 3.5), (7.0, 3.5), (5.0, 1.0)]]
             )
             @test polygons[1] == expected
