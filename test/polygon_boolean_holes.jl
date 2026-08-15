@@ -148,6 +148,53 @@ end
     @test are_equivalent(regions, expected)
 end
 
+@testset "triangle - holes" begin
+    @testset "hole in centre" begin
+        poly1 = Polygon([
+            (9.0, 1.0), (5.0, 6.0), (1.0, 1.0)
+        ])
+        poly2 = Polygon([
+            (4.0, 3.5), (6.0, 3.5), (5.0, 2.0)
+        ])
+        regions =  difference_geometry(alg, poly1, poly2)
+        expected = [Polygon(
+            [(9.0, 1.0), (5.0, 6.0), (1.0, 1.0)],
+            holes=[[(4.0, 3.5), (6.0, 3.5), (5.0, 2.0)]]
+        )]
+        @test are_equivalent(regions, expected)
+    end
+
+    @testset "hole touch centre" begin
+        poly1 = Polygon([
+            (9.0, 1.0), (5.0, 6.0), (1.0, 1.0)
+        ])
+        poly2 = Polygon([
+            (3.0, 3.5), (6.0, 3.5), (5.0, 2.0)
+        ])
+        regions =  difference_geometry(alg, poly1, poly2)
+        expected = [Polygon(
+            [(3.0, 3.5), (1.0, 1.0), (9.0, 1.0), (5.0, 6.0)],
+            holes=[[(3.0, 3.5), (6.0, 3.5), (5.0, 2.0)]]
+        )]
+        @test are_equivalent(regions, expected)
+    end
+
+    @testset "hole only touching edges" begin
+        poly1 = Polygon([
+            (9.0, 1.0), (5.0, 6.0), (1.0, 1.0)
+        ])
+        poly2 = Polygon([
+            (3.0, 3.5), (7.0, 3.5), (5.0, 1.0)
+        ])
+        regions =  difference_geometry(alg, poly1, poly2)
+        expected = [Polygon(
+            [(3.0, 3.5), (1.0, 1.0), (5.0, 1.0), (9.0, 1.0), (7.0, 3.5), (5.0, 6.0)],
+            holes=[[(3.0, 3.5), (7.0, 3.5), (5.0, 1.0)]]
+        )]
+        @test are_equivalent(regions, expected)
+    end
+end
+
 @testset "concave <>" begin 
     poly1 = Polygon([
         (0.0, 0.0), (-1.0, 1.0),  (4.0, 6.0), (-1.0, 11.0), (0.0, 12.0), (6.0, 6.0),  
