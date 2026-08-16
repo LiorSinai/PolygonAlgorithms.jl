@@ -74,11 +74,11 @@ end
 Assumes there are no intersections between the segments.
 
 The segments are joined in a graph. 
-Each face with non-zero area will return two faces, a counter-clockwise face with positive area
-and a clockwise face with negative area.
-The following selection strategies are used to return half the faces:
-- `SPLIT_FACES`: select interior faces only, then classify as exteriors or holes. Reverse the exteriors to counter-clockwise. Remove exteriors that are in larger exteriors, and holes that are not in any exterior. This splits connected graphs across multiple interiors and returns more smaller polygons with fewer explicit holes.
+Each face with non-zero area will return two faces, a counter-clockwise face with positive area (exterior)
+and a clockwise face with negative area (interior).
+The following selection strategies are used to return half the faces with no duplicates:
 - `MERGE_FACES`: selects all exterior faces that are not holes with interior faces that are holes, resulting in connected graphs being be merged together. This returns fewer, larger polygons with holes.
+- `SPLIT_FACES`: for the exteriors, select interior faces that are on the exterior faces and reverse each to make them counter-clockwise. Then select holes that are not on the exterior. This splits connected graphs across multiple interiors and returns smaller polygons with fewer explicit holes.
 - `CLOCKWISE_FACES`: all clockwise faces.
 - `COUNTER_CLOCKWISE_FACES`: all counter-clockwise faces.
 """
@@ -100,39 +100,41 @@ function segments_to_paths(
     elseif face_selection == COUNTER_CLOCKWISE_FACES
         exteriors = filter(is_counter_clockwise, polygons)
         holes = empty(exteriors)
-    elseif face_selection == MERGE_FACES
-        are_exteriors = is_counter_clockwise.(polygons)
+    else
+        moments = first_moment.(polygons)
+        are_exteriors = moments .>= 0.0 # counter-clockwise
         not_holes = .!is_hole.(faces[are_exteriors], true) # ignore exteriors of holes
-        are_interiors = .!are_exteriors
-        are_holes = is_hole.(faces[are_interiors], false) # ignore repeated interiors
-        exteriors = polygons[are_exteriors][not_holes]
-        holes = polygons[are_interiors][are_holes]
-    else # SPLIT_FACES
-        are_interiors = is_clockwise.(polygons)
-        are_holes = is_hole.(faces[are_interiors], false)
-        are_exteriors = is_counter_clockwise.(polygons)
-        not_holes = .!is_hole.(faces[are_exteriors], true) # ignore exteriors of holes
-        interiors = polygons[are_interiors]
-        inner_faces = interiors[.!are_holes]
-        exterior_points = Set(vcat(polygons[are_exteriors][not_holes]...))
-        exteriors, others = separate(pts -> any(pt -> (pt in exterior_points), pts), inner_faces)
-        exteriors = map(reverse!, exteriors)
-        others = map(reverse!, others)
-        exterior_points = Set(vcat(exteriors...))
-        searching = true
-        while searching
-            searching = false
-            for idx in length(others):-1:1
-                other = others[idx]
-                if any(pt -> (pt in exterior_points), other)
-                    push!(exteriors, popat!(others, idx))
-                    searching = true
+        if face_selection == MERGE_FACES
+            are_interiors = .!are_exteriors # non-exteriors
+            are_holes = is_hole.(faces[are_interiors], false) # ignore repeated interiors
+            exteriors = polygons[are_exteriors][not_holes]
+            holes = polygons[are_interiors][are_holes]
+        else # SPLIT_FACES
+            are_interiors = moments .<= 0.0 # clockwise, overlap at zero area polygons (lines)
+            are_holes = is_hole.(faces[are_interiors], false)
+            interiors = polygons[are_interiors]
+            inner_faces = interiors[.!are_holes]
+            holes = interiors[are_holes]
+            # for exterior faces, choose only inner faces on the exterior
+            # as well as any connected exterior faces that are possibly inside the exteriors in holes
+            exterior_points = Set(vcat(polygons[are_exteriors][not_holes]...))
+            exteriors = empty(inner_faces)
+            searching = true
+            while searching
+                searching = false
+                for idx in length(inner_faces):-1:1
+                    candidate = inner_faces[idx]
+                    if any(pt -> (pt in exterior_points), candidate)
+                        exterior = popat!(inner_faces, idx)
+                        push!(exteriors, reverse!(exterior))
+                        push!(exterior_points, exterior...)
+                        searching = true
+                    end
                 end
             end
+            # finally, remove holes on the boundary, as these are implied
+            remove_boundary_holes!(holes, exteriors, graph)
         end
-        exteriors = map(reverse!, exteriors)
-        holes = interiors[are_holes]
-        remove_boundary_holes!(holes, exteriors, graph)
     end
     exteriors, holes
 end
