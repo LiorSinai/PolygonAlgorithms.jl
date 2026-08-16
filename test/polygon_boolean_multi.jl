@@ -216,4 +216,20 @@ end
     end
 end
 
+@testset "expanding frontier" begin
+    # Explicitly tests the expanding frontier in segments_to_paths
+    # with face_selection=SPLIT_FACES
+    poly1 = [(5.0, 1.0), (10.0, 6.0), (0.0, 6.0), (5.0, 1.0), (2.0, 5.0), (8.0, 5.0)]
+    poly2 = [(5.0, 1.0), (6.0, 3.0), (4.0, 3.0)]
+    poly3 = [(5.0, 3.0), (3.0, 4.0), (7.0, 4.0)]
+    regions = union_geometry(poly1, poly2, poly3,
+        face_selection=PolygonAlgorithms.SPLIT_FACES);
+    expected = [
+        [(5.0, 3.0), (4.0, 3.0), (5.0, 1.0), (6.0, 3.0)], # added intersection point
+        [(3.0, 4.0), (5.0, 3.0), (7.0, 4.0)],
+        [(0.0, 6.0), (5.0, 1.0), (2.0, 5.0), (8.0, 5.0), (5.0, 1.0), (10.0, 6.0)],
+    ]
+    @test are_regions_equal(regions, expected)
+end
+
 end
