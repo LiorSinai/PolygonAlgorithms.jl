@@ -119,16 +119,16 @@ function segments_to_paths(
             # as well as any connected exterior faces that are possibly inside the exteriors in holes
             exterior_points = Set(vcat(polygons[are_exteriors][not_holes]...))
             exteriors = empty(inner_faces)
-            searching = true
-            while searching
-                searching = false
+            expand_frontier = true
+            while expand_frontier
+                expand_frontier = false
                 for idx in length(inner_faces):-1:1
                     candidate = inner_faces[idx]
                     if any(pt -> (pt in exterior_points), candidate)
                         exterior = popat!(inner_faces, idx)
                         push!(exteriors, reverse!(exterior))
                         push!(exterior_points, exterior...)
-                        searching = true
+                        expand_frontier = true
                     end
                 end
             end
