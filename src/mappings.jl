@@ -110,13 +110,29 @@ function segments_to_paths(
     else # SPLIT_FACES
         are_interiors = is_clockwise.(polygons)
         are_holes = is_hole.(faces[are_interiors], false)
+        are_exteriors = is_counter_clockwise.(polygons)
+        not_holes = .!is_hole.(faces[are_exteriors], true) # ignore exteriors of holes
         interiors = polygons[are_interiors]
-        exteriors = interiors[.!are_holes]
-        is_inside = match_interiors(exteriors; atol=atol)
-        exteriors = exteriors[is_inside .== 0]
+        inner_faces = interiors[.!are_holes]
+        exterior_points = Set(vcat(polygons[are_exteriors][not_holes]...))
+        exteriors, others = separate(pts -> any(pt -> (pt in exterior_points), pts), inner_faces)
+        exteriors = map(reverse!, exteriors)
+        others = map(reverse!, others)
+        exterior_points = Set(vcat(exteriors...))
+        searching = true
+        while searching
+            searching = false
+            for idx in length(others):-1:1
+                other = others[idx]
+                if any(pt -> (pt in exterior_points), other)
+                    push!(exteriors, popat!(others, idx))
+                    searching = true
+                end
+            end
+        end
         exteriors = map(reverse!, exteriors)
         holes = interiors[are_holes]
-        holes = remove_boundary_holes!(holes, exteriors, graph)
+        remove_boundary_holes!(holes, exteriors, graph)
     end
     exteriors, holes
 end
@@ -131,8 +147,7 @@ function match_interiors(polygons::Vector{<:Path2D}; atol::AbstractFloat=default
             if parents[idx2] != 0
                 continue
             end
-            # Assume that no segments intersect.
-            # Then only need to check a single point
+            # Assume that no segments intersect. Then only need to check a single point
             parent = polygons[idx2]
             j = 1
             while (j < length(polygon)) && on_border(parent, polygon[j]; atol=atol)
