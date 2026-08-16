@@ -1,6 +1,7 @@
 using Test
 using PolygonAlgorithms: AnnotatedSegment, SegmentEvent, SegmentAnnotations, Polygon
 using PolygonAlgorithms: is_hole, match_holes_polygons, segments_to_paths, segments_to_polygons
+using PolygonAlgorithms: MERGE_FACES, SPLIT_FACES
 
 @testset "mappings" begin
     reverse_chain(vec::Vector{<:AnnotatedSegment}) = reverse!([reverse(x) for x in vec])
@@ -70,8 +71,8 @@ using PolygonAlgorithms: is_hole, match_holes_polygons, segments_to_paths, segme
     @testset "match holes" begin
         @testset "two squares with holes" begin
             polygons = [
-                Polygon([(3.0, 3.0), (3.0, 0.0), (0.0, 0.0), (0.0, 3.0)]),
-                Polygon([(7.0, 3.0), (7.0, 0.0), (4.0, 0.0), (4.0, 3.0)]),
+                [(3.0, 3.0), (3.0, 0.0), (0.0, 0.0), (0.0, 3.0)],
+                [(7.0, 3.0), (7.0, 0.0), (4.0, 0.0), (4.0, 3.0)],
             ]
             holes = [
                 [(2.0, 2.0), (2.0, 1.0), (1.0, 1.0), (1.0, 2.0)],
@@ -82,12 +83,8 @@ using PolygonAlgorithms: is_hole, match_holes_polygons, segments_to_paths, segme
         end
 
         @testset "nested squares with holes" begin
-            poly1 = Polygon(
-                [(0.0, 0.0), (0.0, 7.0), (7.0, 7.0), (7.0, 0.0)]
-            )
-            poly2 = Polygon(
-                [(2.0, 2.0), (2.0, 5.0), (5.0, 5.0), (5.0, 2.0)];
-            )
+            poly1 = [(0.0, 0.0), (0.0, 7.0), (7.0, 7.0), (7.0, 0.0)]
+            poly2 = [(2.0, 2.0), (2.0, 5.0), (5.0, 5.0), (5.0, 2.0)];
             holes = [
                 [(1.0, 1.0), (1.0, 6.0), (6.0, 6.0), (6.0, 1.0)],
                 [(3.0, 3.0), (3.0, 4.0), (4.0, 4.0), (4.0, 3.0)],
@@ -124,7 +121,9 @@ using PolygonAlgorithms: is_hole, match_holes_polygons, segments_to_paths, segme
                 AnnotatedSegment((3.999, -3.999), (7.0, -1.0)),
             ]
             # open chain, gap not closed
-            exteriors, holes = segments_to_paths(segments)
+            exteriors, holes = segments_to_paths(segments; face_selection=SPLIT_FACES)
+            @test isempty(exteriors) && isempty(holes)
+            exteriors, holes = segments_to_paths(segments; face_selection=MERGE_FACES)
             expected = [
                 [
                     (0.0, 0.0), (3.0, 3.0), (7.0, -1.0), (3.999, -3.999),
@@ -134,7 +133,7 @@ using PolygonAlgorithms: is_hole, match_holes_polygons, segments_to_paths, segme
             @test exteriors == expected
             @test isempty(holes)
             # gap closed
-            exteriors, holes = segments_to_paths(segments; digits=2)
+            exteriors, holes = segments_to_paths(segments; atol=1e-2)
             expected = [
                 [(4.0, -4.0), (7.0, -1.0), (3.0, 3.0), (0.0, 0.0)]
             ]
@@ -149,7 +148,10 @@ using PolygonAlgorithms: is_hole, match_holes_polygons, segments_to_paths, segme
                 SegmentEvent(((2.0, 2.0), (3.0, 5.0)), true),
                 SegmentEvent(((3.0, 5.0), (5.0, 1.0)), true),
             ]
-            exteriors, holes = segments_to_paths(segments)
+            exteriors, holes = segments_to_paths(segments; face_selection=SPLIT_FACES)
+            @test exteriors == [[(3.0, 5.0), (2.0, 2.0), (5.0, 1.0)]]
+            @test isempty(holes)
+            exteriors, holes = segments_to_paths(segments; face_selection=MERGE_FACES)
             expected = [
                 [(2.0, 2.0), (0.0, 0.0), (2.0, 2.0), (5.0, 1.0), (3.0, 5.0)]
             ]
@@ -168,15 +170,15 @@ using PolygonAlgorithms: is_hole, match_holes_polygons, segments_to_paths, segme
                 SegmentEvent(((5.0, 1.0), (5.0, 4.0)), true, true, SegmentAnnotations(true, false)),
                 SegmentEvent(((0.0, 4.0), (5.0, 4.0)), true, true, SegmentAnnotations(false, true)),
             ]
-            exteriors, holes = segments_to_paths(segments)
+            exteriors, holes = segments_to_paths(segments; face_selection=SPLIT_FACES)
             expected = [
-                [(0.0, 4.0), (0.0, 0.0), (5.0, 1.0), (5.0, 4.0)]
+                [(0.0, 4.0), (2.0, 2.0), (3.0, 3.0), (2.0, 1.0), (2.0, 2.0), (0.0, 4.0), (0.0, 0.0), (5.0, 1.0), (5.0, 4.0)]
             ]
             @test exteriors == expected
-            expected = [
-                [(2.0, 1.0), (2.0, 2.0), (3.0, 3.0)]
-            ]
-            @test holes == expected
+            @test isempty(holes)
+            exteriors, holes = segments_to_paths(segments; face_selection=MERGE_FACES)
+            @test exteriors == [[(0.0, 4.0), (0.0, 0.0), (5.0, 1.0), (5.0, 4.0)]]
+            @test holes == [[(2.0, 1.0), (2.0, 2.0), (3.0, 3.0)]]
         end
     end
 
@@ -194,7 +196,7 @@ using PolygonAlgorithms: is_hole, match_holes_polygons, segments_to_paths, segme
             ]
             polygons = segments_to_polygons(segments)
             expected = Polygon(
-                [(9.0, 1.0), (5.0, 6.0), (1.0, 1.0)];
+                [(5.0, 6.0), (1.0, 1.0), (9.0, 1.0)];
                 holes=[[(4.0, 3.5), (6.0, 3.5), (5.0, 2.0)]]
             )
             @test polygons[1] == expected
@@ -212,7 +214,12 @@ using PolygonAlgorithms: is_hole, match_holes_polygons, segments_to_paths, segme
                 AnnotatedSegment(((6.0, 3.5), (5.0, 2.0)), SegmentAnnotations(false, true)),
                 AnnotatedSegment(((5.0, 2.0), (3.0, 3.5)), SegmentAnnotations(false, true)),
             ]
-            polygons = segments_to_polygons(segments)
+            polygons = segments_to_polygons(segments; face_selection=SPLIT_FACES)
+            expected = Polygon(
+                [(3.0, 3.5), (6.0, 3.5), (5.0, 2.0), (3.0, 3.5), (1.0, 1.0), (9.0, 1.0), (5.0, 6.0)]
+            )
+            @test polygons[1] == expected
+            polygons = segments_to_polygons(segments; face_selection=MERGE_FACES)
             expected = Polygon(
                 [(3.0, 3.5), (1.0, 1.0), (9.0, 1.0), (5.0, 6.0)];
                 holes=[[(6.0, 3.5), (5.0, 2.0), (3.0, 3.5)]]
@@ -234,12 +241,19 @@ using PolygonAlgorithms: is_hole, match_holes_polygons, segments_to_paths, segme
                 AnnotatedSegment(((7.0, 3.5), (5.0, 1.0)), SegmentAnnotations(false, true)),
                 AnnotatedSegment(((5.0, 1.0), (3.0, 3.5)), SegmentAnnotations(false, true)),
             ]
-            polygons = segments_to_polygons(segments)
+            polygons = segments_to_polygons(segments; face_selection=SPLIT_FACES)
+            expected = [
+                Polygon([(5.0, 1.0), (3.0, 3.5), (1.0, 1.0)]),
+                Polygon([(5.0, 1.0), (9.0, 1.0), (7.0, 3.5)]),
+                Polygon([(7.0, 3.5), (5.0, 6.0), (3.0, 3.5)]),
+            ]
+            @test polygons == expected
+            polygons = segments_to_polygons(segments; face_selection=MERGE_FACES)
             expected = Polygon(
                 [(3.0, 3.5), (1.0, 1.0), (5.0, 1.0), (9.0, 1.0), (7.0, 3.5), (5.0, 6.0)];
                 holes=[[(3.0, 3.5), (7.0, 3.5), (5.0, 1.0)]]
             )
-            @test polygons[1] == expected
+            @test length(polygons) ==1 && polygons[1] == expected
         end
     end
 end

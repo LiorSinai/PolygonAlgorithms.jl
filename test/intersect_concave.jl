@@ -26,7 +26,9 @@ using PolygonAlgorithms: WeilerAthertonAlg, MartinezRuedaAlg
     # now vertex intersects edge
     # creates cycle
     poly2_ = translate(poly2, (-1.0, 0.0))
-    expected = [[(3.0, 1.0), (1.0, 1.0), (3.0, 2.0),(1.0, 3.0), (3.0, 3.0)]]
+    expected = (typeof(alg) == PolygonAlgorithms.MartinezRuedaAlg) ?
+        [[(1.0, 1.0), (3.0, 1.0), (3.0, 2.0)], [(1.0, 3.0), (3.0, 2.0), (3.0, 3.0)]] :
+        [[(3.0, 1.0), (1.0, 1.0), (3.0, 2.0),(1.0, 3.0), (3.0, 3.0)]]
 
     regions = intersect_geometry(alg, poly1, poly2_,)
     @test are_regions_equal(regions, expected)
@@ -374,8 +376,11 @@ alg = MartinezRuedaAlg()
     rectangle_horiz = [
         (-1.0, 0.0), (-1.0, 3.0), (12.0, 3.0), (12.0, 0.0)
     ];
-    expected = [[(8.5, 0.0), (4.0, 0.0), (2.0, 2.0), (0.0, 0.0), (4.0, 0.0), (8.5, 0.0), (11.0, 0.0), (11.0, 2.0)]]
+    expected = [[(8.5, 0.0), (11.0, 0.0), (11.0, 2.0)], [(4.0, 0.0), (2.0, 2.0), (0.0, 0.0)]]
     regions = intersect_geometry(alg, self_intersect, rectangle_horiz)
+    @test are_regions_equal(regions, expected)
+    expected = [[(8.5, 0.0), (4.0, 0.0), (2.0, 2.0), (0.0, 0.0), (4.0, 0.0), (8.5, 0.0), (11.0, 0.0), (11.0, 2.0)]]
+    regions = intersect_geometry(alg, self_intersect, rectangle_horiz; face_selection=PolygonAlgorithms.MERGE_FACES)
     @test are_regions_equal(regions, expected)
 end
 
@@ -386,13 +391,22 @@ end
     box = [
         (-2.0, 3.0), (2.0, 3.0), (2.0, -1.0), (-2.0, -1.0)
     ];
+    regions = intersect_geometry(alg, self_intersect_star, box;)
+    expected = [
+        [(-1.255814, 0.604651), (-1.714286, -1.0), (-0.75, -1.0), (0.0, -0.4)],
+        [(-1.255814, 0.604651), (-0.857143, 2.0), (-2.0, 2.0), (-2.0, 1.2)],
+        [(0.75, -1.0), (1.714286, -1.0), (1.255814, 0.604651), (0.0, -0.4)],
+        [(0.571429, 3.0), (-0.571429, 3.0), (-0.857143, 2.0), (0.857143, 2.0)],
+        [(2.0, 2.0), (0.857143, 2.0), (1.255814, 0.604651), (2.0, 1.2)],
+    ]
+    @test are_regions_equal(regions, expected)
     expected = [
         # exterior
         [(-2.0, 1.2), (-1.255814, 0.604651), (-1.714286, -1.0), (-0.75, -1.0), (0.0, -0.4), (0.75, -1.0), (1.714286, -1.0), (1.255814, 0.604651), (2.0, 1.2), (2.0, 2.0), (0.857143, 2.0), (0.571429, 3.0), (-0.571429, 3.0), (-0.857143, 2.0), (-2.0, 2.0)],
         # hole
         [(-0.857143, 2.0), (0.857143, 2.0), (1.255814, 0.604651), (0.0, -0.4), (-1.255814, 0.604651)]
     ]
-    regions = intersect_geometry(alg, self_intersect_star, box)
+    regions = intersect_geometry(alg, self_intersect_star, box; face_selection=PolygonAlgorithms.MERGE_FACES)
     @test are_regions_equal(regions, expected)
 end
 
