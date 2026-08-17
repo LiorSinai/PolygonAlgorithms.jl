@@ -1,5 +1,6 @@
 using PolygonAlgorithms
 using PolygonAlgorithms: MartinezRuedaAlg, PointSet
+using PolygonAlgorithms: MERGE_FACES, SPLIT_FACES
 
 @testset "polygon boolean multi - $alg" for alg in [
     MartinezRuedaAlg(),
@@ -220,14 +221,27 @@ end
     # Explicitly tests the expanding frontier in segments_to_paths
     # with face_selection=SPLIT_FACES
     poly1 = [(5.0, 1.0), (10.0, 6.0), (0.0, 6.0), (5.0, 1.0), (2.0, 5.0), (8.0, 5.0)]
-    poly2 = [(5.0, 1.0), (6.0, 3.0), (4.0, 3.0)]
-    poly3 = [(5.0, 3.0), (3.0, 4.0), (7.0, 4.0)]
-    regions = union_geometry(poly1, poly2, poly3,
+    poly2 = [(5.0, 5.0), (6.5, 4.0), (3.5, 4.0)]
+    poly3 = [(4.0, 4.0), (6.0, 4.0), (5.0, 3.0)]
+    poly4 = [(5.0, 3.0), (5.5, 2.0), (4.5, 2.0)]
+    regions = union_geometry(poly1, poly2, poly3, poly4,
         face_selection=PolygonAlgorithms.SPLIT_FACES);
     expected = [
-        [(5.0, 3.0), (4.0, 3.0), (5.0, 1.0), (6.0, 3.0)], # added intersection point
-        [(3.0, 4.0), (5.0, 3.0), (7.0, 4.0)],
-        [(0.0, 6.0), (5.0, 1.0), (2.0, 5.0), (8.0, 5.0), (5.0, 1.0), (10.0, 6.0)],
+        [(0.0, 6.0), (5.0, 1.0), (2.0, 5.0), (5.0, 5.0), (8.0, 5.0), (5.0, 1.0), (10.0, 6.0)],
+        [(6.5, 4.0), (5.0, 5.0), (3.5, 4.0), (4.0, 4.0), (5.0, 3.0), (6.0, 4.0)],
+        [(4.5, 2.0), (5.5, 2.0), (5.0, 3.0)],
+    ]
+    @test are_regions_equal(regions, expected)
+    regions = union_geometry(poly1, poly2, poly3, poly4,
+        face_selection=PolygonAlgorithms.MERGE_FACES);
+    expected = [
+        [(5.0, 1.0), (10.0, 6.0), (0.0, 6.0)],
+        # hole:
+        [
+            (5.0, 1.0), (2.0, 5.0), (5.0, 5.0), (3.5, 4.0), (4.0, 4.0), 
+            (5.0, 3.0), (4.5, 2.0), (5.5, 2.0), (5.0, 3.0), (6.0, 4.0), 
+            (6.5, 4.0), (5.0, 5.0), (8.0, 5.0)
+        ]
     ]
     @test are_regions_equal(regions, expected)
 end
