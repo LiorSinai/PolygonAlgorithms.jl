@@ -55,17 +55,6 @@ function is_hole(polygon::AbstractVector{<:AnnotatedSegment{T}}, counter_clockwi
     votes_hole > votes_face
 end
 
-function remove_boundary_holes!(
-    holes::AbstractVector{<:AbstractVector},
-    exteriors::AbstractVector{<:AbstractVector},
-    graph::Dict{<:Point2D, <:Vector},
-    )
-    intersection_points = filter(node -> length(node[2]) > 2, graph)
-    exterior_points = Set(vcat(exteriors...)) # could maybe do this more efficiently
-    boundary_points = filter!(node -> node[1] in exterior_points, intersection_points)
-    filter!(pts -> !any(pt -> haskey(boundary_points, pt), pts), holes)
-end
-
 @enum FaceSelectionStrategy MERGE_FACES SPLIT_FACES CLOCKWISE_FACES COUNTER_CLOCKWISE_FACES
 
 """
@@ -132,8 +121,9 @@ function segments_to_paths(
                     end
                 end
             end
-            # finally, remove holes on the boundary, as these are implied
-            remove_boundary_holes!(holes, exteriors, graph)
+            # for holes, chose only inner faces not on the exterior
+            # because holes on the exterior are self-evident 
+            filter!(pts -> !any(pt -> pt in exterior_points, pts), holes)
         end
     end
     exteriors, holes
