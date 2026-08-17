@@ -246,4 +246,27 @@ end
     @test are_regions_equal(regions, expected)
 end
 
+@testset "holes carve inner face" begin
+    poly1 = [(1.0, 1.0), (1.0, 10.0), (9.0, 10.0), (9.0, 1.0)];
+    poly2 = [(3.0, 7.0), (5.0, 9.0), (7.0, 7.0)];
+    poly3 = [(3.0, 7.0), (5.0, 5.0), (2.0, 5.0)];
+    poly4 = [(7.0, 7.0), (8.0, 5.0), (5.0, 5.0)];
+    regions = difference_geometry(
+        poly1, poly2, poly3, poly4,
+        face_selection=PolygonAlgorithms.SPLIT_FACES
+    );
+    expected = [
+        [(9.0, 10.0), (1.0, 10.0), (1.0, 1.0), (9.0, 1.0)],
+        [(2.0, 5.0), (3.0, 7.0), (5.0, 5.0)],
+        [(8.0, 5.0), (5.0, 5.0), (7.0, 7.0)],
+        [(7.0, 7.0), (3.0, 7.0), (5.0, 9.0)],
+    ]
+    @test are_regions_equal(regions, expected)
+    regions = difference_geometry(
+        poly1, poly2, poly3, poly4,
+        face_selection=PolygonAlgorithms.MERGE_FACES
+    );
+    @test are_regions_equal(regions, expected)
+end
+
 end
