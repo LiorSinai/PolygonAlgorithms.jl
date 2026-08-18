@@ -136,7 +136,6 @@ end
 end
 
 @testset "polygon in polygon - edge case" begin
-    # all points in the polygon but edges intersect
     hour_glass = [(0.0, 0.0), (4.0, 5.0), (0.0, 10.0), (10.0, 10.0), (6.0, 5.0), (10.0, 0.0)]
     rectangle = [(2.0, 1.0),(2.0, 8.0), (8.0, 8.0), (8.0, 1.0)]
     @test all(p -> contains(hour_glass, p), rectangle)
