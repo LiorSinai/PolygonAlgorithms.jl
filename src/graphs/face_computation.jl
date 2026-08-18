@@ -33,8 +33,8 @@ end
 """
     map_connections(graph::Dict)
 
-If Z is the next neighbor clockwise around the node, then the half-edge
-that comes before (X, Y) is the half-edge (Z, X).
+If `Z` is the next neighbor clockwise around the node `X`, then the half-edge
+that comes before `(X, Y)`` is the half-edge `(Z, X)``.
 """
 function map_connections(graph::Dict{Tuple{T, T}, <:AbstractVector{AnnotatedSegment{T}}}) where {T}
     connections = Dict{Segment2D{T}, AnnotatedSegment{T}}()
@@ -84,8 +84,10 @@ The graph is dictionary of `point => half-edges`, with half-edges sorted clockwi
 around the point.
 
 This will return all exterior faces as counter-clockwise, and all
-interior faces as clockwise. Each face with non-zero area will therefore 
-return two faces, an exterior face and an interior face.
+interior faces as clockwise.
+Each connected graph with non-zero area will result in one exterior face
+and one or more interior faces.
+The total area of the faces will be double the area of the graph.
 
 Source
 - https://stackoverflow.com/a/67169488. Posted by templatetypedef

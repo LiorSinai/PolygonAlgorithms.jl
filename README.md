@@ -1,5 +1,14 @@
 # Polygon Algorithms
 
+1. [Description](#description)
+    1. [Example](#example)
+    1. [Representation](#representation)
+1. [Polygon Functions](#polygon-functions)
+1. [Robustness](#Robustness)
+1. [Segments to Paths](#segments-to-paths)
+1. [Installation](#installation)
+1. [Related](#related)
+
 Implementations of Polygon algorithms.
 
 <p align="center">
@@ -8,24 +17,6 @@ Implementations of Polygon algorithms.
 </p>
 
 ## Description
-### Representation
-
-There are several ways to represent polygons:
-- As a path given as a vector of points (tuples). The last point is assumed to share an edge with the first: `n + 1 = 1`.
-- With the internal `PolygonAlgorithms.Polygon` struct. This struct consists of an `exterior` and `holes`. Each sub-object must be a list of points (tuples). The holes should be properly contained in the polygon.
-Validation is not performed by default. Pass `validate=true` to the constructor to enable it.
-- As a list of segments. This representation naturally allows multi-polygons and holes. 
-It is used internally for some algorithms including the `martinez_rueda_algorithm`.
-    - Segments are converted back to paths and polygons using `PolygonAlgorithms.segments_to_paths` and `PolygonAlgorithms.segments_to_polygons`. This requires casting to a grid to match starting and end points of segments.
-    This is achieved by rounding any decimal places, by default to the 6th decimal place.
-
-For indexing use `x_coords` and `y_coords`. 
-Common broadcasting operations are supplied such as `translate` and `rotate`.
-
-An alternative representation for polygons is as 2&times;N matrices. 
-This is not used here, but can be more efficient for indexing and broadcasting operations such as translation and rotation.
-To convert to this representation and back, use `matrix_to_points` or `points_to_matrix`.
-
 ### Example
 
 ```julia
@@ -49,7 +40,20 @@ idxs = vcat(1:length(poly), 1)
 plot(x_coords(poly, idxs), y_coords(poly, idxs))
 ```
 
+### Representation
+
+There are several ways to represent polygons:
+- As a path given as a vector of points (tuples). The last point is assumed to share an edge with the first: `n + 1 = 1`.
+    - For indexing use `x_coords` and `y_coords`. 
+- With the internal `PolygonAlgorithms.Polygon` struct. This struct consists of an `exterior` and `holes`. Each sub-object must be a list of points (tuples). The holes should be properly contained in the polygon.
+Validation is not performed by default. Pass `validate=true` to the constructor to enable it.
+- As a list of segments. This representation naturally allows multi-polygons and holes. 
+It is used internally for some algorithms including the `martinez_rueda_algorithm`. There is some data transformation when converting back from this representation to a path. See the section [Segments to paths](#segments-to-paths) for more detail.
+- As a 2&times;N matrix for `N` points. This is not used here, but can be more efficient for indexing and broadcasting operations such as translation and rotation. To convert to this representation and back, use `matrix_to_points` or `points_to_matrix`.
+
 ## Polygon Functions
+
+Common broadcasting operations are supplied such as `translate` and `rotate`.
 
 For all of the the following `n` and `m` are the number of vertices of the polygons.
 
@@ -102,7 +106,7 @@ For all of the the following `n` and `m` are the number of vertices of the polyg
     - Operation: boolean operations on polygons.
     - Algorithm: Martinez-Rueda.
     - Concave, convex and self-intersecting with holes. Can operate on multiple polygons at once.
-    - Annotates each segments with 4 fill criteria: filled by itself above and/or below, and filled by the other polygon above and/or below. Once this has been accomplished, it is trivial to select segments which match the given operation. These segments are then combined to form the final polygon.
+    - Annotates each segments with 4 fill criteria: filled by itself above and/or below, and filled by the other polygon above and/or below. Once this has been accomplished, it is trivial to select segments which match the given operation. These segments are then combined to form the final polygon(s). See the section [Segments to paths](#segments-to-paths) for more detail. 
     - Time complexity: `O((n+m+k)log(n+m))`. 
     - Reference: https://www.researchgate.net/publication/220163820_A_new_algorithm_for_computing_Boolean_operations_on_polygons
     - Blog post: https://sean.fun/a/polygon-clipping-pt2/
@@ -173,6 +177,22 @@ This example is from [Clipper2: test 141](https://github.com/AngusJohnson/Clippe
 Hence for this example the intersections will be collapsed to a single point, and the segments adjusted slightly.
 This means that the two halves of each segment will no longer lie perfectly on a straight line.
 
+## Segments to paths
+
+Segments are converted back to paths and polygons by computing the faces of a graph. This has several implications.
+- It requires casting to a grid to match starting and end points of segments. This is achieved by rounding any decimal places, by default to the 6th decimal place.
+- Every zero area polygon (lines) will return a single face. 
+- For every non-zero area polygon, the graph will always have one counter-clockwise exterior and one or more clockwise interiors. Every area in the graph is therefore counted twice. There are two methods to reduce the faces in half:
+    - `MERGE_FACES`: all exterior faces that are not holes and holes are interior faces that are holes.
+    - `SPLIT_FACES`: all interior faces that are not holes that are on the exterior and interior faces that are holes that are not on the exterior.
+
+The following is a comparison of the two while running `difference(subject, clip; face_selection=method)`:
+<p align="center">
+  <img src="images/face_selection.png" width="80%" style="padding:5px"/>
+</p>
+
+The functions which implement this are `PolygonAlgorithms.segments_to_paths` and `PolygonAlgorithms.segments_to_polygons`.
+
 ## Installation
 
 In the Julia REPL:
@@ -187,7 +207,7 @@ Optionally, tests can be run with:
 (@v1.x) pkg> test PolygonAlgorithms
 ```
 
-For locally development: download the GitHub repository. Then in the Julia REPL:
+For local development: download the GitHub repository. Then in the Julia REPL:
 ```
 julia> ] #enter package mode
 (@v1.x) pkg> dev path\\to\\PolygonAlgorithms

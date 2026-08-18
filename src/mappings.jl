@@ -67,7 +67,7 @@ Each face with non-zero area will return two faces, a counter-clockwise face wit
 and a clockwise face with negative area (interior).
 The following selection strategies are used to return half the faces with no duplicates:
 - `MERGE_FACES`: selects all exterior faces that are not holes with interior faces that are holes, resulting in connected graphs being be merged together. This returns fewer, larger polygons with holes.
-- `SPLIT_FACES`: for the exteriors, select interior faces that are on the exterior faces and reverse each to make them counter-clockwise. Then select holes that are not on the exterior. This splits connected graphs across multiple interiors and returns smaller polygons with fewer explicit holes.
+- `SPLIT_FACES`: As exteriors, select all interior faces that are not holes that are on the exterior and reverse to make them counter-clockwise. As holes, select interior faces that are holes that are not on the exterior. This splits connected graphs across multiple interiors and returns smaller polygons with fewer explicit holes.
 - `CLOCKWISE_FACES`: all clockwise faces.
 - `COUNTER_CLOCKWISE_FACES`: all counter-clockwise faces.
 """
