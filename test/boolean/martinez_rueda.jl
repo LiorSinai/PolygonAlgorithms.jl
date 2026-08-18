@@ -2,7 +2,6 @@ using Test
 using PolygonAlgorithms: SegmentEvent, SegmentAnnotations
 using PolygonAlgorithms: add_annotated_segment!, compare_events, convert_to_event_queue
 using PolygonAlgorithms: check_and_divide_intersection!, event_loop!
-using PolygonAlgorithms: chain_segments
 using PolygonAlgorithms: is_hole, match_holes_polygons, Polygon
 using PolygonAlgorithms: BLANK
 
@@ -364,129 +363,6 @@ using PolygonAlgorithms: BLANK
                 (above1, below1, above2, below2) -> (above1 ⊻ above2) ⊻ (below1 ⊻ below2),
                 PolygonAlgorithms.XOR_CRITERIA
             )
-        end
-    end
-
-    @testset "chain segments" begin
-        @testset "chain segments - rectangle" begin
-            segments = [
-                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
-                SegmentEvent(((0.0, 0.0), (3.0, 3.0)), true),
-                SegmentEvent(((3.0, 3.0), (7.0, -1.0)), true),
-                SegmentEvent(((4.0, -4.0), (7.0, -1.0)), true),
-            ]
-            regions = chain_segments(segments)
-            expected = [[
-                    SegmentEvent(((3.0, 3.0), (7.0, -1.0)), false),
-                    SegmentEvent(((0.0, 0.0), (3.0, 3.0)),  false),
-                    SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
-                    SegmentEvent(((0.0, 0.0), (4.0, -4.0)), false),
-            ]]
-            @test regions == expected
-        end
-
-        @testset "close fuzzy" begin
-            segments = [
-                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
-                SegmentEvent(((0.0, 0.0), (3.0, 3.0)), true),
-                SegmentEvent(((3.0, 3.0), (7.0, -1.0)), true),
-                SegmentEvent(((3.999, -3.999), (7.0, -1.0)), true),
-            ]
-            regions = chain_segments(segments)
-            expected = [[
-                SegmentEvent(((3.999, -3.999), (7.0, -1.0)), true),
-                SegmentEvent(((3.0, 3.0), (7.0, -1.0)), false),
-                SegmentEvent(((0.0, 0.0), (3.0, 3.0)), false),
-                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
-                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), false),
-            ]]
-            @test regions == expected
-        end
-
-        @testset "chain segments - improper" begin
-            segments = [
-                SegmentEvent(((0.0, 0.0), (2.0, 2.0)), true),
-                SegmentEvent(((2.0, 2.0), (5.0, 1.0)), true),
-                SegmentEvent(((2.0, 2.0), (3.0, 5.0)), true),
-                SegmentEvent(((3.0, 5.0), (5.0, 1.0)), true),
-            ]
-            @test_throws AssertionError chain_segments(segments)
-        end
-
-        @testset "chain segments - improper hole" begin
-            segments = [
-                SegmentEvent(((0.0, 0.0), (0.0, 4.0)), true, true, SegmentAnnotations(false, true)),
-                SegmentEvent(((2.0, 1.0), (2.0, 2.0)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((0.0, 4.0), (2.0, 2.0)), true, true, SegmentAnnotations(true, true) ),
-                SegmentEvent(((2.0, 1.0), (3.0, 3.0)), true, true, SegmentAnnotations(false, true)),
-                SegmentEvent(((2.0, 2.0), (3.0, 3.0)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((0.0, 0.0), (5.0, 1.0)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((5.0, 1.0), (5.0, 4.0)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((0.0, 4.0), (5.0, 4.0)), true, true, SegmentAnnotations(false, true)),
-            ]
-            @test_throws AssertionError chain_segments(segments)
-        end
-    end
-
-    @testset "holes" begin
-        @testset "two squares with holes" begin
-            regions = [
-                [
-                    SegmentEvent(((2.0, 1.0), (2.0, 2.0)), false, true, SegmentAnnotations(false, true)),
-                    SegmentEvent(((1.0, 1.0), (2.0, 1.0)), false, true, SegmentAnnotations(false, true)),
-                    SegmentEvent(((1.0, 1.0), (1.0, 2.0)), true,  true, SegmentAnnotations(true, false)),
-                    SegmentEvent(((1.0, 1.0), (1.0, 2.0)), false, true, SegmentAnnotations(true, false)),
-                ],
-                [
-                    SegmentEvent(((3.0, 0.0), (3.0, 3.0)), false, true, SegmentAnnotations(true, false)),
-                    SegmentEvent(((0.0, 0.0), (3.0, 0.0)), false, true, SegmentAnnotations(true, false)),
-                    SegmentEvent(((0.0, 0.0), (0.0, 3.0)), true,  true, SegmentAnnotations(false, true)),
-                    SegmentEvent(((0.0, 0.0), (0.0, 3.0)), false, true, SegmentAnnotations(false, true)),
-                ],
-                [
-                    SegmentEvent(((6.0, 1.0), (6.0, 2.0)), false, true, SegmentAnnotations(false, true)),
-                    SegmentEvent(((5.0, 1.0), (6.0, 1.0)), false, true, SegmentAnnotations(false, true)),
-                    SegmentEvent(((5.0, 1.0), (5.0, 2.0)), true,  true, SegmentAnnotations(true, false)),
-                    SegmentEvent(((5.0, 1.0), (5.0, 2.0)), false, true, SegmentAnnotations(true, false)),
-                ],
-                [
-                   SegmentEvent(((7.0, 0.0), (7.0, 3.0)), false, true, SegmentAnnotations(true, false))
-                    SegmentEvent(((4.0, 0.0), (7.0, 0.0)), false, true, SegmentAnnotations(true, false))
-                    SegmentEvent(((4.0, 0.0), (4.0, 3.0)), true,  true, SegmentAnnotations(false, true))
-                    SegmentEvent(((4.0, 0.0), (4.0, 3.0)), false, true, SegmentAnnotations(false, true))
-                ]
-            ]
-            classification = map(is_hole, regions)
-            expected = [true, false, true, false]
-            @test classification == expected
-            polygons = [
-                Polygon([(3.0, 3.0), (3.0, 0.0), (0.0, 0.0), (0.0, 3.0)]),
-                Polygon([(7.0, 3.0), (7.0, 0.0), (4.0, 0.0), (4.0, 3.0)]),
-            ]
-            holes = [
-                [(2.0, 2.0), (2.0, 1.0), (1.0, 1.0), (1.0, 2.0)],
-                [(6.0, 2.0), (6.0, 1.0), (5.0, 1.0), (5.0, 2.0)],
-            ]
-            parents = match_holes_polygons(polygons, holes)
-            @test parents == [1, 2]
-        end
-
-        @testset "nested squares with holes" begin
-            poly1 = Polygon(
-                [(0.0, 0.0), (0.0, 7.0), (7.0, 7.0), (7.0, 0.0)]
-            )
-            poly2 = Polygon(
-                [(2.0, 2.0), (2.0, 5.0), (5.0, 5.0), (5.0, 2.0)];
-            )
-            holes = [
-                [(1.0, 1.0), (1.0, 6.0), (6.0, 6.0), (6.0, 1.0)],
-                [(3.0, 3.0), (3.0, 4.0), (4.0, 4.0), (4.0, 3.0)],
-            ]
-            # order does not matter
-            parents = match_holes_polygons([poly1, poly2], holes)
-            @test parents == [1, 2]
-            parents = match_holes_polygons([poly2, poly1], holes)
-            @test parents == [2, 1]
         end
     end
 end

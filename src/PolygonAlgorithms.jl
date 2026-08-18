@@ -1,26 +1,33 @@
 module PolygonAlgorithms
 
-import Base: contains, insert!, iterate, merge!, push!, ==
+import Base: contains, getindex, insert!, iterate, merge!, push!, reverse, ==
 import Base: length, show
 
 include("definitions.jl")
 include("utils.jl")
+
+# data structures
 include("data_structures/linked_list.jl")
 include("data_structures/point_set.jl")
 include("data_structures/segment_event.jl")
 
+# Foundation algorithms
 include("orientation.jl")
 include("bounds.jl")
 include("convex_hull.jl")
 include("intersect.jl")
 include("moments.jl")
-
 include("point_in_polygon.jl")
-include("line_sweep.jl")
 
+# Complex algorithms
+include("line_sweep.jl")
 include("data_structures/polygon.jl")
 
+include("graphs/face_computation.jl")
+include("mappings.jl")
+
 include("polygon_boolean.jl")
+
 include("deprecations.jl")
 
 export get_orientation, Orientation, on_segment
