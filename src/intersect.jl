@@ -111,7 +111,7 @@ Time complexity is `O(nm)` where `n` and `m` are the number of vertices of polyg
 """
 function intersect_edges(
     polygon1::Path2D{T}, polygon2::Path2D{T}
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) where T
     points = Point2D{T}[]
     n = length(polygon1)
@@ -120,7 +120,7 @@ function intersect_edges(
         edge1 = (polygon1[i], polygon1[i % n + 1])
         for j in 1:m
             edge2 = (polygon2[j], polygon2[j % m + 1])
-            p = intersect_geometry(edge1, edge2; atol=atol)
+            p = intersect_geometry(edge1, edge2; atol=atol, rtol=rtol)
             if !isnothing(p)
                 push!(points, (p[1], p[2]))
             end

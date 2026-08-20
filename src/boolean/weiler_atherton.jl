@@ -43,9 +43,9 @@ function weiler_atherton_algorithm(
     if isempty(regions)
         p1 = get_first_non_intersection_point(list1)
         p2 = get_first_non_intersection_point(list2)
-        if contains(polygon2, p1)
+        if contains(polygon2, p1; atol=atol)
             return [polygon1]
-        elseif contains(polygon1, p2)
+        elseif contains(polygon1, p2; atol=atol)
             return [polygon2]
         end
     end

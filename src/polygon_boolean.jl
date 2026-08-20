@@ -350,14 +350,14 @@ end
 
 function intersect_convex(
     alg::PointSearchAlg, polygon1::Path2D, polygon2::Path2D
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
     #https://www.swtestacademy.com/intersection-convex-polygons-algorithm/
-    intersection_points = intersect_edges(polygon1, polygon2; atol=atol)
+    intersection_points = intersect_edges(polygon1, polygon2; atol=atol, rtol=rtol)
     
-    i1_in_2 = [contains(polygon2, p) for p in polygon1]
+    i1_in_2 = [contains(polygon2, p; atol=atol) for p in polygon1]
     p1_in_2 = polygon1[i1_in_2]
-    i2_in_1 = [contains(polygon1, p) for p in polygon2]
+    i2_in_1 = [contains(polygon1, p; atol=atol) for p in polygon2]
     p2_in_1 = polygon2[i2_in_1]
 
     if isempty(intersection_points) && isempty(p1_in_2) && isempty(p2_in_1)
