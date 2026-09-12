@@ -1,7 +1,7 @@
 using PolygonAlgorithms
 using PolygonAlgorithms: MartinezRuedaAlg, Polygon, translate
 
-@testset "polygon boolean - $alg" for alg in [
+@testset "polygon boolean pairs - $alg" for alg in [
     MartinezRuedaAlg(),
 ]
 

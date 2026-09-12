@@ -1,7 +1,7 @@
 using PolygonAlgorithms: directed_graph_from_segments, map_connections, compute_graph_faces
 using PolygonAlgorithms: SegmentEvent, AnnotatedSegment
 
-@testset "graph face computation segments" begin
+@testset "graph face computation" begin
     diamond = [
         SegmentEvent(((1.0, 1.0), (3.0, 4.0)), true),
         SegmentEvent(((3.0, 4.0), (5.0, 1.0)), true),
