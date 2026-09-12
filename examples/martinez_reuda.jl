@@ -1,7 +1,8 @@
 using Plots
 using PolygonAlgorithms
 using PolygonAlgorithms: x_coords, y_coords
-using PolygonAlgorithms: SegmentEvent, event_loop!, convert_to_event_queue, add_annotated_segment!
+using PolygonAlgorithms: SegmentEvent, Segment2D
+using PolygonAlgorithms: event_loop!, convert_to_event_queue, add_annotated_segment!
 using PolygonAlgorithms: apply_selection_criteria
 
 function plot_segment_event!(
@@ -17,24 +18,18 @@ function plot_segment_event!(
     segment = event.segment
     plot!(canvas, [segment[1][1], segment[2][1]], [segment[1][2], segment[2][2]]; arrow=true, label="", color=color, options...)
     midpoint = ((segment[1][1]+segment[2][1])/2, (segment[1][2]+segment[2][2])/2)
-    # Vectors
-    Δx = (segment[2][1] - segment[1][1])
-    Δy = (segment[2][2] - segment[1][2])
-    Δr = sqrt(Δx * Δx + Δy *Δy )
-    n = (d * Δy/Δr,  d * Δx/Δr) # normal vector to the segment
-    u = (d * Δx/Δr,  d * Δy/Δr) # unit vector to the segment
     # self annotations
     annotations = event.self_annotations
     filled = isnothing(annotations.fill_above) ? :black : (annotations.fill_above ? self_color : :white)
-    scatter!(canvas, [midpoint[1] - n[1] + u[1]], [midpoint[2] + n[2] + u[2]], marker=:circle, color=filled, label="")
+    scatter!(canvas, [midpoint[1] + d], [midpoint[2] + d], marker=:utriangle, color=filled, label="")
     filled = isnothing(annotations.fill_below) ? :black : (annotations.fill_below ? self_color : :white)
-    scatter!(canvas, [midpoint[1] + n[1] + u[1]], [midpoint[2] - n[2] + u[2]], marker=:circle, color=filled, label="")
+    scatter!(canvas, [midpoint[1] + d], [midpoint[2] - d], marker=:dtriangle, color=filled, label="")
     # other annotations
     annotations = event.other_annotations
     filled = isnothing(annotations.fill_above) ? :black : (annotations.fill_above ? other_color : :white)
-    scatter!(canvas, [midpoint[1] - n[1] - u[1]], [midpoint[2] + n[2] - u[2]], marker=:diamond, color=filled, label="")
+    scatter!(canvas, [midpoint[1] - d], [midpoint[2] + d], marker=:utriangle, color=filled, label="")
     filled = isnothing(annotations.fill_below) ? :black : (annotations.fill_below ? other_color : :white)
-    scatter!(canvas, [midpoint[1] + n[1] - u[1]], [midpoint[2] - n[2] - u[2]], marker=:diamond, color=filled, label="")
+    scatter!(canvas, [midpoint[1] - d], [midpoint[2] - d], marker=:dtriangle, color=filled, label="")
 end
 
 function plot_segment!(
@@ -88,14 +83,8 @@ canvas_shapes = plot(x_coords(polygon1[idxs1]), y_coords(polygon1[idxs1]), aspec
 idxs2 = vcat(1:length(polygon2), 1)
 plot!(canvas_shapes, x_coords(polygon2[idxs2]), y_coords(polygon2[idxs2]), arrow=false, fill=(0, 0.5))
 
-canvas_annotations = plot(aspect_ratio=:equal)
-d = calc_annotation_distance(canvas_annotations, polygon2)
-# for (i, event) in enumerate(annotated_segments1)
-#     plot_segment_event!(canvas_annotations, event; color=colors[1], d=d, self_color=colors[1], other_color=colors[2])
-# end
-# for (i, event) in enumerate(annotated_segments2)
-#     plot_segment_event!(canvas_annotations, event; color=colors[2], d=d, self_color=colors[2], other_color=colors[2])
-# end
+canvas_annotations = deepcopy(canvas_shapes)
+d = 0.15
 for (i, event) in enumerate(annotated_segments3)
     col = event.primary ? colors[1] : colors[2]
     plot_segment_event!(canvas_annotations, event; color=col, d=d, self_color=colors[1], other_color=colors[2])
@@ -111,4 +100,4 @@ for (i, event) in enumerate(selected)
 end
 canvas_selected
 
-plot(canvas_annotations, canvas_selected)
+plot(canvas_annotations, canvas_selected; layout=(2, 1))

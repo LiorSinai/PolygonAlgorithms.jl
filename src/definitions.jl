@@ -4,6 +4,8 @@ const Path2D{T<:AbstractFloat} = Vector{<:Point2D{T}}
 const default_atol = 1e-6
 const default_rtol = 1e-6
 
+decimal_tolerance(atol::AbstractFloat) = atol > 1 ? 0 : ceil(Int, min(18, -log10(atol)))
+
 """
     Line2D(a, b, c)
 

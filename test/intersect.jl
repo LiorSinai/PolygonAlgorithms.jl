@@ -1,6 +1,6 @@
 using PolygonAlgorithms: PointSet, translate
 
-@testset "edge intersections" begin
+@testset "segment intersections" begin
 
 @testset "intersect segments" begin
     seg1 = ((1.0, 1.0), (2.0, 3.0));
