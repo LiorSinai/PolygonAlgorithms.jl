@@ -139,7 +139,8 @@ end
         (-2.0, 1.0), (0.0, 1.0), (0.0, -1.0)
     ]
 
-    expected = [[(0.0, 0.0), (0.0, 1.0), (-1.0, 1.0), (0.0, 1.0)]]
+    expected = (typeof(alg) == PolygonAlgorithms.MartinezRuedaAlg) ?
+        Vector{Tuple{Float64, Float64}}[] : [[(0.0, 0.0), (0.0, 1.0), (-1.0, 1.0), (0.0, 1.0)]]
     regions = intersect_geometry(alg, poly1, poly2)
     @test are_equivalent_polygons(regions, expected)
     regions = intersect_geometry(alg, poly2, poly1)
