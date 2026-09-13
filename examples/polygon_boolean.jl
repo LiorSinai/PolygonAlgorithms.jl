@@ -27,7 +27,7 @@ end
 θs = 0.0:0.01:6π
 rs = θs
 spiral = [(r * cos(θ), r * sin(θ)) for (r, θ) in zip(rs, θs)] 
-spiral = vcat(spiral, reverse([0.8 .* p for p in spiral[3:end]]))
+spiral = vcat(spiral, reverse([0.8 .* p for p in spiral]))
 star = [
     (0.0, 18.0), (3.0, 5.0), (15.0, 5.0), (5.0, 0.0), (10.0, -12.0), (0.0, -2.0),
     (-10.0, -12.0), (-5.0, 0.0), (-15.0, 5.0), (-3.0, 5.0)
