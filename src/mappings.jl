@@ -91,15 +91,14 @@ function segments_to_paths(
         holes = empty(exteriors)
     else
         moments = first_moment.(polygons)
-        are_exteriors = moments .>= 0.0 # counter-clockwise
+        are_exteriors = moments .> atol # counter-clockwise
+        are_interiors = moments .< -atol # clockwise
         not_holes = .!is_hole.(faces[are_exteriors], true) # ignore exteriors of holes
         if face_selection == MERGE_FACES
-            are_interiors = .!are_exteriors # non-exteriors
             are_holes = is_hole.(faces[are_interiors], false) # ignore repeated interiors
             exteriors = polygons[are_exteriors][not_holes]
             holes = polygons[are_interiors][are_holes]
         else # SPLIT_FACES
-            are_interiors = moments .<= 0.0 # clockwise, overlap at zero area polygons (lines)
             are_holes = is_hole.(faces[are_interiors], false)
             interiors = polygons[are_interiors]
             inner_faces = interiors[.!are_holes]
