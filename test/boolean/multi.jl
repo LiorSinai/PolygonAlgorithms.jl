@@ -106,11 +106,16 @@ end
         ]
         regions = difference_geometry(alg, rect1, rect2, triangle)
         @test are_equivalent_polygons(regions, expected)
-        regions = difference_geometry(alg, rect1, rect2)
-        regions2 = difference_geometry(alg, regions, triangle)
-        @test are_equivalent_polygons(regions2, expected)
-        regions2 = difference_geometry(alg, regions[2], regions[1], triangle) # top region is no longer primary
-        @test are_equivalent_polygons(regions2, [[(1.0, 1.875), (1.0, 2.0), (0.0, 2.0), (0.0, 1.625),]])
+        regions12 = difference_geometry(alg, rect1, rect2)
+        expected12 = [
+            [(1.0, 0.5), (0.0, 0.5), (0.0, 0.0), (1.0, 0.0)],
+            [(1.0, 1.5), (1.0, 2.0), (0.0, 2.0), (0.0, 1.5)]
+        ]
+        @test are_equivalent_polygons(regions12, expected12)
+        regions123 = difference_geometry(alg, regions, triangle)
+        @test are_equivalent_polygons(regions123, expected)
+        regions13 = difference_geometry(alg, expected12[2], expected12[1], triangle) # top region is no longer primary
+        @test are_equivalent_polygons(regions13, [[(1.0, 1.875), (1.0, 2.0), (0.0, 2.0), (0.0, 1.625),]])
 
         # combine rect1 + triangle. They overlap so equivalent to self-intersecting with holes
         regions3 = difference_geometry(alg, [rect1, triangle], rect2; face_selection=MERGE_FACES)
