@@ -17,34 +17,20 @@ end
 function cyclic_equality(polygon1::Polygon, polygon2::Polygon)
     if !cyclic_equality(polygon1.exterior, polygon2.exterior)
         return false
-    elseif !are_equivalent_collections(polygon1.holes, polygon2.holes)
+    elseif !are_equivalent_cyclic_collections(polygon1.holes, polygon2.holes)
         return false
     end
     true
 end
 
-function are_equivalent_polygons(a::AbstractVector{<:Polygon}, b::AbstractVector{<:Polygon})
-    if length(a) != length(b)
-        return false
-    elseif length(a) == 0
-        return true
-    end
-    matched = zeros(Int, length(a))
-    for (i, a_i) in enumerate(a)
-        for (j, b_j) in enumerate(b)
-            if j in matched
-                continue
-            end
-            if cyclic_equality(a_i, b_j)
-                matched[i] = j
-                break
-            end
-        end
-        if matched[i] == 0
-            return false
-        end
-    end
-    true
+function are_equivalent_polygons(
+    a::AbstractVector{<:Polygon}, b::AbstractVector{<:Polygon};
+    digits::Int=6
+    )
+    round_pts(p) = map(pt -> round.(pt, digits=digits) .+ 0.0, p) |> compress_cyclic
+    a = map(p -> Polygon(round_pts(p.exterior); holes=map(round_pts, p.holes)), a)
+    b = map(p -> Polygon(round_pts(p.exterior); holes=map(round_pts, p.holes)), b)
+    are_equivalent_cyclic_collections(a, b; match_reverse=false)
 end
 
 """

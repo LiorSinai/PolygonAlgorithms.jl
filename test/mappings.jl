@@ -2,7 +2,7 @@ using Test
 using PolygonAlgorithms: AnnotatedSegment, SegmentEvent, SegmentAnnotations, Polygon
 using PolygonAlgorithms: is_hole, match_holes_polygons, segments_to_paths, segments_to_polygons
 using PolygonAlgorithms: MERGE_FACES, SPLIT_FACES
-using PolygonAlgorithms: are_equivalent_collections, are_equivalent_polygons
+using PolygonAlgorithms: are_equivalent_cyclic_collections, are_equivalent_polygons
 
 @testset "mappings" begin
     reverse_chain(vec::Vector{<:AnnotatedSegment}) = reverse!([reverse(x) for x in vec])
@@ -110,7 +110,7 @@ using PolygonAlgorithms: are_equivalent_collections, are_equivalent_polygons
             expected = [
                 [(4.0, -4.0), (7.0, -1.0), (3.0, 3.0), (0.0, 0.0)]
             ]
-            @test are_equivalent_collections(exteriors, expected; match_reverse=false)
+            @test are_equivalent_cyclic_collections(exteriors, expected; match_reverse=false)
             @test isempty(holes)
         end
 
@@ -137,7 +137,7 @@ using PolygonAlgorithms: are_equivalent_collections, are_equivalent_polygons
             expected = [
                 [(4.0, -4.0), (7.0, -1.0), (3.0, 3.0), (0.0, 0.0)]
             ]
-            @test are_equivalent_collections(exteriors, expected; match_reverse=false)
+            @test are_equivalent_cyclic_collections(exteriors, expected; match_reverse=false)
             @test isempty(holes)
         end
 
@@ -149,13 +149,13 @@ using PolygonAlgorithms: are_equivalent_collections, are_equivalent_polygons
                 SegmentEvent(((3.0, 5.0), (5.0, 1.0)), true),
             ]
             exteriors, holes = segments_to_paths(segments; face_selection=SPLIT_FACES)
-            @test are_equivalent_collections(exteriors, [[(3.0, 5.0), (2.0, 2.0), (5.0, 1.0)]]; match_reverse=false)
+            @test are_equivalent_cyclic_collections(exteriors, [[(3.0, 5.0), (2.0, 2.0), (5.0, 1.0)]]; match_reverse=false)
             @test isempty(holes)
             exteriors, holes = segments_to_paths(segments; face_selection=MERGE_FACES)
             expected = [
                 [(2.0, 2.0), (0.0, 0.0), (2.0, 2.0), (5.0, 1.0), (3.0, 5.0)]
             ]
-            @test are_equivalent_collections(exteriors, expected; match_reverse=false)
+            @test are_equivalent_cyclic_collections(exteriors, expected; match_reverse=false)
             @test isempty(holes)
         end
 
@@ -174,13 +174,13 @@ using PolygonAlgorithms: are_equivalent_collections, are_equivalent_polygons
             expected = [
                 [(0.0, 4.0), (2.0, 2.0), (3.0, 3.0), (2.0, 1.0), (2.0, 2.0), (0.0, 4.0), (0.0, 0.0), (5.0, 1.0), (5.0, 4.0)]
             ]
-            @test are_equivalent_collections(exteriors, expected; match_reverse=false)
+            @test are_equivalent_cyclic_collections(exteriors, expected; match_reverse=false)
             @test isempty(holes)
             exteriors, holes = segments_to_paths(segments; face_selection=MERGE_FACES)
             expected_exteriors = [[(0.0, 4.0), (0.0, 0.0), (5.0, 1.0), (5.0, 4.0)]]
             expected_holes = [[(2.0, 1.0), (2.0, 2.0), (3.0, 3.0)]]
-            @test are_equivalent_collections(exteriors, expected_exteriors; match_reverse=false)
-            @test are_equivalent_collections(holes, expected_holes; match_reverse=false)
+            @test are_equivalent_cyclic_collections(exteriors, expected_exteriors; match_reverse=false)
+            @test are_equivalent_cyclic_collections(holes, expected_holes; match_reverse=false)
         end
     end
 

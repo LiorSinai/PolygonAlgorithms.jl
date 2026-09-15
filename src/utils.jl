@@ -39,6 +39,10 @@ end
     cyclic_equality(a, b)
 
 A simple cyclic equality algorithm.
+
+```
+cyclic_equality([1, 2, 3], [2, 3, 1]) # true
+```
 """
 function cyclic_equality(a::AbstractVector, b::AbstractVector)
     if length(a) != length(b)
@@ -49,20 +53,28 @@ function cyclic_equality(a::AbstractVector, b::AbstractVector)
     n = length(a)
     doubled_a = vcat(a, a)
     for i in 1:n
-        match = true
-        for j in 1:n
-            if doubled_a[i + j - 1] != b[j]
-                match = false
-                break
-            end
+        if view(doubled_a, i:(i + n - 1)) == b
+            return true
         end
-        match && return true
     end
     false
 end
 
-function are_equivalent_collections(
-    a::AbstractVector{<:AbstractVector}, b::AbstractVector{<:AbstractVector};
+function compress_cyclic(a::AbstractVector)
+    b = eltype(a)[]
+    for x in a
+        if isempty(b) || (x != b[end])
+            push!(b, x)
+        end
+    end
+    if length(b) > 0 && (b[end] == b[1])
+        pop!(b)
+    end
+    b
+end
+
+function are_equivalent_cyclic_collections(
+    a::AbstractVector, b::AbstractVector;
     match_reverse::Bool=true
     )
     if length(a) != length(b)
@@ -76,7 +88,8 @@ function are_equivalent_collections(
             if j in matched
                 continue
             end
-            if cyclic_equality(a_i, b_j) || (match_reverse && cyclic_equality(a_i, reverse(b_j)))
+            if cyclic_equality(a_i, b_j) || 
+                (match_reverse && cyclic_equality(a_i, reverse(b_j)))
                 matched[i] = j
                 break
             end
@@ -89,16 +102,29 @@ function are_equivalent_collections(
 end
 
 """
-    are_equivalent_polygons(a, b; digits=6, match_reverse=true)
+    are_equivalent_polygons(polygon1, polygon2; digits=6, match_reverse=true)
 
-Are equivalent collections of polygons.
-That is, there is a 1-1 match (cyclic equality) for each polygon in `a` with a polygon from `b`.
+Determine if the polygons are equivalent,
+or alternatively, if a collections of polygons are equivalent.
+
+Equivalence between two polygons is defined as a cyclic equality ignoring repeat points.
+Equivalence between two collections is defined as a 1-1 equivalence for each polygon in `a` with a polygon from `b`.
+
+Warning: this function is used only for testing and it is not optimised.
 """
+function are_equivalent_polygons(a::T, b::T
+    ; digits::Int=6, match_reverse::Bool=true
+    ) where T <: AbstractVector{<:Point2D}
+    a = map(pt -> round.(pt, digits=digits) .+ 0.0, a) |> compress_cyclic
+    b = map(pt -> round.(pt, digits=digits) .+ 0.0, b) |> compress_cyclic
+    cyclic_equality(a, b) || (match_reverse && cyclic_equality(reverse(a), b))
+end
+
 function are_equivalent_polygons(
-    a::AbstractVector{<:AbstractVector{<:T}}, b::AbstractVector{<:AbstractVector{<:T}};
-    digits::Int=6, match_reverse::Bool=true
-    ) where T <: Point2D
-    a = map(pts -> map(pt -> round.(pt, digits=digits) .+ 0.0, pts), a)
-    b = map(pts -> map(pt -> round.(pt, digits=digits) .+ 0.0, pts), b)
-    are_equivalent_collections(a, b; match_reverse=match_reverse)
+    a::AbstractVector{<:T}, b::AbstractVector{<:T}
+    ;digits::Int=6, match_reverse::Bool=true
+    ) where T <: AbstractVector{<:Point2D}
+    a = map(pts -> map(pt -> round.(pt, digits=digits) .+ 0.0, pts) |> compress_cyclic, a)
+    b = map(pts -> map(pt -> round.(pt, digits=digits) .+ 0.0, pts) |> compress_cyclic, b)
+    are_equivalent_cyclic_collections(a, b; match_reverse=match_reverse)
 end
