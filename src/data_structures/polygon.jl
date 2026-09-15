@@ -17,7 +17,7 @@ end
 function cyclic_equality(polygon1::Polygon, polygon2::Polygon)
     if !cyclic_equality(polygon1.exterior, polygon2.exterior)
         return false
-    elseif !are_equivalent_collections(polygon1.holes, polygon2.holes)
+    elseif !are_equivalent_cyclic_collections(polygon1.holes, polygon2.holes)
         return false
     end
     true
@@ -30,7 +30,7 @@ function are_equivalent_polygons(
     round_pts(p) = map(pt -> round.(pt, digits=digits) .+ 0.0, p) |> compress_cyclic
     a = map(p -> Polygon(round_pts(p.exterior); holes=map(round_pts, p.holes)), a)
     b = map(p -> Polygon(round_pts(p.exterior); holes=map(round_pts, p.holes)), b)
-    are_equivalent_collections(a, b; match_reverse=false)
+    are_equivalent_cyclic_collections(a, b; match_reverse=false)
 end
 
 """

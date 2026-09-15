@@ -73,7 +73,7 @@ function compress_cyclic(a::AbstractVector)
     b
 end
 
-function are_equivalent_collections(
+function are_equivalent_cyclic_collections(
     a::AbstractVector, b::AbstractVector;
     match_reverse::Bool=true
     )
@@ -126,5 +126,5 @@ function are_equivalent_polygons(
     ) where T <: AbstractVector{<:Point2D}
     a = map(pts -> map(pt -> round.(pt, digits=digits) .+ 0.0, pts) |> compress_cyclic, a)
     b = map(pts -> map(pt -> round.(pt, digits=digits) .+ 0.0, pts) |> compress_cyclic, b)
-    are_equivalent_collections(a, b; match_reverse=match_reverse)
+    are_equivalent_cyclic_collections(a, b; match_reverse=match_reverse)
 end
