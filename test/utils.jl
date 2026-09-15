@@ -1,5 +1,6 @@
 using Test
-using PolygonAlgorithms: points_to_matrix, matrix_to_points, cyclic_equality
+using PolygonAlgorithms: points_to_matrix, matrix_to_points
+using PolygonAlgorithms: compress_cyclic, cyclic_equality
 
 @testset "utils" begin
 
