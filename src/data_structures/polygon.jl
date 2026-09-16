@@ -14,10 +14,12 @@ end
 ==(polygon1::Polygon, polygon2::Polygon) = 
     (polygon1.exterior == polygon2.exterior) && (polygon1.holes == polygon2.holes)
 
+isless(poly1::Polygon, poly2::Polygon) = isless(poly1.exterior, poly2.exterior) # used for sorting. See cyclic_set_equality
+
 function cyclic_equality(polygon1::Polygon, polygon2::Polygon)
     if !cyclic_equality(polygon1.exterior, polygon2.exterior)
         return false
-    elseif !are_equivalent_cyclic_collections(polygon1.holes, polygon2.holes)
+    elseif !cyclic_set_equality(polygon1.holes, polygon2.holes)
         return false
     end
     true
@@ -36,7 +38,14 @@ function are_equivalent_polygons(
     )
     a = map(p->_normalise_polygon(p; digits=digits), a)
     b = map(p->_normalise_polygon(p; digits=digits), b)
-    are_equivalent_cyclic_collections(a, b; match_reverse=false)
+    cyclic_set_equality(a, b; match_reverse=false)
+end
+
+function minimal_rotation(p::Polygon)
+    Polygon(
+        minimal_rotation(p.exterior),
+        sort!(minimal_rotation.(p.holes))
+    )
 end
 
 """

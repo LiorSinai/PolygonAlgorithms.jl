@@ -1,6 +1,6 @@
 using PolygonAlgorithms: directed_graph_from_segments, map_connections, compute_graph_faces
 using PolygonAlgorithms: SegmentEvent, AnnotatedSegment
-using PolygonAlgorithms: are_equivalent_cyclic_collections
+using PolygonAlgorithms: cyclic_set_equality
 
 @testset "graph face computation" begin
     diamond = [
@@ -140,7 +140,7 @@ using PolygonAlgorithms: are_equivalent_cyclic_collections
             AnnotatedSegment((3.0, 1.0), (6.0, 1.0)),
             AnnotatedSegment((6.0, 1.0), (3.0, 1.0)),
         ]]
-        @test are_equivalent_cyclic_collections(faces, expected; match_reverse=false)
+        @test cyclic_set_equality(faces, expected)
     end
 
     @testset "faces - diamond" begin
@@ -167,7 +167,7 @@ using PolygonAlgorithms: are_equivalent_cyclic_collections
                 AnnotatedSegment((5.0, 1.0),(3.0, 4.0)),
             ],
         ]
-        @test are_equivalent_cyclic_collections(faces, expected; match_reverse=false)
+        @test cyclic_set_equality(faces, expected)
     end
 
     @testset "faces - diamond with diagonal" begin
@@ -198,7 +198,7 @@ using PolygonAlgorithms: are_equivalent_cyclic_collections
                 AnnotatedSegment((3.0, -2.0), (5.0, 1.0)),
             ],
         ]
-       @test are_equivalent_cyclic_collections(faces, expected; match_reverse=false)
+       @test cyclic_set_equality(faces, expected)
     end
 
     @testset "faces - improper" begin
@@ -233,7 +233,7 @@ using PolygonAlgorithms: are_equivalent_cyclic_collections
                 AnnotatedSegment((7.0, 2.0), (8.0, 1.0)),
             ],
         ]
-        @test are_equivalent_cyclic_collections(faces, expected; match_reverse=false)
+        @test cyclic_set_equality(faces, expected)
         # with tail segment
         graph = directed_graph_from_segments(improper[[1, 2, 3, 4, 5, 7, 8]])
         faces = compute_graph_faces(graph)
@@ -259,7 +259,7 @@ using PolygonAlgorithms: are_equivalent_cyclic_collections
                 AnnotatedSegment((3.0, -2.0), (5.0, 1.0)),
             ]
         ]
-        @test are_equivalent_cyclic_collections(faces, expected; match_reverse=false)
+        @test cyclic_set_equality(faces, expected)
         # two connected segments
         graph = directed_graph_from_segments(improper)
         faces = compute_graph_faces(graph)
@@ -290,6 +290,6 @@ using PolygonAlgorithms: are_equivalent_cyclic_collections
                 AnnotatedSegment((7.0, 2.0), (8.0, 3.0)),
             ],
         ]
-        @test are_equivalent_cyclic_collections(faces, expected; match_reverse=false)
+        @test cyclic_set_equality(faces, expected)
     end
 end
