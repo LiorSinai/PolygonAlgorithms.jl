@@ -23,13 +23,19 @@ function cyclic_equality(polygon1::Polygon, polygon2::Polygon)
     true
 end
 
+function _normalise_polygon(p::Polygon; digits::Int=6)
+    Polygon(
+        _normalise_points(p.exterior; digits=digits),
+        holes=map(h->_normalise_points(h; digits=digits), p.holes)
+    )
+end
+
 function are_equivalent_polygons(
     a::AbstractVector{<:Polygon}, b::AbstractVector{<:Polygon};
     digits::Int=6
     )
-    round_pts(p) = map(pt -> round.(pt, digits=digits) .+ 0.0, p) |> compress_cyclic
-    a = map(p -> Polygon(round_pts(p.exterior); holes=map(round_pts, p.holes)), a)
-    b = map(p -> Polygon(round_pts(p.exterior); holes=map(round_pts, p.holes)), b)
+    a = map(p->_normalise_polygon(p; digits=digits), a)
+    b = map(p->_normalise_polygon(p; digits=digits), b)
     are_equivalent_cyclic_collections(a, b; match_reverse=false)
 end
 

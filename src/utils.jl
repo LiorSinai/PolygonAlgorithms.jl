@@ -42,6 +42,7 @@ A simple cyclic equality algorithm.
 
 ```
 cyclic_equality([1, 2, 3], [2, 3, 1]) # true
+cyclic_equality([1, 2, 3], [2, 1, 3]) # false
 ```
 """
 function cyclic_equality(a::AbstractVector, b::AbstractVector)
@@ -101,6 +102,10 @@ function are_equivalent_cyclic_collections(
     true
 end
 
+function _normalise_points(pts::AbstractVector{<:Point2D{T}}; digits::Int=6) where T
+    map(pt -> round.(pt, digits=digits) .+ zero(T), pts) |> compress_cyclic
+end
+
 """
     are_equivalent_polygons(polygon1, polygon2; digits=6, match_reverse=true)
 
@@ -112,19 +117,21 @@ Equivalence between two collections is defined as a 1-1 equivalence for each pol
 
 Warning: this function is used only for testing and it is not optimised.
 """
-function are_equivalent_polygons(a::T, b::T
+function are_equivalent_polygons(
+    a::AbstractVector{<:Point2D}, b::AbstractVector{<:Point2D}
     ; digits::Int=6, match_reverse::Bool=true
-    ) where T <: AbstractVector{<:Point2D}
-    a = map(pt -> round.(pt, digits=digits) .+ 0.0, a) |> compress_cyclic
-    b = map(pt -> round.(pt, digits=digits) .+ 0.0, b) |> compress_cyclic
+    )
+    a = _normalise_points(a; digits=digits)
+    b = _normalise_points(b; digits=digits)
     cyclic_equality(a, b) || (match_reverse && cyclic_equality(reverse(a), b))
 end
 
 function are_equivalent_polygons(
-    a::AbstractVector{<:T}, b::AbstractVector{<:T}
-    ;digits::Int=6, match_reverse::Bool=true
-    ) where T <: AbstractVector{<:Point2D}
-    a = map(pts -> map(pt -> round.(pt, digits=digits) .+ 0.0, pts) |> compress_cyclic, a)
-    b = map(pts -> map(pt -> round.(pt, digits=digits) .+ 0.0, pts) |> compress_cyclic, b)
+    a::AbstractVector{<:AbstractVector{<:Point2D}},
+    b::AbstractVector{<:AbstractVector{<:Point2D}}
+    ; digits::Int=6, match_reverse::Bool=true
+    ) 
+    a = map(pts -> _normalise_points(pts; digits=digits), a)
+    b = map(pts -> _normalise_points(pts; digits=digits), b)
     are_equivalent_cyclic_collections(a, b; match_reverse=match_reverse)
 end
