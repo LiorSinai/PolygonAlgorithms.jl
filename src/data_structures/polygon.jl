@@ -14,7 +14,10 @@ end
 ==(polygon1::Polygon, polygon2::Polygon) = 
     (polygon1.exterior == polygon2.exterior) && (polygon1.holes == polygon2.holes)
 
-isless(poly1::Polygon, poly2::Polygon) = isless(poly1.exterior, poly2.exterior) # used for sorting. See cyclic_set_equality
+function isless(poly1::Polygon, poly2::Polygon)
+    # used for sorting. See cyclic_set_equality
+    isless((poly1.exterior, poly1.holes), (poly2.exterior, poly2.holes))
+end
 
 function cyclic_equality(polygon1::Polygon, polygon2::Polygon)
     if !cyclic_equality(polygon1.exterior, polygon2.exterior)
