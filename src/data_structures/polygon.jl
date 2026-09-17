@@ -14,6 +14,43 @@ end
 ==(polygon1::Polygon, polygon2::Polygon) = 
     (polygon1.exterior == polygon2.exterior) && (polygon1.holes == polygon2.holes)
 
+function isless(poly1::Polygon, poly2::Polygon)
+    # used for sorting. See cyclic_set_equality
+    isless((poly1.exterior, poly1.holes), (poly2.exterior, poly2.holes))
+end
+
+function cyclic_equality(polygon1::Polygon, polygon2::Polygon)
+    if !cyclic_equality(polygon1.exterior, polygon2.exterior)
+        return false
+    elseif !cyclic_set_equality(polygon1.holes, polygon2.holes)
+        return false
+    end
+    true
+end
+
+function _normalise_polygon(p::Polygon; digits::Int=6)
+    Polygon(
+        _normalise_points(p.exterior; digits=digits),
+        holes=map(h->_normalise_points(h; digits=digits), p.holes)
+    )
+end
+
+function are_equivalent_polygons(
+    a::AbstractVector{<:Polygon}, b::AbstractVector{<:Polygon};
+    digits::Int=6
+    )
+    a = map(p->_normalise_polygon(p; digits=digits), a)
+    b = map(p->_normalise_polygon(p; digits=digits), b)
+    cyclic_set_equality(a, b; match_reverse=false)
+end
+
+function minimal_rotation(p::Polygon)
+    Polygon(
+        minimal_rotation(p.exterior),
+        sort!(minimal_rotation.(p.holes))
+    )
+end
+
 """
     validate_polygon(polygon::Polygon)
     validate_polygon(exterior::Path2D; holes=Path2D{T}[]; atol=default_atol)
