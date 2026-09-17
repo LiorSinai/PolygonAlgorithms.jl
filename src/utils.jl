@@ -166,7 +166,7 @@ Warning: this function is used only for testing and it is not optimised.
 """
 function are_equivalent_polygons(
     a::AbstractVector{<:Point2D}, b::AbstractVector{<:Point2D}
-    ; digits::Int=6, match_reverse::Bool=true
+    ; digits::Int=6, match_reverse::Bool=false
     )
     a = _normalise_points(a; digits=digits)
     b = _normalise_points(b; digits=digits)
@@ -176,7 +176,7 @@ end
 function are_equivalent_polygons(
     a::AbstractVector{<:AbstractVector{<:Point2D}},
     b::AbstractVector{<:AbstractVector{<:Point2D}}
-    ; digits::Int=6, match_reverse::Bool=true
+    ; digits::Int=6, match_reverse::Bool=false
     ) 
     a = map(pts -> _normalise_points(pts; digits=digits), a)
     b = map(pts -> _normalise_points(pts; digits=digits), b)
