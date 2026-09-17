@@ -14,37 +14,41 @@ end
 ==(polygon1::Polygon, polygon2::Polygon) = 
     (polygon1.exterior == polygon2.exterior) && (polygon1.holes == polygon2.holes)
 
+function isless(poly1::Polygon, poly2::Polygon)
+    # used for sorting. See cyclic_set_equality
+    isless((poly1.exterior, poly1.holes), (poly2.exterior, poly2.holes))
+end
+
 function cyclic_equality(polygon1::Polygon, polygon2::Polygon)
     if !cyclic_equality(polygon1.exterior, polygon2.exterior)
         return false
-    elseif !are_equivalent_collections(polygon1.holes, polygon2.holes)
+    elseif !cyclic_set_equality(polygon1.holes, polygon2.holes)
         return false
     end
     true
 end
 
-function are_equivalent_polygons(a::AbstractVector{<:Polygon}, b::AbstractVector{<:Polygon})
-    if length(a) != length(b)
-        return false
-    elseif length(a) == 0
-        return true
-    end
-    matched = zeros(Int, length(a))
-    for (i, a_i) in enumerate(a)
-        for (j, b_j) in enumerate(b)
-            if j in matched
-                continue
-            end
-            if cyclic_equality(a_i, b_j)
-                matched[i] = j
-                break
-            end
-        end
-        if matched[i] == 0
-            return false
-        end
-    end
-    true
+function _normalise_polygon(p::Polygon; digits::Int=6)
+    Polygon(
+        _normalise_points(p.exterior; digits=digits),
+        holes=map(h->_normalise_points(h; digits=digits), p.holes)
+    )
+end
+
+function are_equivalent_polygons(
+    a::AbstractVector{<:Polygon}, b::AbstractVector{<:Polygon};
+    digits::Int=6
+    )
+    a = map(p->_normalise_polygon(p; digits=digits), a)
+    b = map(p->_normalise_polygon(p; digits=digits), b)
+    cyclic_set_equality(a, b; match_reverse=false)
+end
+
+function minimal_rotation(p::Polygon)
+    Polygon(
+        minimal_rotation(p.exterior),
+        sort!(minimal_rotation.(p.holes))
+    )
 end
 
 """

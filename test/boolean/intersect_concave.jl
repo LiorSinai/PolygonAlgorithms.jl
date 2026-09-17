@@ -20,9 +20,9 @@ using PolygonAlgorithms: are_equivalent_polygons
     ]
 
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 
     # now vertex intersects edge
     # creates cycle
@@ -32,9 +32,9 @@ using PolygonAlgorithms: are_equivalent_polygons
         [[(3.0, 1.0), (1.0, 1.0), (3.0, 2.0),(1.0, 3.0), (3.0, 3.0), (3.0, 2.0)]]
 
     regions = intersect_geometry(alg, poly1, poly2_,)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2_, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 
     # only points intercept
     poly2_ = translate(poly2, (1.0, 0.0))
@@ -42,9 +42,9 @@ using PolygonAlgorithms: are_equivalent_polygons
         Vector{Tuple{Float64, Float64}}[] :
         [[(3.0, 3.0)], [(3.0, 1.0)]]
     regions = intersect_geometry(alg, poly1, poly2_)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2_, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 end
 
 
@@ -62,9 +62,9 @@ end
     ]
 
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 end
 
 @testset "concave <>" begin 
@@ -80,9 +80,9 @@ end
     ]
 
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 end
 
 @testset "concave arrows vertex intercepts" begin 
@@ -103,10 +103,10 @@ end
     ]]
     regions = intersect_geometry(alg, poly1, poly2)
     regions = [[round.(p, digits=6) for p in r] for r in regions]
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
     regions = [[round.(p, digits=6) for p in r] for r in regions]
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 end
 
 @testset "concave share edge inner" begin 
@@ -126,9 +126,9 @@ end
         (1.0, 0.5),
     ]]
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 end
 
 @testset "concave share edge outer" begin 
@@ -142,9 +142,9 @@ end
     expected = (typeof(alg) == PolygonAlgorithms.MartinezRuedaAlg) ?
         Vector{Tuple{Float64, Float64}}[] : [[(0.0, 0.0), (0.0, 1.0), (-1.0, 1.0), (0.0, 1.0)]]
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 end
 
 @testset "stars - numeric test" begin 
@@ -161,9 +161,9 @@ end
     ]]
 
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
-    # regions = intersect_geometry(alg, poly2, poly1)
-    # @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
+    regions = intersect_geometry(alg, poly2, poly1)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 end
 
 end
@@ -185,9 +185,9 @@ alg = WeilerAthertonAlg()
 
     expected = [[(1.0, 1.0)]]
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 
     # share edge to the left
     poly2 = [
@@ -195,9 +195,9 @@ alg = WeilerAthertonAlg()
     ]
     expected = [[(0.8, 1.0), (1.0, 1.0)]]
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 
     # share edge to the right
     poly2 = [
@@ -205,9 +205,9 @@ alg = WeilerAthertonAlg()
     ]
     expected = [[(1.0, 1.0), (1.0, 0.9)]]
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 
     # share 2 edges
     poly2 = [
@@ -215,9 +215,9 @@ alg = WeilerAthertonAlg()
     ]
     expected = [[(0.8, 1.0), (1.0, 1.0), (1.0, 0.9), (1.0, 1.0)]]
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 end
 
 @testset "concave convex share outer" begin 
@@ -230,9 +230,9 @@ end
 
     expected = [[(1.0, 0.0)]]
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 
     # share edge below
     poly2 = [
@@ -240,9 +240,9 @@ end
     ]
     expected = [[(0.5, 0.0), (1.0, 0.0)]]
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 
     # share edge above
     poly2 = [
@@ -250,9 +250,9 @@ end
     ]
     expected = [[(1.0, 0.0), (0.5, 0.5)]]
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 
     # share both
     poly2 = [
@@ -260,9 +260,9 @@ end
     ]
     expected = [[(0.5, 0.0), (1.0, 0.0), (0.5, 0.5), (1.0, 0.0)]]
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 end
 
 @testset "concave outer share portion and inner" begin 
@@ -275,9 +275,9 @@ end
     ]
     expected = [[(1.0, 1.0), (0.7, 1.0), (0.0, 1.0), (0.0, 1.1538461538461537), (0.3, 1.5), (0.7, 1.0), (0.0, 1.0)]]
     regions = intersect_geometry(alg, poly1, poly2)
-    @test_broken are_equivalent_polygons(regions, expected) # returns a separate point rather than the line
+    @test_broken are_equivalent_polygons(regions, expected; match_reverse=true) # returns a separate point rather than the line
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 end
 
 @testset "concave saw + vertex intercepts" begin 
@@ -295,9 +295,9 @@ end
     ]
     
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 end
 
 @testset "overlapping arches" begin
@@ -312,9 +312,9 @@ end
         [(0.0, 0.0)],
     ]
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 
     # mirror image
     poly1 = [
@@ -328,9 +328,9 @@ end
         [(0.0, 0.0)],
     ]
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 end
 
 
@@ -358,9 +358,9 @@ end
         [(0.125, 0.125)]
     ]
     regions = intersect_geometry(alg, poly1, poly2)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     regions = intersect_geometry(alg, poly2, poly1)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 end
 
 end
@@ -380,10 +380,10 @@ alg = MartinezRuedaAlg()
     ];
     expected = [[(8.5, 0.0), (11.0, 0.0), (11.0, 2.0)], [(4.0, 0.0), (2.0, 2.0), (0.0, 0.0)]]
     regions = intersect_geometry(alg, self_intersect, rectangle_horiz)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     expected = [[(8.5, 0.0), (4.0, 0.0), (2.0, 2.0), (0.0, 0.0), (4.0, 0.0), (8.5, 0.0), (11.0, 0.0), (11.0, 2.0)]]
     regions = intersect_geometry(alg, self_intersect, rectangle_horiz; face_selection=PolygonAlgorithms.MERGE_FACES)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 end
 
 @testset "self-intersect star" begin
@@ -401,7 +401,7 @@ end
         [(0.571429, 3.0), (-0.571429, 3.0), (-0.857143, 2.0), (0.857143, 2.0)],
         [(2.0, 2.0), (0.857143, 2.0), (1.255814, 0.604651), (2.0, 1.2)],
     ]
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
     expected = [
         # exterior
         [(-2.0, 1.2), (-1.255814, 0.604651), (-1.714286, -1.0), (-0.75, -1.0), (0.0, -0.4), (0.75, -1.0), (1.714286, -1.0), (1.255814, 0.604651), (2.0, 1.2), (2.0, 2.0), (0.857143, 2.0), (0.571429, 3.0), (-0.571429, 3.0), (-0.857143, 2.0), (-2.0, 2.0)],
@@ -409,7 +409,7 @@ end
         [(-0.857143, 2.0), (0.857143, 2.0), (1.255814, 0.604651), (0.0, -0.4), (-1.255814, 0.604651)]
     ]
     regions = intersect_geometry(alg, self_intersect_star, box; face_selection=PolygonAlgorithms.MERGE_FACES)
-    @test are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected; match_reverse=true)
 end
 
 end

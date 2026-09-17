@@ -99,3 +99,5 @@ getindex(seg::AnnotatedSegment, idx::Integer) = seg.segment[idx]
     (seg1.self_annotations == seg2.self_annotations)
 
 reverse(segment::AnnotatedSegment) = AnnotatedSegment(reverse(segment.segment), segment.self_annotations)
+
+isless(seg1::AnnotatedSegment, seg2::AnnotatedSegment) = isless(seg1.segment, seg2.segment) # used for sorting. See cyclic_set_equality

@@ -39,8 +39,17 @@ end
     cyclic_equality(a, b)
 
 A simple cyclic equality algorithm.
+
+```
+cyclic_equality([1, 2, 3], [2, 3, 1]) # true
+cyclic_equality([1, 2, 3], [2, 1, 3]) # false
+```
+
+Warning: this function is used for testing only and it is not optimised.
+This implementation is `O(n^2)`.
 """
 function cyclic_equality(a::AbstractVector, b::AbstractVector)
+    # TODO: KMP algorithm for O(n)
     if length(a) != length(b)
         return false
     elseif length(a) == 0
@@ -49,56 +58,127 @@ function cyclic_equality(a::AbstractVector, b::AbstractVector)
     n = length(a)
     doubled_a = vcat(a, a)
     for i in 1:n
-        match = true
-        for j in 1:n
-            if doubled_a[i + j - 1] != b[j]
-                match = false
-                break
-            end
+        if view(doubled_a, i:(i + n - 1)) == b
+            return true
         end
-        match && return true
     end
     false
 end
 
-function are_equivalent_collections(
-    a::AbstractVector{<:AbstractVector}, b::AbstractVector{<:AbstractVector};
-    match_reverse::Bool=true
+"""
+    minimal_rotation(array)
+
+Find the lexicographically minimal string rotation (LMSR) in a cyclic array.
+
+Warning: this function is used for testing only and it is not optimised.
+This implementation is `O(n^2)`.
+
+```julia
+minimal_rotation([1, 4, 1, 2]) # [1, 2, 1, 4]
+minimal_rotation([4, 6, 5, 1]) # [1, 4, 6, 5]
+```
+
+Reference
+- https://en.wikipedia.org/wiki/Lexicographically_minimal_string_rotation
+"""
+function minimal_rotation(a::AbstractVector)
+    # TODO: Booth's algorithm for O(n)
+    n = length(a)
+    n == 0 && return a
+    best = a
+    doubled_a = vcat(a, a)
+    for i in 2:n
+        candidate = view(doubled_a, i:(i+n-1))
+        if candidate < best
+            best = collect(candidate)
+        end
+    end
+    best
+end
+
+function minimal_rotation_reverse(a::AbstractVector)
+    forward = minimal_rotation(a)
+    backward = minimal_rotation(reverse(a))
+    min(forward, backward)
+end
+
+"""
+    cyclic_set_equality(a, b; match_reverse=false)
+
+Check that two sets of cyclic arrays are equivalent.
+
+```
+cyclic_set_equality(
+    [[1, 2, 3], [4, 5, 6]],
+    [[5, 6, 4], [3, 1, 2]]
+) # true
+```
+
+Warning: this function is used for testing only and it is not optimised.
+This implementation is `O(S*n^2 + S*n*log(S))` where `S` is the number of sets and `n` is the average length of the sets.
+"""
+function cyclic_set_equality(
+    a::AbstractVector, b::AbstractVector;
+    match_reverse::Bool=false
     )
     if length(a) != length(b)
         return false
     elseif length(a) == 0
         return true
     end
-    matched = zeros(Int, length(a))
-    for (i, a_i) in enumerate(a)
-        for (j, b_j) in enumerate(b)
-            if j in matched
-                continue
-            end
-            if cyclic_equality(a_i, b_j) || (match_reverse && cyclic_equality(a_i, reverse(b_j)))
-                matched[i] = j
-                break
-            end
-        end
-        if matched[i] == 0
-            return false
+    fn = match_reverse ? minimal_rotation_reverse : minimal_rotation
+    canonical_a = sort!(fn.(a))
+    canonical_b = sort!(fn.(b))
+    canonical_a == canonical_b
+end
+
+function compress_cyclic(a::AbstractVector)
+    b = eltype(a)[]
+    for x in a
+        if isempty(b) || (x != b[end])
+            push!(b, x)
         end
     end
-    true
+    if length(b) > 0 && (b[end] == b[1])
+        pop!(b)
+    end
+    b
+end
+
+function _normalise_points(pts::AbstractVector{<:Point2D{T}}; digits::Int=6) where T
+    # Normalise points:
+    # - round decimals
+    # - convert -0.0 to 0.0
+    # - remove repeat points
+    map(pt -> round.(pt, digits=digits) .+ zero(T), pts) |> compress_cyclic
 end
 
 """
-    are_equivalent_polygons(a, b; digits=6, match_reverse=true)
+    are_equivalent_polygons(polygon1, polygon2; digits=6, match_reverse=true)
 
-Are equivalent collections of polygons.
-That is, there is a 1-1 match (cyclic equality) for each polygon in `a` with a polygon from `b`.
+Determine if the polygons are equivalent,
+or alternatively, if a collections of polygons are equivalent.
+
+Equivalence between two polygons is defined as a cyclic equality ignoring repeat points.
+Equivalence between two collections is defined as a 1-1 equivalence for each polygon in `a` with a polygon from `b`.
+
+Warning: this function is used only for testing and it is not optimised.
 """
 function are_equivalent_polygons(
-    a::AbstractVector{<:AbstractVector{<:T}}, b::AbstractVector{<:AbstractVector{<:T}};
-    digits::Int=6, match_reverse::Bool=true
-    ) where T <: Point2D
-    a = map(pts -> map(pt -> round.(pt, digits=digits) .+ 0.0, pts), a)
-    b = map(pts -> map(pt -> round.(pt, digits=digits) .+ 0.0, pts), b)
-    are_equivalent_collections(a, b; match_reverse=match_reverse)
+    a::AbstractVector{<:Point2D}, b::AbstractVector{<:Point2D}
+    ; digits::Int=6, match_reverse::Bool=false
+    )
+    a = _normalise_points(a; digits=digits)
+    b = _normalise_points(b; digits=digits)
+    cyclic_equality(a, b) || (match_reverse && cyclic_equality(reverse(a), b))
+end
+
+function are_equivalent_polygons(
+    a::AbstractVector{<:AbstractVector{<:Point2D}},
+    b::AbstractVector{<:AbstractVector{<:Point2D}}
+    ; digits::Int=6, match_reverse::Bool=false
+    ) 
+    a = map(pts -> _normalise_points(pts; digits=digits), a)
+    b = map(pts -> _normalise_points(pts; digits=digits), b)
+    cyclic_set_equality(a, b; match_reverse=match_reverse)
 end

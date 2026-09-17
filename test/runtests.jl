@@ -3,6 +3,7 @@ using PolygonAlgorithms
 using PolygonAlgorithms: translate, rotate, Point2D, PointSet
 
 @testset verbose = true "PolygonAlgorithms" begin
+    include("utils.jl")
     # Data structures
     include("data_structures/linked_list.jl")
     include("data_structures/point_set.jl")
