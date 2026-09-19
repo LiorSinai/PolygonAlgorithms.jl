@@ -1,6 +1,6 @@
 using PolygonAlgorithms
 using PolygonAlgorithms: MartinezRuedaAlg, PointSet
-using PolygonAlgorithms: MERGE_FACES, SPLIT_FACES, NON_ZERO
+using PolygonAlgorithms: MERGE_FACES, SPLIT_FACES, NON_ZERO, POSITIVE, NEGATIVE
 using PolygonAlgorithms: are_equivalent_polygons
 
 @testset "polygon boolean multi - $alg" for alg in [
@@ -32,6 +32,9 @@ end
         [(2.0, 3.0), (2.5, 2.0), (3.0, 2.0), (3.0, 4.0), (1.0, 4.0), (1.0, 2.0), (1.5, 2.0)]
     ]
     @test are_equivalent_polygons(regions, expected)
+
+    regions = union_geometry(alg, [poly1, poly2]; fill_rule=NON_ZERO)
+    @test are_equivalent_polygons(regions, exterior)
 end
 
 @testset verbose=true "self-intersecting triangles" begin
@@ -42,18 +45,31 @@ end
             [(8.5, 0.0), (4.0, 0.0), (2.0, 2.0), (0.0, 0.0), (4.0, 0.0), (6.0, -2.0), (8.5, 0.0), (11.0, 0.0), (11.0, 2.0)]
         ]
         @test are_equivalent_polygons(regions, expected)
+
         regions = union_geometry(alg, poly; face_selection=MERGE_FACES, fill_rule=NON_ZERO)
+        @test are_equivalent_polygons(regions, expected)
     end
 
     @testset "SPLIT_FACES" begin
         regions = union_geometry(alg, poly; face_selection=SPLIT_FACES)
         expected = [
+            # these are always negative
             [(8.5, 0.0), (11.0, 0.0), (11.0, 2.0)],
             [(4.0, 0.0), (2.0, 2.0), (0.0, 0.0)],
+            # for a top to bottom ray this is +
+            # for a lef to right ray this is -
             [(4.0, 0.0), (6.0, -2.0), (8.5, 0.0)],
         ]
         @test are_equivalent_polygons(regions, expected)
-        regions = union_geometry(alg, poly; face_selection=MERGE_FACES, fill_rule=NON_ZERO)
+
+        regions = union_geometry(alg, poly; face_selection=SPLIT_FACES, fill_rule=NON_ZERO)
+        @test are_equivalent_polygons(regions, expected)
+
+        regions = union_geometry(alg, poly; face_selection=MERGE_FACES, fill_rule=POSITIVE)
+        @test are_equivalent_polygons(regions, expected[[3]])
+
+        regions = union_geometry(alg, poly; face_selection=MERGE_FACES, fill_rule=NEGATIVE)
+        @test are_equivalent_polygons(regions, expected[[1, 2]])
     end
 end
 
@@ -73,6 +89,12 @@ end
 
         regions = union_geometry(alg, self_intersect_star; face_selection=MERGE_FACES, fill_rule=NON_ZERO)
         @test are_equivalent_polygons(regions, expected[[1]])
+
+        regions = union_geometry(alg, self_intersect_star; face_selection=MERGE_FACES, fill_rule=POSITIVE)
+        @test isempty(regions)
+
+        regions = union_geometry(alg, self_intersect_star; face_selection=MERGE_FACES, fill_rule=NEGATIVE)
+        @test are_equivalent_polygons(regions, expected[[1]])
     end
     
     @testset "SPLIT_FACES"  begin
@@ -83,7 +105,7 @@ end
             [(-1.255814, 0.604651), (-2.0, -2.0), (0.0, -0.4)],
             [(-0.857143, 2.0), (-3.0, 2.0), (-1.255814, 0.604651)],
             [(0.0, -0.4), (2.0, -2.0), (1.255814, 0.604651)],
-            # hole
+            # center
             [(-1.255814, 0.604651), (0.0, -0.4), (1.255814, 0.604651), (0.857143, 2.0), (-0.857143, 2.0)],
         ]
         @test are_equivalent_polygons(regions, expected[1:5])
@@ -92,9 +114,6 @@ end
         regions = union_geometry(alg, self_intersect_star, inner; face_selection=SPLIT_FACES)
         expected2 = vcat(expected[1:5], [inner])
         @test are_equivalent_polygons(regions, expected2)
-
-        regions = union_geometry(alg, self_intersect_star; face_selection=SPLIT_FACES, fill_rule=NON_ZERO)
-        @test are_equivalent_polygons(regions, expected)
     end
 end
 
@@ -117,6 +136,12 @@ end
 
         regions = union_geometry(alg, self_intersect_nine; face_selection=MERGE_FACES, fill_rule=NON_ZERO)
         @test are_equivalent_polygons(regions, expected[[1, 3]])
+
+        regions = union_geometry(alg, self_intersect_nine; face_selection=MERGE_FACES, fill_rule=POSITIVE)
+        @test are_equivalent_polygons(regions, expected[[1, 3]])
+
+        regions = union_geometry(alg, self_intersect_nine; face_selection=MERGE_FACES, fill_rule=NEGATIVE)
+        @test isempty(regions)
     end
     
     @testset "SPLIT_FACES"  begin
@@ -128,9 +153,6 @@ end
             [(50.0, 90.0), (40.0, 90.0), (36.25, 60.0), (52.5, 60.0)]
         ]
         @test are_equivalent_polygons(regions, expected[[1]])
-
-        regions = union_geometry(alg, self_intersect_nine; face_selection=SPLIT_FACES, fill_rule=NON_ZERO)
-        @test are_equivalent_polygons(regions, expected)
     end
 end
 
@@ -152,6 +174,12 @@ end
 
         regions = union_geometry(alg, self_intersect_nine; face_selection=MERGE_FACES, fill_rule=NON_ZERO)
         @test are_equivalent_polygons(regions, expected[[1, 3]])
+
+        regions = union_geometry(alg, self_intersect_nine; face_selection=MERGE_FACES, fill_rule=POSITIVE)
+        @test are_equivalent_polygons(regions, expected[[1, 3]])
+
+        regions = union_geometry(alg, self_intersect_nine; face_selection=MERGE_FACES, fill_rule=NEGATIVE)
+        @test isempty(regions)
     end
     
     @testset "SPLIT_FACES"  begin
@@ -163,9 +191,6 @@ end
            [(40.0, 90.0), (40.0, 60.0), (55.0, 60.0), (55.0, 90.0)],
         ]
         @test are_equivalent_polygons(regions, expected[[1]])
-
-        regions = union_geometry(alg, self_intersect_nine; face_selection=SPLIT_FACES, fill_rule=NON_ZERO)
-        @test are_equivalent_polygons(regions, expected)
     end    
 end
 

@@ -13,8 +13,8 @@ For winding rules:
     - for every counter-clockwise intersection (line heading right to left through the ray) add 1.
 1. Use the winding number to determine if filled or not.
     - NON_ZERO: non-zero windings are filled.
-    - POSITIVE: only positive windings are filled.
-    - NEGATIVE: only negative winding are filled.
+    - POSITIVE: only positive windings are filled (top to bottom ray).
+    - NEGATIVE: only negative winding are filled (top to bottom ray).
 References:
 - https://www.angusj.com/clipper2/Docs/Units/Clipper/Types/FillRule.htm
 - https://en.wikipedia.org/wiki/Nonzero-rule

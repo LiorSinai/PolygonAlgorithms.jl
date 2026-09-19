@@ -180,6 +180,23 @@ function martinez_rueda_algorithm(
     base_annotated_segments
 end
 
+# Core algorithm for 1 polygon
+function martinez_rueda_algorithm(
+    selection_criteria::Vector{AnnotationFill},
+    subject::Vector{<:SegmentEvent{T}},
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    fill_rule::FillRule=EVEN_ODD
+    ) where T
+    base_annotated_segments = event_loop!(subject; self_intersection=true, atol=atol, rtol=rtol, fill_rule=fill_rule)\
+    for seg in base_annotated_segments
+        # apply_selection_criteria will fail (and should fail) if annotations are nothing
+        seg.other_annotations.fill_above = false
+        seg.other_annotations.fill_below = false
+    end
+    selected_segments = apply_selection_criteria(base_annotated_segments, selection_criteria)
+    selected_segments
+end
+
 function add_annotated_segment!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent)
     pt1 = ev.segment[1]
     pt2 = ev.segment[2]
