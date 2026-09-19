@@ -3,7 +3,7 @@
 """
     martinez_rueda_algorithm(
     selection_criteria, subject, others...
-    ; atol=default_atol, rtol=default_rtol, face_selection=SPLIT_FACES
+    ; atol=default_atol, rtol=default_rtol, face_selection=SPLIT_FACES, fill_rule=EVEN_ODD
     )
 
 The Martínez-Rueda-Feito polygon clipping algorithm.
@@ -156,11 +156,12 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subject::Vector{<:SegmentEvent{T}},
     polygons::Vararg{Vector{<:SegmentEvent{T}}},
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    fill_rule::FillRule=EVEN_ODD
     ) where T
-    base_annotated_segments = event_loop!(subject; self_intersection=true, atol=atol, rtol=rtol)
+    base_annotated_segments = event_loop!(subject; self_intersection=true, atol=atol, rtol=rtol, fill_rule=fill_rule)
     for polygon in polygons
-        annotated_segments = event_loop!(polygon; self_intersection=true, atol=atol, rtol=rtol)
+        annotated_segments = event_loop!(polygon; self_intersection=true, atol=atol, rtol=rtol, fill_rule=fill_rule)
         queue = SegmentEvent{T}[]
         for ev in vcat(base_annotated_segments, annotated_segments)
             add_annotated_segment!(queue, ev)
@@ -183,13 +184,17 @@ function add_annotated_segment!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent)
     pt1 = ev.segment[1]
     pt2 = ev.segment[2]
     forward = _compare_points(pt1, pt2)
-    if forward == 0
+    if forward == Int8(0)
         return queue # zero length segment
     end
-    start = forward < 0 ? pt1 : pt2
-    end_ = forward < 0 ? pt2 : pt1
+    start = forward < Int8(0) ? pt1 : pt2
+    end_ = forward < Int8(0) ? pt2 : pt1
     segment = (start, end_)
-    add_segment_event!(queue, segment, ev.primary, ev.self_annotations, ev.other_annotations)
+    add_segment_event!(
+        queue, segment, ev.primary,
+        ev.self_annotations, ev.other_annotations,
+        ev.forward, ev.winding_top_to_bottom, ev.winding_left_to_right
+    )
 end
 
 #############################################################
@@ -198,7 +203,8 @@ end
 
 function event_loop!(
     queue::Vector{SegmentEvent{T}}
-    ; self_intersection::Bool, atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_atol
+    ; self_intersection::Bool, atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_atol,
+    fill_rule::FillRule=EVEN_ODD
     ) where T # eventLoop
     annotated_segments = SegmentEvent{T}[]
     sweep_status = SegmentEvent{T}[] # current events in a vertical line, top to bottom.
@@ -223,7 +229,11 @@ function event_loop!(
                 continue # either head was removed or something was inserted ahead of it
             end
             if self_intersection
-                calculate_self_annotations!(head, below)
+                if fill_rule == EVEN_ODD
+                    calculate_self_annotations!(head, below)
+                else
+                    calculate_self_winding_annotations!(head, sweep_status, idx, fill_rule; atol=atol)
+                end
             else
                 calculate_other_annotations!(head, below)
             end
@@ -394,7 +404,11 @@ function divide_event!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent, pt::Poin
     pop_key!(queue, e2)
     insert_in_order!(queue, e2; lt=compare_events)
     # add new segment at the end. Reset other_annotations
-    add_segment_event!(queue, new_segment, ev.primary, ev.self_annotations, SegmentAnnotations())
+    add_segment_event!(
+        queue, new_segment, ev.primary,
+        ev.self_annotations, SegmentAnnotations(),
+        ev.forward, ev.winding_top_to_bottom, ev.winding_left_to_right
+    )
 end
 
 """
@@ -467,6 +481,39 @@ function calculate_self_annotations!(ev::SegmentEvent, below::Union{Nothing, Seg
         ev.self_annotations.fill_above = ev.self_annotations.fill_below
     end
     @debug("[calculate_self_annotations!] self_annotations: $(ev.self_annotations)")
+    ev.self_annotations
+end
+
+function calculate_self_winding_annotations!(
+    ev::SegmentEvent, 
+    sweep_status::AbstractVector{<:SegmentEvent},
+    idx::Integer,
+    fill_rule::FillRule
+    ; atol::AbstractFloat=default_atol
+    )
+    winding_below = 0
+    for seg_ev in sweep_status[idx:end]
+        winding_below += get_winding_top_to_bottom!(seg_ev; atol=atol)
+    end
+    # for winding above, simply add the current winding
+    # For a vertical edge, the winding does NOT change along y axis, but it does change along x-axis
+    winding_above = winding_below + (
+        get_winding_top_to_bottom!(ev; atol=atol) == 0 ? 
+        get_winding_left_to_right!(ev; atol=atol) : 
+        ev.winding_top_to_bottom
+    )
+    if fill_rule == NON_ZERO
+        ev.self_annotations.fill_above = winding_above != 0 ? true : false
+        ev.self_annotations.fill_below = winding_below != 0 ? true : false
+    elseif fill_rule == POSITIVE
+        ev.self_annotations.fill_above = winding_above > 0 ? true : false
+        ev.self_annotations.fill_below = winding_below > 0 ? true : false
+    elseif fill_rule == NEGATIVE
+        ev.self_annotations.fill_above = winding_above < 0 ? true : false
+        ev.self_annotations.fill_below = winding_below < 0 ? true : false
+    else throw("Unknown fill_rule: $fill_rule")
+    end
+    @debug("[calculate_self_winding_annotations!] self_annotations: $(ev.self_annotations)")
     ev.self_annotations
 end
 

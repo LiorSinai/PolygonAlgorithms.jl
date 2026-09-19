@@ -18,13 +18,13 @@ function convert_to_event_queue!(
         pt1 = pt2
         pt2 = polygon[i]
         forward = _compare_points(pt1, pt2; atol=atol)
-        if forward == 0
+        if forward == Int8(0)
             continue # zero length segment
         end
-        start = forward < 0 ? pt1 : pt2
-        end_ = forward < 0 ? pt2 : pt1
-        segment = (start, end_)
-        add_segment_event!(queue, segment, primary)
+        start = forward < Int8(0) ? pt1 : pt2
+        tail = forward < Int8(0) ? pt2 : pt1
+        segment = (start, tail)
+        add_segment_event!(queue, segment, primary, SegmentAnnotations(), SegmentAnnotations(), forward)
     end
     queue
 end
@@ -35,9 +35,12 @@ function add_segment_event!(
     primary::Bool,
     shared_self_annotations::SegmentAnnotations=SegmentAnnotations(),
     shared_other_annotations::SegmentAnnotations=SegmentAnnotations(),
+    forward::Int8=Int8(-1),
+    winding_top_to_bottom::Union{Nothing,Int8}=nothing,
+    winding_left_to_right::Union{Nothing,Int8}=nothing,
     )
-    start_event = SegmentEvent(segment, true, primary, shared_self_annotations, shared_other_annotations)
-    end_event = SegmentEvent(segment, false, primary, shared_self_annotations, shared_other_annotations)
+    start_event = SegmentEvent(segment, true, primary, shared_self_annotations, shared_other_annotations, forward, winding_top_to_bottom, winding_left_to_right)
+    end_event = SegmentEvent(segment, false, primary, shared_self_annotations, shared_other_annotations, forward, winding_top_to_bottom, winding_left_to_right)
     start_event.other = end_event
     end_event.other = start_event   
     insert_in_order!(queue, start_event; lt=compare_events)
@@ -54,11 +57,11 @@ Return:
 function _compare_points(pt1::Point2D{T}, pt2::Point2D{T}; atol::AbstractFloat=default_atol) where T # pointsCompare
     if abs(pt1[1] - pt2[1]) < atol # on a vertical line
         if abs(pt1[2] - pt2[2]) < atol # same point
-            return 0
+            return Int8(0)
         end
-        return pt1[2] < pt2[2] ? -1 : 1; # compare Y values
+        return pt1[2] < pt2[2] ? Int8(-1) : Int8(1); # compare Y values
     end
-    return pt1[1] < pt2[1] ? -1 : 1; # compare X values
+    return pt1[1] < pt2[1] ? Int8(-1) : Int8(1); # compare X values
 end
 
 """
@@ -70,12 +73,12 @@ Returns true if smaller.
 function compare_events(event::SegmentEvent, here::SegmentEvent; atol::AbstractFloat=default_atol) # eventCompare
     # Assumes events are left to right
     comp = _compare_points(event.point, here.point)
-    if comp != 0
-        return comp < 0
+    if comp != Int8(0)
+        return comp < Int8(0)
     end
     # Selected points are the same -> events on top of each other.
     comp = _compare_points(event.other_point, here.other_point)
-    if comp === 0
+    if comp === Int8(0)
         return false # equal segments
     end
     # Two events on top of each other.
@@ -218,7 +221,7 @@ function any_intersect(segments::Vararg{Segment2D{T}}; atol::AbstractFloat=defau
     queue = SegmentEvent{T}[]
     for segment in segments
         forward = _compare_points(segment[1], segment[2]; atol=atol)
-        segment_ = forward < 0 ? (segment[1], segment[2]) : (segment[2], segment[1])
+        segment_ = forward < Int8(0) ? (segment[1], segment[2]) : (segment[2], segment[1])
         add_segment_event!(queue, segment_, true)
     end
     any_intersect(queue; atol=atol, options...)

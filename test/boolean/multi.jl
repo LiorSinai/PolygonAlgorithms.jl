@@ -1,6 +1,6 @@
 using PolygonAlgorithms
 using PolygonAlgorithms: MartinezRuedaAlg, PointSet
-using PolygonAlgorithms: MERGE_FACES, SPLIT_FACES
+using PolygonAlgorithms: MERGE_FACES, SPLIT_FACES, NON_ZERO
 using PolygonAlgorithms: are_equivalent_polygons
 
 @testset "polygon boolean multi - $alg" for alg in [
@@ -34,31 +34,139 @@ end
     @test are_equivalent_polygons(regions, expected)
 end
 
+@testset verbose=true "self-intersecting triangles" begin
+    poly = [(0.0, 0.0), (2.0, 2.0), (6.0, -2.0), (11.0, 2.0), (11.0, 0.0)]
+    @testset "MERGE_FACES" begin
+        regions = union_geometry(alg, poly; face_selection=MERGE_FACES)
+        expected = [
+            [(8.5, 0.0), (4.0, 0.0), (2.0, 2.0), (0.0, 0.0), (4.0, 0.0), (6.0, -2.0), (8.5, 0.0), (11.0, 0.0), (11.0, 2.0)]
+        ]
+        @test are_equivalent_polygons(regions, expected)
+        regions = union_geometry(alg, poly; face_selection=MERGE_FACES, fill_rule=NON_ZERO)
+    end
+
+    @testset "SPLIT_FACES" begin
+        regions = union_geometry(alg, poly; face_selection=SPLIT_FACES)
+        expected = [
+            [(8.5, 0.0), (11.0, 0.0), (11.0, 2.0)],
+            [(4.0, 0.0), (2.0, 2.0), (0.0, 0.0)],
+            [(4.0, 0.0), (6.0, -2.0), (8.5, 0.0)],
+        ]
+        @test are_equivalent_polygons(regions, expected)
+        regions = union_geometry(alg, poly; face_selection=MERGE_FACES, fill_rule=NON_ZERO)
+    end
+end
+
 @testset verbose=true "self-intersecting star" begin
     self_intersect_star = [
         (-3.0, 2.0), (3.0, 2.0), (-2.0, -2.0), (0.0, 5.0), (2.0, -2.0)
     ]
-    regions = union_geometry(alg, self_intersect_star; face_selection=MERGE_FACES)
-    expected = [
-        # exterior
-        [(0.0, -0.4), (2.0, -2.0), (1.255814, 0.604651), (3.0, 2.0), (0.857143, 2.0), (0.0, 5.0), (-0.857143, 2.0), (-3.0, 2.0), (-1.255814, 0.604651), (-2.0, -2.0)],
-        # hole
-        [(-0.857143, 2.0), (0.857143, 2.0), (1.255814, 0.604651), (0.0, -0.4), (-1.255814, 0.604651)],
+    @testset "MERGE_FACES" begin
+        regions = union_geometry(alg, self_intersect_star; face_selection=MERGE_FACES)
+        expected = [
+            # exterior
+            [(0.0, -0.4), (2.0, -2.0), (1.255814, 0.604651), (3.0, 2.0), (0.857143, 2.0), (0.0, 5.0), (-0.857143, 2.0), (-3.0, 2.0), (-1.255814, 0.604651), (-2.0, -2.0)],
+            # hole
+            [(-0.857143, 2.0), (0.857143, 2.0), (1.255814, 0.604651), (0.0, -0.4), (-1.255814, 0.604651)],
+        ]
+        @test are_equivalent_polygons(regions, expected)
+
+        regions = union_geometry(alg, self_intersect_star; face_selection=MERGE_FACES, fill_rule=NON_ZERO)
+        @test are_equivalent_polygons(regions, expected[[1]])
+    end
+    
+    @testset "SPLIT_FACES"  begin
+        regions = union_geometry(alg, self_intersect_star; face_selection=SPLIT_FACES)
+        expected = [
+            [(-0.857143, 2.0), (0.857143, 2.0), (0.0, 5.0)],
+            [(0.857143, 2.0), (1.255814, 0.604651), (3.0, 2.0)],
+            [(-1.255814, 0.604651), (-2.0, -2.0), (0.0, -0.4)],
+            [(-0.857143, 2.0), (-3.0, 2.0), (-1.255814, 0.604651)],
+            [(0.0, -0.4), (2.0, -2.0), (1.255814, 0.604651)],
+            # hole
+            [(-1.255814, 0.604651), (0.0, -0.4), (1.255814, 0.604651), (0.857143, 2.0), (-0.857143, 2.0)],
+        ]
+        @test are_equivalent_polygons(regions, expected[1:5])
+
+        inner = [ (0.0, 1.5), (-1.0, 1.0), (1.0, 1.0)];
+        regions = union_geometry(alg, self_intersect_star, inner; face_selection=SPLIT_FACES)
+        expected2 = vcat(expected[1:5], [inner])
+        @test are_equivalent_polygons(regions, expected2)
+
+        regions = union_geometry(alg, self_intersect_star; face_selection=SPLIT_FACES, fill_rule=NON_ZERO)
+        @test are_equivalent_polygons(regions, expected)
+    end
+end
+
+@testset verbose=true "self-intersecting 9" begin
+    self_intersect_nine = [
+        (10.0, 60.0), (75.0, 60.0), (80.0, 30.0), (55.0, 30.0), (50.0, 90.0),
+        (40.0, 90.0), (30.0, 10.0), (100.0, 10.0), (90.0, 120.0), (20.0, 120.0),
+        (10.0, 60.0)
+    ];
+
+    @testset "MERGE_FACES" begin
+        regions = union_geometry(alg, self_intersect_nine; face_selection=MERGE_FACES)
+        expected = [
+            [(36.25, 60.0), (30.0, 10.0), (100.0, 10.0), (90.0, 120.0), (20.0, 120.0), (10.0, 60.0)],
+            # holes
+            [(52.5, 60.0), (36.25, 60.0), (40.0, 90.0), (50.0, 90.0)],
+            [(55.0, 30.0), (52.5, 60.0), (75.0, 60.0), (80.0, 30.0)],
+        ]
+        @test are_equivalent_polygons(regions, expected)
+
+        regions = union_geometry(alg, self_intersect_nine; face_selection=MERGE_FACES, fill_rule=NON_ZERO)
+        @test are_equivalent_polygons(regions, expected[[1, 3]])
+    end
+    
+    @testset "SPLIT_FACES"  begin
+        regions = union_geometry(alg, self_intersect_nine; face_selection=SPLIT_FACES)
+        expected = [
+            [(75.0, 60.0), (80.0, 30.0), (55.0, 30.0), (52.5, 60.0),(36.25, 60.0), (30.0, 10.0),
+            (100.0, 10.0), (90.0, 120.0), (20.0, 120.0), (10.0, 60.0), (36.25, 60.0), (40.0, 90.0),
+            (50.0, 90.0), (52.5, 60.0)],
+            [(50.0, 90.0), (40.0, 90.0), (36.25, 60.0), (52.5, 60.0)]
+        ]
+        @test are_equivalent_polygons(regions, expected[[1]])
+
+        regions = union_geometry(alg, self_intersect_nine; face_selection=SPLIT_FACES, fill_rule=NON_ZERO)
+        @test are_equivalent_polygons(regions, expected)
+    end
+end
+
+@testset verbose=true "self-intersecting 9 straight" begin
+    self_intersect_nine = [
+        (20.0, 60.0), (75.0, 60.0), (75.0, 30.0), (55.0, 30.0), (55.0, 90.0),
+        (40.0, 90.0), (40.0, 10.0), (90.0, 10.0), (90.0, 110.0), (20.0, 110.0),
     ]
-    @test are_equivalent_polygons(regions, expected)
-    regions = union_geometry(alg, self_intersect_star; face_selection=SPLIT_FACES)
-    expected = [
-        [(-0.857143, 2.0), (0.857143, 2.0), (0.0, 5.0)],
-        [(0.857143, 2.0), (1.255814, 0.604651), (3.0, 2.0)],
-        [(-1.255814, 0.604651), (-2.0, -2.0), (0.0, -0.4)],
-        [(-0.857143, 2.0), (-3.0, 2.0), (-1.255814, 0.604651)],
-        [(0.0, -0.4), (2.0, -2.0), (1.255814, 0.604651)],
-    ]
-    @test are_equivalent_polygons(regions, expected)
-    inner = [ (0.0, 1.5), (-1.0, 1.0), (1.0, 1.0)];
-    regions = union_geometry(alg, self_intersect_star, inner; face_selection=SPLIT_FACES)
-    expected2 = vcat(expected[1:3], [inner], expected[4:5])
-    @test are_equivalent_polygons(regions, expected2)
+
+    @testset "MERGE_FACES" begin
+        regions = union_geometry(alg, self_intersect_nine; face_selection=MERGE_FACES)
+        expected = [
+            [(20.0, 60.0), (40.0, 60.0), (40.0, 10.0), (90.0, 10.0), (90.0, 110.0), (20.0, 110.0)],
+            # holes
+            [(55.0, 90.0), (55.0, 60.0), (40.0, 60.0), (40.0, 90.0)],
+            [(55.0, 30.0), (55.0, 60.0), (75.0, 60.0), (75.0, 30.0)],
+        ]
+        @test are_equivalent_polygons(regions, expected)
+
+        regions = union_geometry(alg, self_intersect_nine; face_selection=MERGE_FACES, fill_rule=NON_ZERO)
+        @test are_equivalent_polygons(regions, expected[[1, 3]])
+    end
+    
+    @testset "SPLIT_FACES"  begin
+        regions = union_geometry(alg, self_intersect_nine; face_selection=SPLIT_FACES)
+        expected = [
+            [(90.0, 10.0), (90.0, 110.0), (20.0, 110.0), (20.0, 60.0), (40.0, 60.0),
+            (40.0, 90.0), (55.0, 90.0), (55.0, 60.0), (75.0, 60.0), (75.0, 30.0), (55.0, 30.0),
+            (55.0, 60.0), (40.0, 60.0), (40.0, 10.0)],
+           [(40.0, 90.0), (40.0, 60.0), (55.0, 60.0), (55.0, 90.0)],
+        ]
+        @test are_equivalent_polygons(regions, expected[[1]])
+
+        regions = union_geometry(alg, self_intersect_nine; face_selection=SPLIT_FACES, fill_rule=NON_ZERO)
+        @test are_equivalent_polygons(regions, expected)
+    end    
 end
 
 @testset verbose=true "cross + triangle" begin
