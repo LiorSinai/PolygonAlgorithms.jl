@@ -187,7 +187,7 @@ function martinez_rueda_algorithm(
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
     fill_rule::FillRule=EVEN_ODD
     ) where T
-    base_annotated_segments = event_loop!(subject; self_intersection=true, atol=atol, rtol=rtol, fill_rule=fill_rule)\
+    base_annotated_segments = event_loop!(subject; self_intersection=true, atol=atol, rtol=rtol, fill_rule=fill_rule)
     for seg in base_annotated_segments
         # apply_selection_criteria will fail (and should fail) if annotations are nothing
         seg.other_annotations.fill_above = false
