@@ -9,7 +9,11 @@ SegmentAnnotations() = SegmentAnnotations(nothing, nothing)
     (ann1.fill_above == ann2.fill_above) && (ann1.fill_below == ann2.fill_below)
 
 """
-    SegmentEvent(segment, is_start, primary=true, [self_annotations, other_annotations])
+    SegmentEvent(
+    segment, is_start, primary=true,
+    [self_annotations, other_annotations, 
+    forward=Int8(-1), winding_top_to_bottom, winding_left_to_right]
+    )
 
 An event in a line sweep algorithm marking a change in state, either the 
 start of a segment or the end of it.
@@ -27,6 +31,10 @@ mutable struct SegmentEvent{T}
     other::Union{Nothing,SegmentEvent{T}} # links to opposite event
     point::Point2D{T} # is_start ? segment[1] : segment[2]
     other_point::Point2D{T} # is_start ? segment[2] : segment[1]
+    # fill rule properties
+    forward::Int8 # original direction of segment. -1 is current, 0 is zero-length, 1 is reversed
+    winding_top_to_bottom::Union{Nothing,Int8}
+    winding_left_to_right::Union{Nothing,Int8}
 end
 
 function SegmentEvent(
@@ -35,16 +43,32 @@ function SegmentEvent(
     primary::Bool=true,
     self_annotations::SegmentAnnotations=SegmentAnnotations(),
     other_annotations::SegmentAnnotations=SegmentAnnotations(),
+    forward::Int8=Int8(-1),
+    winding_top_to_bottom::Union{Nothing,Int8}=nothing,
+    winding_left_to_right::Union{Nothing,Int8}=nothing,
     )
     point = is_start ? segment[1] : segment[2]
     other_point = is_start ? segment[2] : segment[1]
-    SegmentEvent(segment, is_start, primary, self_annotations, other_annotations, nothing, point, other_point)
+    SegmentEvent(
+        segment, is_start, primary,
+        self_annotations, other_annotations,
+        nothing,
+        point, other_point,
+        forward, winding_top_to_bottom, winding_left_to_right
+    )
 end
 
 function copy_segment(event::SegmentEvent, is_primary::Bool) 
     # make a copy independent of the original event.
     SegmentEvent(
-        deepcopy(event.segment), event.is_start, is_primary, deepcopy(event.self_annotations), deepcopy(event.other_annotations)
+        deepcopy(event.segment),
+        event.is_start,
+        is_primary,
+        deepcopy(event.self_annotations),
+        deepcopy(event.other_annotations),
+        event.forward,
+        event.winding_top_to_bottom,
+        event.winding_left_to_right,
     )
 end
 

@@ -10,6 +10,7 @@ include("utils.jl")
 include("data_structures/linked_list.jl")
 include("data_structures/point_set.jl")
 include("data_structures/segment_event.jl")
+include("data_structures/windings.jl")
 
 # Foundation algorithms
 include("bounds.jl")
