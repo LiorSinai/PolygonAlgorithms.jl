@@ -73,6 +73,48 @@ end
     end
 end
 
+@testset verbose=true "self-intersecting loop back" begin
+    #=This particular polygon exposed a bug
+    The tail and base are connected:
+            /\
+        ___/__\
+    The tail is outside and is not filled above or below.
+    The base is inside and filled above but not below.
+    The divide_event! code used to always carry through the self-annotations
+        => the base became not filled above or below.
+    The toggle in calculate_self_annotations! does not turn on if fill_above==fill_below.
+    And this resulted in the based being excluded as well.
+    =#
+    poly1 = [
+        (3.0, 1.0), (6.0, 1.0), (5.0, 5.0), (4.0, 1.0)
+    ];
+    regions = union_geometry(alg, poly1)
+    expected = [[(4.0, 1.0), (6.0, 1.0), (5.0, 5.0)]]
+    @test are_equivalent_polygons(regions, expected)
+
+    # similar polygon but also makes use of merge_same_segments
+    poly1 = [
+        (6.0, 1.0), (3.0, 1.0), (6.0, 1.0), (4.0, 1.0), (5.0, 5.0)
+    ]
+    regions = union_geometry(alg, poly1)
+    @test_broken are_equivalent_polygons(regions, expected)
+
+    # mirror across the X-axis
+    poly2 = [
+         (3.0, 5.0), (6.0, 5.0), (5.0, 1.0), (4.0, 5.0)
+    ];
+    regions = union_geometry(alg, poly2)
+    expected = [[(4.0, 5.0), (5.0, 1.0), (6.0, 5.0)]]
+    @test are_equivalent_polygons(regions, expected)
+
+    # similar polygon but also makes use of merge_same_segments
+    poly2 = [
+        (6.0, 5.0), (3.0, 5.0), (6.0, 5.0), (5.0, 1.0), (4.0, 5.0),
+    ]
+    regions = union_geometry(alg, poly2)
+    @test_broken are_equivalent_polygons(regions, expected)
+end
+
 @testset verbose=true "self-intersecting star" begin
     self_intersect_star = [
         (-3.0, 2.0), (3.0, 2.0), (-2.0, -2.0), (0.0, 5.0), (2.0, -2.0)

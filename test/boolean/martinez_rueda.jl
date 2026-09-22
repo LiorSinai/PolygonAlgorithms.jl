@@ -136,8 +136,8 @@ using PolygonAlgorithms: BLANK
             expected = [
                 ev2_start,
                 ev2_end,
-                SegmentEvent(((5.0, 1.0), (7.0, -1.0)), true, true, self_annotations),
-                SegmentEvent(((5.0, 1.0), (7.0, -1.0)), false, true, self_annotations),
+                SegmentEvent(((5.0, 1.0), (7.0, -1.0)), true, true, SegmentAnnotations()),
+                SegmentEvent(((5.0, 1.0), (7.0, -1.0)), false, true, SegmentAnnotations()),
             ]
             @test queue == expected
         end
