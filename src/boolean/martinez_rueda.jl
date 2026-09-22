@@ -305,11 +305,11 @@ function check_and_divide_intersection!(
         end
         return queue
     else
-        divide_intersection!(queue, ev1, ev2, pt; atol=atol)
+        divide_intersection!(queue, ev1, ev2, pt, self_intersection; atol=atol)
     end
 end
 
-function divide_intersection!(queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::SegmentEvent, pt::Nothing; atol=1e-6)
+function divide_intersection!(queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::SegmentEvent, pt, self_intersection::Bool=false::Nothing; atol=1e-6)
     queue
 end
 
@@ -317,8 +317,9 @@ function divide_intersection!(
     queue::Vector{<:SegmentEvent},
     ev1::SegmentEvent,
     ev2::SegmentEvent,
-    pt::Point2D
-    ; atol::AbstractFloat=default_atol
+    pt::Point2D,
+    self_intersection::Bool=false,
+    ; atol::AbstractFloat=default_atol,
     ) # checkIntersection
     @debug("[divide_intersection!] $(ev1.segment) -- $(ev2.segment) at $(pt)")
     at_start1, at_end1, along1 = classify_intersection(ev1.segment, pt; atol=atol)
@@ -326,19 +327,19 @@ function divide_intersection!(
     @debug("[divide_intersection!] $at_start1 $at_end1 $along1")
     @debug("[divide_intersection!] $at_start2 $at_end2 $along2")
     if along1 && along2
-        divide_event!(queue, ev1, pt; atol=atol)
-        divide_event!(queue, ev2, pt; atol=atol)
+        divide_event!(queue, ev1, pt, self_intersection; atol=atol)
+        divide_event!(queue, ev2, pt, self_intersection; atol=atol)
     elseif along1
         if at_start2
-            divide_event!(queue, ev1, ev2.segment[1]; atol=atol)
+            divide_event!(queue, ev1, ev2.segment[1], self_intersection; atol=atol)
         elseif at_end2
-            divide_event!(queue, ev1, ev2.segment[2]; atol=atol)
+            divide_event!(queue, ev1, ev2.segment[2], self_intersection; atol=atol)
         end
     elseif along2
         if at_start1
-            divide_event!(queue, ev2, ev1.segment[1]; atol=atol)
+            divide_event!(queue, ev2, ev1.segment[1], self_intersection; atol=atol)
         elseif at_end1
-            divide_event!(queue, ev2, ev1.segment[2]; atol=atol)
+            divide_event!(queue, ev2, ev1.segment[2], self_intersection; atol=atol)
         end
     end
     queue
@@ -372,11 +373,11 @@ function divide_coincident_intersection!(
         if end1_between
             # (a1)---(a2)
             # (b1)----x------(b2)
-            divide_event!(queue, ev2, ev1.segment[2]; atol=atol)
+            divide_event!(queue, ev2, ev1.segment[2], self_intersection; atol=atol)
         elseif end2_between
             # (a1)----x-----(a2)
             # (b1)---(b2)
-            divide_event!(queue, ev1, ev2.segment[2]; atol=atol)
+            divide_event!(queue, ev1, ev2.segment[2], self_intersection; atol=atol)
         else # are these segment colinear?
             return queue
         end
@@ -387,11 +388,11 @@ function divide_coincident_intersection!(
             if end1_between
                 #         (a1)---(a2)
                 #  (b1)-----------x-----(b2)
-                divide_event!(queue, ev2, ev1.segment[2]; atol=atol)
+                divide_event!(queue, ev2, ev1.segment[2], self_intersection; atol=atol)
             elseif end2_between
                 #         (a1)----x-----(a2)
                 #  (b1)----------(b2)
-                divide_event!(queue, ev1, ev2.segment[2]; atol=atol);
+                divide_event!(queue, ev1, ev2.segment[2], self_intersection; atol=atol);
             else # are these segments colinear?
                 return queue
             end
@@ -399,7 +400,7 @@ function divide_coincident_intersection!(
         #         (a1)---(a2)
         #  (b1)----x-----(b2)
         # equal segment a1-b2 isn't in the status stack yet, so don't return it
-        divide_event!(queue, ev2, ev1.segment[1]; atol=atol);
+        divide_event!(queue, ev2, ev1.segment[1], self_intersection; atol=atol);
     end
     queue
 end
@@ -412,7 +413,11 @@ Divide an event `ev` and `ev.other` in `queue` into 4:
 --x-->  to  --> x-->
 ```
 """
-function divide_event!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent, pt::Point2D; atol::AbstractFloat=default_atol) # eventDivide
+function divide_event!(
+    queue::Vector{<:SegmentEvent}, ev::SegmentEvent, pt::Point2D,
+    self_intersection::Bool=false
+    ; atol::AbstractFloat=default_atol
+    ) # eventDivide
     # assumes pt lies on ev.segment
     new_segment = (pt, ev.segment[2])
     @debug("[divide_event!] new_segment=$(new_segment)")
@@ -420,10 +425,11 @@ function divide_event!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent, pt::Poin
     # fix position of end in queue
     pop_key!(queue, e2)
     insert_in_order!(queue, e2; lt=compare_events)
-    # add new segment at the end. Reset other_annotations
+    # add new segment at the end. Reset other_annotations. Reset self-annotations if self-intersection.
     add_segment_event!(
         queue, new_segment, ev.primary,
-        ev.self_annotations, SegmentAnnotations(),
+        self_intersection ? SegmentAnnotations() : ev.self_annotations,
+        SegmentAnnotations(),
         ev.forward, ev.winding_top_to_bottom, ev.winding_left_to_right
     )
 end
@@ -473,7 +479,7 @@ function merge_same_segments!(queue::Vector{<:SegmentEvent}, discard::SegmentEve
         survive.other_annotations = discard.self_annotations
     else # merge two segments that belong to the same polygon
         if isnothing(survive.other_annotations.fill_above)
-            @assert !isnothing(dicard.self_annotations.fill_above) "missing self_annotations in discarded segment: $(dicard)"
+            @assert !isnothing(discard.self_annotations.fill_above) "missing self_annotations in discarded segment: $(discard)"
             survive.other_annotations = discard.other_annotations
         end
     end
