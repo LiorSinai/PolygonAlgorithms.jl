@@ -55,8 +55,8 @@ Return:
 - 1 if pt2 is smaller
 """
 function _compare_points(pt1::Point2D{T}, pt2::Point2D{T}; atol::AbstractFloat=default_atol) where T # pointsCompare
-    if abs(pt1[1] - pt2[1]) < atol # on a vertical line
-        if abs(pt1[2] - pt2[2]) < atol # same point
+    if abs(pt1[1] - pt2[1]) <= eps(T) # on a vertical line
+        if abs(pt1[2] - pt2[2]) <= atol # same point
             return Int8(0)
         end
         return pt1[2] < pt2[2] ? Int8(-1) : Int8(1); # compare Y values
@@ -88,7 +88,7 @@ function compare_events(event::SegmentEvent, here::SegmentEvent; atol::AbstractF
     end
     # share a common start point ⋅< or a common end point >⋅
     # Manually calculate if the other point is above
-    if abs(here.segment[1][1] - here.segment[2][1]) < atol # vertical
+    if abs(here.segment[1][1] - here.segment[2][1]) <= eps(eltype(event)) # vertical
         # projecting the point won't work.
         # instead, assume smaller segment leans towards the right
         return event.other_point[1] > here.segment[1][1]

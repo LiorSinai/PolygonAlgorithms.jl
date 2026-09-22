@@ -132,8 +132,8 @@ In the special case of a vertical segment (`x₂=x₁`), this compares `y` value
 yp ≥ max(y₂, y₁)
 ```
 """
-function is_above_or_on(point::Point2D, segment::Segment2D; atol::AbstractFloat=default_atol)
-    if abs(segment[2][1] - segment[1][1]) <= atol # vertical segment
+function is_above_or_on(point::Point2D{T}, segment::Segment2D{T}; atol::AbstractFloat=default_atol) where T
+    if abs(segment[2][1] - segment[1][1]) <= eps(T) # vertical segment
         return point[2] >= max(segment[1][2], segment[2][2])
     end
     cmp = get_orientation(segment[1], segment[2], point; atol=atol)

@@ -421,7 +421,7 @@ function divide_event!(
     # assumes pt lies on ev.segment
     new_segment = (pt, ev.segment[2])
     @debug("[divide_event!] new_segment=$(new_segment)")
-    e1, e2 = update_end!(ev, pt; atol=atol)
+    e1, e2 = update_end!(ev, pt)
     # fix position of end in queue
     pop_key!(queue, e2)
     insert_in_order!(queue, e2; lt=compare_events)
@@ -435,7 +435,7 @@ function divide_event!(
 end
 
 """
-    update_end!(queue, ev, pt; atol=1e-6)
+    update_end!(queue, ev, pt)
 
 Slides an end backwards.
 ```
@@ -443,7 +443,7 @@ Slides an end backwards.
     (start)---(end)
 ```
 """
-function update_end!(ev::SegmentEvent, end_point::Point2D; atol::AbstractFloat=default_atol)
+function update_end!(ev::SegmentEvent, end_point::Point2D)
     # Assumes ev is a start event.        
     @assert ev.is_start
     ev.segment = (ev.segment[1], end_point)
@@ -451,12 +451,6 @@ function update_end!(ev::SegmentEvent, end_point::Point2D; atol::AbstractFloat=d
     other = ev.other
     other.segment = (ev.segment[1], end_point)
     other.point = end_point
-    if abs(ev.segment[1][1] - end_point[1]) <= atol &&
-        (ev.segment[1][2] > end_point[2]) && ev.is_start
-        @warn "Reversing direction for new vertical segment: $(ev.segment)."
-        ev.is_start = false
-        other.is_start = true
-    end
     ev, other
 end
 
