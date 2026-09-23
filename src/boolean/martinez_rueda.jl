@@ -49,14 +49,18 @@ function martinez_rueda_algorithm(
     subject::Path2D{T},
     others::Vararg{Path2D{T}},
     ;
-    atol::AbstractFloat=default_atol,
+    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
     options...
     ) where T
-    event_queue_base = convert_to_event_queue(subject; primary=true, atol=atol)
-    event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
+    event_queue_base = convert_to_event_queue(subject; primary=true, atol=atol, rtol=rtol)
+    event_queue_others = map(
+        p -> convert_to_event_queue(p; primary=false, atol=atol, rtol=rtol)
+        , others
+    )
     segments = martinez_rueda_algorithm(
-        selection_criteria, event_queue_base, event_queue_others...; atol=atol, options...
+        selection_criteria, event_queue_base, event_queue_others...
+        ; atol=atol, rtol=rtol, options...
     )
     exteriors, holes = segments_to_paths(
         segments;
@@ -71,15 +75,22 @@ function martinez_rueda_algorithm(
     subjects::AbstractVector{<:Path2D{T}},
     others::Vararg{Path2D{T}},
     ;
-    atol::AbstractFloat=default_atol,
+    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
     options...
     ) where T
     subject_queue = SegmentEvent{T}[]
-    map(p -> convert_to_event_queue!(subject_queue, p; primary=true, atol=atol), subjects)
-    event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
+    map(
+        p -> convert_to_event_queue!(subject_queue, p; primary=true, atol=atol, rtol=rtol),
+        subjects
+    )
+    event_queue_others = map(
+        p -> convert_to_event_queue(p; primary=false, atol=atol, rtol=rtol),
+        others
+    )
     segments = martinez_rueda_algorithm(
-        selection_criteria, subject_queue, event_queue_others...; atol=atol, options...
+        selection_criteria, subject_queue, event_queue_others...
+        ; atol=atol, rtol=rtol, options...
     )
     exteriors, holes = segments_to_paths(
         segments;
@@ -94,26 +105,30 @@ function martinez_rueda_algorithm(
     subject::Polygon{T},
     others::Vararg{Polygon{T}},
     ;
-    atol::AbstractFloat=default_atol,
+    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
     options...
     ) where T
-    event_queue_base = convert_to_event_queue(subject.exterior; primary=true, atol=atol)
+    event_queue_base = convert_to_event_queue(subject.exterior; primary=true, atol=atol, rtol=rtol)
     for hole in subject.holes
-        convert_to_event_queue!(event_queue_base, hole; primary=true, atol=atol)
+        convert_to_event_queue!(event_queue_base, hole; primary=true, atol=atol, rtol=rtol)
     end
-    event_queue_others = map(p -> convert_to_event_queue(p.exterior; primary=false, atol=atol), others)
+    event_queue_others = map(
+        p -> convert_to_event_queue(p.exterior; primary=false, atol=atol, rtol=rtol),
+        others
+    )
     for (queue, other) in zip(event_queue_others, others)
         for hole in other.holes
-            convert_to_event_queue!(queue, hole; primary=false, atol=atol)
+            convert_to_event_queue!(queue, hole; primary=false, atol=atol, rtol=rtol)
         end
     end
     segments = martinez_rueda_algorithm(
-        selection_criteria, event_queue_base, event_queue_others...; atol=atol, options...
+        selection_criteria, event_queue_base, event_queue_others...
+        ; atol=atol, rtol=rtol, options...
     )
     segments_to_polygons(
         segments
-        ; atol=atol,
+        ; atol=atol, rtol=rtol,
         face_selection=face_selection,
     )
 end
@@ -124,29 +139,36 @@ function martinez_rueda_algorithm(
     subjects::AbstractVector{<:Polygon{T}},
     clips::Vararg{Polygon{T}},
     ;
-    atol::AbstractFloat=default_atol,
+    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
     options...
     ) where T
     subject_queue = SegmentEvent{T}[]
-    map(p -> convert_to_event_queue!(subject_queue, p.exterior; primary=true, atol=atol), subjects)
+    map(
+        p -> convert_to_event_queue!(subject_queue, p.exterior; primary=true, atol=atol, rtol=rtol),
+        subjects
+    )
     for subject in subjects
         for hole in subject.holes
-            convert_to_event_queue!(subject_queue, hole; primary=true, atol=atol)
+            convert_to_event_queue!(subject_queue, hole; primary=true, atol=atol, rtol=rtol)
         end
     end
-    event_queue_clips = map(p -> convert_to_event_queue(p.exterior; primary=false, atol=atol), clips)
+    event_queue_clips = map(
+        p -> convert_to_event_queue(p.exterior; primary=false, atol=atol, rtol=rtol),
+        clips
+    )
     for (queue, other) in zip(event_queue_clips, clips)
         for hole in other.holes
-            convert_to_event_queue!(queue, hole; primary=false, atol=atol)
+            convert_to_event_queue!(queue, hole; primary=false, atol=atol, rtol=rtol)
         end
     end
     segments = martinez_rueda_algorithm(
-        selection_criteria, subject_queue, event_queue_clips...; atol=atol, options...
+        selection_criteria, subject_queue, event_queue_clips...
+        ; atol=atol, rtol=rtol, options...
     )
     segments_to_polygons(
         segments
-        ; atol=atol,
+        ; atol=atol, rtol=rtol,
         face_selection=face_selection,
     )
 end
@@ -220,7 +242,8 @@ end
 
 function event_loop!(
     queue::Vector{SegmentEvent{T}}
-    ; self_intersection::Bool, atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_atol,
+    ; self_intersection::Bool,
+    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_atol,
     fill_rule::FillRule=EVEN_ODD
     ) where T # eventLoop
     annotated_segments = SegmentEvent{T}[]
@@ -231,7 +254,7 @@ function event_loop!(
         status_length = length(sweep_status)
         @debug("[event_loop!] ($(queue_length), $(status_length)): $(head)")
         if head.is_start # then check for intersections and add to sweep status
-            idx = find_transition(sweep_status, head; atol=atol)
+            idx = find_transition(sweep_status, head; atol=atol, rtol=rtol)
             above = idx == 1 ? nothing : sweep_status[idx - 1]
             below = (idx > length(sweep_status)) ? nothing : sweep_status[idx]
             @debug("[event_loop!] transition idx=$idx")
@@ -256,10 +279,10 @@ function event_loop!(
             end
             insert!(sweep_status, idx, head)
         else # event is ending, so remove it from the status
-            idx = find_transition(sweep_status, head.other; atol=atol)
+            idx = find_transition(sweep_status, head.other; atol=atol, rtol=rtol)
             if !(0 < idx <= length(sweep_status) && sweep_status[idx] === head.other)
                 @warn "$(head.other) was not in the expected location in the sweep status. " * 
-                    "Falling back to linear search. This might result in incorrect annotations and hence open chains."
+                    "Falling back to linear search."
                 idx = findfirst(x -> x === head.other, sweep_status)
                 @assert(
                     !isnothing(idx),
@@ -298,18 +321,21 @@ function check_and_divide_intersection!(
     if isnothing(pt)
         @debug("no intersection or parallel lines at $ev1 -- $ev2")
         # Lines might be on top of each other 
-        ori2_start = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[1]; atol=atol)
-        ori2_end = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[2]; atol=atol)
+        ori2_start = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[1]; atol=atol, rtol=rtol)
+        ori2_end = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[2]; atol=atol, rtol=rtol)
         if (ori2_start == COLINEAR) && (ori2_end == COLINEAR)
-            divide_coincident_intersection!(queue, ev1, ev2, self_intersection; atol=atol)
+            divide_coincident_intersection!(queue, ev1, ev2, self_intersection; atol=atol, rtol=rtol)
         end
         return queue
     else
-        divide_intersection!(queue, ev1, ev2, pt, self_intersection; atol=atol)
+        divide_intersection!(queue, ev1, ev2, pt, self_intersection; atol=atol, rtol=rtol)
     end
 end
 
-function divide_intersection!(queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::SegmentEvent, pt, self_intersection::Bool=false::Nothing; atol=1e-6)
+function divide_intersection!(
+    queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::SegmentEvent, pt, self_intersection::Bool=false::Nothing
+    ; atol=default_atol, rtol=default_rtol
+    )
     queue
 end
 
@@ -319,27 +345,28 @@ function divide_intersection!(
     ev2::SegmentEvent,
     pt::Point2D,
     self_intersection::Bool=false,
-    ; atol::AbstractFloat=default_atol,
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) # checkIntersection
+    _divide_event!(args...) = divide_event!(args...; atol=atol, rtol=rtol)
     @debug("[divide_intersection!] $(ev1.segment) -- $(ev2.segment) at $(pt)")
     at_start1, at_end1, along1 = classify_intersection(ev1.segment, pt; atol=atol)
     at_start2, at_end2, along2 = classify_intersection(ev2.segment, pt; atol=atol)
     @debug("[divide_intersection!] $at_start1 $at_end1 $along1")
     @debug("[divide_intersection!] $at_start2 $at_end2 $along2")
     if along1 && along2
-        divide_event!(queue, ev1, pt, self_intersection; atol=atol)
-        divide_event!(queue, ev2, pt, self_intersection; atol=atol)
+        _divide_event!(queue, ev1, pt, self_intersection)
+        _divide_event!(queue, ev2, pt, self_intersection)
     elseif along1
         if at_start2
-            divide_event!(queue, ev1, ev2.segment[1], self_intersection; atol=atol)
+            _divide_event!(queue, ev1, ev2.segment[1], self_intersection)
         elseif at_end2
-            divide_event!(queue, ev1, ev2.segment[2], self_intersection; atol=atol)
+            _divide_event!(queue, ev1, ev2.segment[2], self_intersection)
         end
     elseif along2
         if at_start1
-            divide_event!(queue, ev2, ev1.segment[1], self_intersection; atol=atol)
+            _divide_event!(queue, ev2, ev1.segment[1], self_intersection)
         elseif at_end1
-            divide_event!(queue, ev2, ev1.segment[2], self_intersection; atol=atol)
+            _divide_event!(queue, ev2, ev1.segment[2], self_intersection)
         end
     end
     queue
@@ -347,11 +374,12 @@ end
 
 function divide_coincident_intersection!(
     queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::SegmentEvent, self_intersection::Bool
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
     # This assumes:
     # - ev1 is on top of or to the right of ev2, because events are processed left to right.
-    # - both points of ev2 are colinear with ev1 .
+    # - both points of ev2 are colinear with ev1
+    _divide_event!(args...) = divide_event!(args...; atol=atol, rtol=rtol)
     @debug("[divide_coincident_intersection!] $(ev1) -- $ev2")
     start1_on_end2 = is_same_point(ev1.segment[1], ev2.segment[2]; atol=atol)
     end1_on_start2 = is_same_point(ev1.segment[2], ev2.segment[1]; atol=atol)
@@ -367,17 +395,17 @@ function divide_coincident_intersection!(
         return merge_same_segments!(queue, ev1, ev2, self_intersection)
     end
     start1_between = !starts_equal && on_segment(ev1.segment[1], ev2.segment; atol=atol)
-    end1_between = !ends_equal && on_segment(ev1.segment[2], ev2.segment; atol=atol)
-    end2_between = !ends_equal && on_segment(ev2.segment[2], ev1.segment; atol=atol)
+    end1_between = !ends_equal && on_segment(ev1.segment[2], ev2.segment; atol=atol, rtol=rtol)
+    end2_between = !ends_equal && on_segment(ev2.segment[2], ev1.segment; atol=atol, rtol=rtol)
     if starts_equal
         if end1_between
             # (a1)---(a2)
             # (b1)----x------(b2)
-            divide_event!(queue, ev2, ev1.segment[2], self_intersection; atol=atol)
+            _divide_event!(queue, ev2, ev1.segment[2], self_intersection)
         elseif end2_between
             # (a1)----x-----(a2)
             # (b1)---(b2)
-            divide_event!(queue, ev1, ev2.segment[2], self_intersection; atol=atol)
+            _divide_event!(queue, ev1, ev2.segment[2], self_intersection)
         else # are these segment colinear?
             return queue
         end
@@ -388,11 +416,11 @@ function divide_coincident_intersection!(
             if end1_between
                 #         (a1)---(a2)
                 #  (b1)-----------x-----(b2)
-                divide_event!(queue, ev2, ev1.segment[2], self_intersection; atol=atol)
+                _divide_event!(queue, ev2, ev1.segment[2], self_intersection)
             elseif end2_between
                 #         (a1)----x-----(a2)
                 #  (b1)----------(b2)
-                divide_event!(queue, ev1, ev2.segment[2], self_intersection; atol=atol);
+                _divide_event!(queue, ev1, ev2.segment[2], self_intersection);
             else # are these segments colinear?
                 return queue
             end
@@ -400,13 +428,13 @@ function divide_coincident_intersection!(
         #         (a1)---(a2)
         #  (b1)----x-----(b2)
         # equal segment a1-b2 isn't in the status stack yet, so don't return it
-        divide_event!(queue, ev2, ev1.segment[1], self_intersection; atol=atol);
+        _divide_event!(queue, ev2, ev1.segment[1], self_intersection);
     end
     queue
 end
 
 """
-    divide_event!(queue, ev, pt; atol=1e-6)
+    divide_event!(queue, ev, pt; [atol, rtol])
 
 Divide an event `ev` and `ev.other` in `queue` into 4:
 ```
@@ -416,7 +444,7 @@ Divide an event `ev` and `ev.other` in `queue` into 4:
 function divide_event!(
     queue::Vector{<:SegmentEvent}, ev::SegmentEvent, pt::Point2D,
     self_intersection::Bool=false
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) # eventDivide
     # assumes pt lies on ev.segment
     new_segment = (pt, ev.segment[2])
@@ -424,13 +452,14 @@ function divide_event!(
     e1, e2 = update_end!(ev, pt)
     # fix position of end in queue
     pop_key!(queue, e2)
-    insert_in_order!(queue, e2; lt=compare_events)
+    insert_in_order!(queue, e2; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
     # add new segment at the end. Reset other_annotations. Reset self-annotations if self-intersection.
     add_segment_event!(
         queue, new_segment, ev.primary,
         self_intersection ? SegmentAnnotations() : ev.self_annotations,
         SegmentAnnotations(),
-        ev.forward, ev.winding_top_to_bottom, ev.winding_left_to_right
+        ev.forward, ev.winding_top_to_bottom, ev.winding_left_to_right;
+        atol=atol, rtol=rtol
     )
 end
 

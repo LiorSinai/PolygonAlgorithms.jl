@@ -1,4 +1,5 @@
-import Base: length, show, isempty, iterate, KeySet, union!, push!, show_vector, in, Set
+import Base: length, show, isempty, iterate, union!, push!, show_vector, in
+using Base: KeySet
 
 """
     PointSet([itr]; digits=6)
@@ -31,9 +32,6 @@ isempty(s::PointSet) = isempty(s.dict)
 length(s::PointSet)  = length(s.dict)
 iterate(s::PointSet, i...)  = iterate(KeySet(s.dict), i...)
 in(x, s::PointSet) = haskey(s.dict, fudge(x, s.digits))
-
-Set(s::PointSet) = Set(KeySet(s.dict))
-PointSet(s::Set{T}) where T = PointSet(collect(KeySet(s.dict)))
 
 function union!(s::PointSet, itr)
     for x in itr

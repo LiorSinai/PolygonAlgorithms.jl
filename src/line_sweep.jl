@@ -10,8 +10,10 @@ function convert_to_event_queue(
 end
 
 function convert_to_event_queue!(
-    queue::Vector{<:SegmentEvent}, polygon::Path2D;
-    primary::Bool=true, atol::AbstractFloat=default_atol
+    queue::Vector{<:SegmentEvent}, polygon::Path2D
+    ; primary::Bool=true,
+    atol::AbstractFloat=default_atol,
+    rtol::AbstractFloat=default_rtol
     )
     pt2 = polygon[end]
     for i in eachindex(polygon)
@@ -24,7 +26,10 @@ function convert_to_event_queue!(
         start = forward < Int8(0) ? pt1 : pt2
         tail = forward < Int8(0) ? pt2 : pt1
         segment = (start, tail)
-        add_segment_event!(queue, segment, primary, SegmentAnnotations(), SegmentAnnotations(), forward)
+        add_segment_event!(
+            queue, segment, primary, SegmentAnnotations(), SegmentAnnotations(), forward
+            ; atol=atol, rtol=rtol
+        )
     end
     queue
 end
@@ -37,14 +42,16 @@ function add_segment_event!(
     shared_other_annotations::SegmentAnnotations=SegmentAnnotations(),
     forward::Int8=Int8(-1),
     winding_top_to_bottom::Union{Nothing,Int8}=nothing,
-    winding_left_to_right::Union{Nothing,Int8}=nothing,
+    winding_left_to_right::Union{Nothing,Int8}=nothing;
+    atol::AbstractFloat=default_atol,
+    rtol::AbstractFloat=default_rtol
     )
     start_event = SegmentEvent(segment, true, primary, shared_self_annotations, shared_other_annotations, forward, winding_top_to_bottom, winding_left_to_right)
     end_event = SegmentEvent(segment, false, primary, shared_self_annotations, shared_other_annotations, forward, winding_top_to_bottom, winding_left_to_right)
     start_event.other = end_event
     end_event.other = start_event   
-    insert_in_order!(queue, start_event; lt=compare_events)
-    insert_in_order!(queue, end_event; lt=compare_events)
+    insert_in_order!(queue, start_event; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
+    insert_in_order!(queue, end_event; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
 end
 
 """
@@ -65,19 +72,22 @@ function _compare_points(pt1::Point2D{T}, pt2::Point2D{T}; atol::AbstractFloat=d
 end
 
 """
-    compare_events(event, here)
+    compare_events(event, here; [atol, rtol])
 
 Smaller events are to the left or bottom. Otherwise, end events come before the start.
 Returns true if smaller.
 """
-function compare_events(event::SegmentEvent, here::SegmentEvent; atol::AbstractFloat=default_atol) # eventCompare
+function compare_events(
+    event::SegmentEvent, here::SegmentEvent
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ) # eventCompare
     # Assumes events are left to right
-    comp = _compare_points(event.point, here.point)
+    comp = _compare_points(event.point, here.point; atol=atol)
     if comp != Int8(0)
         return comp < Int8(0)
     end
     # Selected points are the same -> events on top of each other.
-    comp = _compare_points(event.other_point, here.other_point)
+    comp = _compare_points(event.other_point, here.other_point; atol=atol)
     if comp === Int8(0)
         return false # equal segments
     end
@@ -93,7 +103,7 @@ function compare_events(event::SegmentEvent, here::SegmentEvent; atol::AbstractF
         # instead, assume smaller segment leans towards the right
         return event.other_point[1] > here.segment[1][1]
     end
-    is_above_or_on(event.other_point, here.segment; atol=atol) ? false : true
+    is_above_or_on(event.other_point, here.segment; atol=atol, rtol=rtol) ? false : true
 end
 
 #############################################################
@@ -101,7 +111,7 @@ end
 #############################################################
 
 """
-    is_above(event, other, [atol])
+    is_above(event, other, [atol, rtol])
 
 
 !!!!! Critical function. May be source of errors that only emerge later.
@@ -119,20 +129,20 @@ Assumes segments always go left to right.
 """
 function is_above(
     ev::SegmentEvent, other::SegmentEvent
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) # statusCompare
     seg1 = ev.segment
     seg2 = other.segment
     if (seg1[1][1] < seg2[1][1])
-        orient = get_orientation(seg1[1], seg1[2], seg2[1]; atol=atol)
+        orient = get_orientation(seg1[1], seg1[2], seg2[1]; atol=atol, rtol=rtol)
         if orient == COLINEAR
-            orient = get_orientation(seg1[1], seg1[2], seg2[2]; atol=atol)
+            orient = get_orientation(seg1[1], seg1[2], seg2[2]; atol=atol, rtol=rtol)
         end
         return orient == CLOCKWISE
     else
-        orient = get_orientation(seg2[1], seg2[2], seg1[1]; atol=atol)
+        orient = get_orientation(seg2[1], seg2[2], seg1[1]; atol=atol, rtol=rtol)
         if orient == COLINEAR
-            orient = get_orientation(seg2[1], seg2[2], seg1[2]; atol=atol)
+            orient = get_orientation(seg2[1], seg2[2], seg1[2]; atol=atol, rtol=rtol)
         end
         return orient == COUNTER_CLOCKWISE
     end
@@ -140,16 +150,20 @@ end
 
 function find_transition(
     list::Vector{<:SegmentEvent}, event::SegmentEvent
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
-    searchsortedfirst(list, event; lt=(x, y) -> is_above(x, y; atol=atol))
+    searchsortedfirst(list, event; lt=(x, y) -> is_above(x, y; atol=atol, rtol=rtol))
 end
 
-function is_vertex_intersection(segment1::Segment2D, segment2::Segment2D; atol::AbstractFloat=default_atol)
-    on_segment(segment1[1], segment2; atol=atol) || 
-        on_segment(segment1[2], segment2; atol=atol) ||
-        on_segment(segment2[1], segment1; atol=atol) ||
-        on_segment(segment2[2], segment1; atol=atol)
+function is_vertex_intersection(
+    segment1::Segment2D, segment2::Segment2D
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    )
+    fn(a, b) = on_segment(a, b; atol=atol, rtol=rtol)
+    fn(segment1[1], segment2) || 
+        fn(segment1[2], segment2) ||
+        fn(segment2[1], segment1) ||
+        fn(segment2[2], segment1)
 end
 
 #############################################################
@@ -157,8 +171,8 @@ end
 #############################################################
 
 """
-    any_intersect(segment::Segment2D, ...; atol=default_atol, include_vertices=true)
-    any_intersect(queue::Vector{SegmentEvent}}; atol=default_atol, include_vertices=true)
+    any_intersect(segment::Segment2D, ...; atol, rtol, include_vertices=true)
+    any_intersect(queue::Vector{SegmentEvent}}; options..)
 
 A line sweep algorithm for determining if any segment intersects with any other segment.
 
@@ -169,7 +183,10 @@ Reference:
 """
 function any_intersect(
     queue::Vector{SegmentEvent{T}}
-    ; atol::AbstractFloat=default_atol, include_vertices::Bool=true
+    ;
+    atol::AbstractFloat=default_atol,
+    rtol::AbstractFloat=default_rtol,
+    include_vertices::Bool=true
     ) where T
     sweep_status = SegmentEvent{T}[] # current events in a vertical line, top to bottom.
     for head in queue
@@ -177,22 +194,22 @@ function any_intersect(
         status_length = length(sweep_status)
         @debug("[do_intersect] ($(queue_length), $(status_length)): $(head)")
         if head.is_start # then check for intersections and add to sweep status
-            idx = find_transition(sweep_status, head; atol=atol)
+            idx = find_transition(sweep_status, head; atol=atol, rtol=rtol)
             above = idx == 1 ? nothing : sweep_status[idx - 1]
             below = (idx > length(sweep_status)) ? nothing : sweep_status[idx]
             @debug("[event_loop!] transition idx=$idx")
             @debug("[event_loop!] above=$above")
             @debug("[event_loop!] below=$below")
-            if !isnothing(above) && do_intersect(head.segment, above.segment; atol=atol) &&
-                (include_vertices || !is_vertex_intersection(head.segment, above.segment; atol=atol))
+            if !isnothing(above) && do_intersect(head.segment, above.segment; atol=atol, rtol=rtol) &&
+                (include_vertices || !is_vertex_intersection(head.segment, above.segment; atol=atol, rtol=rtol))
                 return true
-            elseif !isnothing(below) && do_intersect(head.segment, below.segment; atol=atol) &&
-                (include_vertices || !is_vertex_intersection(head.segment, below.segment; atol=atol))
+            elseif !isnothing(below) && do_intersect(head.segment, below.segment; atol=atol, rtol=rtol) &&
+                (include_vertices || !is_vertex_intersection(head.segment, below.segment; atol=atol, rtol=rtol))
                 return true
             end
             insert!(sweep_status, idx, head)
         else # event is ending, so remove it from the status
-            idx = find_transition(sweep_status, head.other; atol=atol)
+            idx = find_transition(sweep_status, head.other; atol=atol, rtol=rtol)
             if !(0 < idx <= length(sweep_status) && sweep_status[idx] === head.other)
                 @warn "$(head.other) was not in the expected location in the sweep status. " * 
                     "Falling back to linear search. Results might not be reliable."
@@ -206,7 +223,7 @@ function any_intersect(
                 # there will be 2 new adjacent edges, so check the intersection between them
                 above = sweep_status[idx - 1]
                 below = sweep_status[idx + 1]
-                if do_intersect(above.segment, below.segment; atol=atol) && 
+                if do_intersect(above.segment, below.segment; atol=atol, rtol=rtol) && 
                     (include_vertices || !is_vertex_intersection(above.segment, below.segment; atol=atol))
                     return true
                 end
@@ -217,12 +234,16 @@ function any_intersect(
     false
 end
 
-function any_intersect(segments::Vararg{Segment2D{T}}; atol::AbstractFloat=default_atol, options...) where T
+function any_intersect(
+    segments::Vararg{Segment2D{T}}
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    options...
+    ) where T
     queue = SegmentEvent{T}[]
     for segment in segments
         forward = _compare_points(segment[1], segment[2]; atol=atol)
         segment_ = forward < Int8(0) ? (segment[1], segment[2]) : (segment[2], segment[1])
-        add_segment_event!(queue, segment_, true)
+        add_segment_event!(queue, segment_, true; atol=atol, rtol=rtol)
     end
-    any_intersect(queue; atol=atol, options...)
+    any_intersect(queue; atol=atol, rtol=rtol, options...)
 end

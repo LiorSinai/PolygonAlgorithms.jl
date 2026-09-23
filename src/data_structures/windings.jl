@@ -23,7 +23,7 @@ References:
 
 function calc_winding_top_to_bottom(start::Point2D, tail::Point2D ; atol::AbstractFloat=default_atol)
     dx = tail[1] - start[1]
-    if abs(dx) < atol
+    if abs(dx) <= atol
         return Int8(0)
     end
     dx > Int8(0) ? Int8(1) : Int8(-1)
@@ -31,7 +31,7 @@ end
 
 function calc_winding_left_to_right(start::Point2D, tail::Point2D; atol::AbstractFloat=default_atol)
     dy = tail[2] - start[2]
-    if abs(dy) < atol
+    if abs(dy) <= atol
         return Int8(0)
     end
     dy > Int8(0) ? Int8(1) : Int8(-1)

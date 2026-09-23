@@ -64,7 +64,12 @@ The following additional checks are not done:
 1. Holes should not intersect each other.
 2. No nested holes: holes should not be inside other holes.
 """
-function validate_polygon(exterior::Path2D{T}; holes::Vector{<:Path2D}=Vector{Point2D{T}}[], atol::AbstractFloat=default_atol) where T
+function validate_polygon(
+    exterior::Path2D{T}
+    ; holes::Vector{<:Path2D}=Vector{Point2D{T}}[]
+    , atol::AbstractFloat=default_atol
+    , rtol::AbstractFloat=default_rtol
+    ) where T
     @assert length(exterior) > 2 "exterior requires at least 3 points."
     queue = convert_to_event_queue(exterior)
     @assert !any_intersect(queue; atol=atol, include_vertices=false) "Invalid exterior: edges self-intersect."
@@ -73,14 +78,16 @@ function validate_polygon(exterior::Path2D{T}; holes::Vector{<:Path2D}=Vector{Po
         queue_h = convert_to_event_queue(hole)
         @assert !any_intersect(queue_h; atol=atol, include_vertices=false) "Invalid hole $(idx): edges self-intersect."
         for event in queue
-            insert_in_order!(queue_h, event; lt=compare_events)
+            insert_in_order!(queue_h, event; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
         end
         @assert !any_intersect(queue_h; atol=atol, include_vertices=false) "Hole $(idx) intersects with the exterior."
         j = 1
         while (j < length(hole)) && on_border(exterior, hole[j])
             j += 1
         end
-        @assert contains(exterior, hole[j]; atol=atol, on_border_is_inside=false) "Hole $(idx) is outside the polygon."
+        @assert contains(
+            exterior, hole[j]; atol=atol, rtol=rtol, on_border_is_inside=false
+        ) "Hole $(idx) is outside the polygon."
     end
     true
 end
@@ -100,7 +107,7 @@ end
 
 
 """
-    fully_contains(polygon1::Path2D, polygon2::Path2D)
+    fully_contains(polygon1::Path2D, polygon2::Path2D; [atol, rtol])
 
 A `polygon1` fully contains another `polygon2` if:
     1. None of their segments intersect. However, they can touch.
@@ -111,20 +118,23 @@ The polygons are assumed to not self-intersect.
 The algorithm runs in `O((n+m+k)log(n+m))` time where `n` and `m` are the number of vertices of `polygon1` 
 and `polygon2` respectively and `k` is the total number of intersections 
 """
-function fully_contains(polygon1::Path2D, polygon2::Path2D; atol::AbstractFloat=default_atol)
+function fully_contains(
+    polygon1::Path2D, polygon2::Path2D
+    ; atol::AbstractFloat=default_atol, rtol=default_rtol
+    )
     queue = convert_to_event_queue(polygon1; atol=atol)
     events2 = convert_to_event_queue(polygon2; primary=false, atol=atol)
     for event in events2
-        insert_in_order!(queue, event; lt=compare_events)
+        insert_in_order!(queue, event; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
     end
-    if any_intersect(queue; include_vertices=false)
+    if any_intersect(queue; include_vertices=false, atol=atol, rtol=rtol)
         return false
     end
     j = 1
     while (j < length(polygon2)) && on_border(polygon1, polygon2[j])
         j += 1
     end
-    contains(polygon1, polygon2[j]; atol=atol, on_border_is_inside=false)
+    contains(polygon1, polygon2[j]; atol=atol, rtol=rtol, on_border_is_inside=false)
 end
 
 """
