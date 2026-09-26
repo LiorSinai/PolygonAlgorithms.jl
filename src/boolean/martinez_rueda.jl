@@ -260,11 +260,17 @@ function event_loop!(
             @debug("[event_loop!] transition idx=$idx")
             @debug("[event_loop!] above=$above")
             @debug("[event_loop!] below=$below")
-            check_and_divide_intersection!(queue, head, above, self_intersection; atol=atol, rtol=rtol)
+            check_and_divide_intersection!(
+                queue, head, above, self_intersection
+                ; atol=atol, rtol=rtol, fill_rule=fill_rule
+            )
             if queue[1] != head
                 continue # either head was removed or something was inserted ahead of it
             end
-            check_and_divide_intersection!(queue, head, below, self_intersection; atol=atol, rtol=rtol)
+            check_and_divide_intersection!(
+                queue, head, below, self_intersection
+                ; atol=atol, rtol=rtol, fill_rule=fill_rule
+            )
             if queue[1] != head
                 continue # either head was removed or something was inserted ahead of it
             end
@@ -293,7 +299,8 @@ function event_loop!(
                 # there will be 2 new adjacent edges, so check the intersection between them
                 check_and_divide_intersection!(
                     queue, sweep_status[idx - 1], sweep_status[idx + 1], self_intersection
-                    ; atol=atol, rtol=rtol)
+                    ; atol=atol, rtol=rtol, fill_rule=fill_rule
+                )
             end
             push!(annotated_segments, copy_segment(head.other, head.other.primary))
             popat!(sweep_status, idx)
@@ -305,7 +312,7 @@ end
 
 function check_and_divide_intersection!(
     queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::Nothing, self_intersection::Bool
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol, fill_rule::FillRule=EVEN_ODD
     )
     queue
 end
@@ -315,7 +322,8 @@ function check_and_divide_intersection!(
     ev1::SegmentEvent,
     ev2::SegmentEvent,
     self_intersection::Bool
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    fill_rule::FillRule=EVEN_ODD
     )
     pt = intersect_geometry(ev1.segment, ev2.segment; atol=atol, rtol=rtol)
     if isnothing(pt)
@@ -324,7 +332,10 @@ function check_and_divide_intersection!(
         ori2_start = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[1]; atol=atol, rtol=rtol)
         ori2_end = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[2]; atol=atol, rtol=rtol)
         if (ori2_start == COLINEAR) && (ori2_end == COLINEAR)
-            divide_coincident_intersection!(queue, ev1, ev2, self_intersection; atol=atol, rtol=rtol)
+            divide_coincident_intersection!(
+                queue, ev1, ev2, self_intersection
+                ; fill_rule=fill_rule, atol=atol, rtol=rtol
+            )
         end
         return queue
     else
@@ -374,7 +385,7 @@ end
 
 function divide_coincident_intersection!(
     queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::SegmentEvent, self_intersection::Bool
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; fill_rule::FillRule=EVEN_ODD, atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
     # This assumes:
     # - ev1 is on top of or to the right of ev2, because events are processed left to right.
@@ -392,7 +403,7 @@ function divide_coincident_intersection!(
     @debug("[divide_coincident_intersection!] ends_equal=$ends_equal")
     if starts_equal && ends_equal
         # segments are equal. Keep the second one
-        return merge_same_segments!(queue, ev1, ev2, self_intersection)
+        return merge_same_segments!(queue, ev1, ev2, self_intersection; fill_rule=fill_rule)
     end
     start1_between = !starts_equal && on_segment(ev1.segment[1], ev2.segment; atol=atol)
     end1_between = !ends_equal && on_segment(ev1.segment[2], ev2.segment; atol=atol, rtol=rtol)
@@ -410,7 +421,7 @@ function divide_coincident_intersection!(
             return queue
         end
         # duplicate a1->x, so remove ev1
-        return merge_same_segments!(queue, ev1, ev2, self_intersection)
+        return merge_same_segments!(queue, ev1, ev2, self_intersection; fill_rule=fill_rule)
     elseif start1_between
         if !ends_equal # then make a2 equal to b2
             if end1_between
@@ -483,7 +494,10 @@ function update_end!(ev::SegmentEvent, end_point::Point2D)
     ev, other
 end
 
-function merge_same_segments!(queue::Vector{<:SegmentEvent}, discard::SegmentEvent, survive::SegmentEvent, self_intersection::Bool)
+function merge_same_segments!(
+    queue::Vector{<:SegmentEvent}, discard::SegmentEvent, survive::SegmentEvent, self_intersection::Bool;
+    fill_rule::FillRule=EVEN_ODD
+    )
     @debug("[merge_same_segments!] discard=$discard")
     @debug("[merge_same_segments!] survive=$survive")
     pop_key!(queue, discard)
@@ -491,10 +505,20 @@ function merge_same_segments!(queue::Vector{<:SegmentEvent}, discard::SegmentEve
     if self_intersection
         # fill status is calculated bottom to top, so surviving's fill_below cannot change
         # however, surviving fill_above will be whatever the discarded's one would have been
-        toggle = isnothing(discard.self_annotations.fill_below) ? true : discard.self_annotations.fill_above != discard.self_annotations.fill_below
-        if toggle
-            @assert !isnothing(survive.self_annotations.fill_above) "missing self_annotations in surviving segment: $(survive)" # preempt !nothing error
-            survive.self_annotations.fill_above = !survive.self_annotations.fill_above
+        if fill_rule == EVEN_ODD
+            toggle = isnothing(discard.self_annotations.fill_below) ? true : discard.self_annotations.fill_above != discard.self_annotations.fill_below
+            if toggle
+                @assert !isnothing(survive.self_annotations.fill_above) "missing self_annotations in surviving segment: $(survive)" # preempt !nothing error
+                survive.self_annotations.fill_above = !survive.self_annotations.fill_above
+            end
+        else
+            winding_below = survive.self_annotations.fill_below ? 1 : 0
+            winding_above = winding_below + (
+                get_winding_top_to_bottom!(survive) == 0 ? 
+                get_winding_left_to_right!(survive) : 
+                survive.winding_top_to_bottom
+            )
+            survive.self_annotations.fill_above = winding_above != 0 ? true : false
         end
     elseif discard.primary != survive.primary # merge two segments that belong to different polygons
         # each segment has distinct knowledge, so no special logic is needed
@@ -506,7 +530,7 @@ function merge_same_segments!(queue::Vector{<:SegmentEvent}, discard::SegmentEve
             survive.other_annotations = discard.other_annotations
         end
     end
-    @debug("[merge_same_segments!] survive=$survive")
+    @debug("[merge_same_segments!] survive=$survive\n")
     queue
 end
 
