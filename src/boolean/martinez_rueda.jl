@@ -498,6 +498,7 @@ function merge_same_segments!(
     queue::Vector{<:SegmentEvent}, discard::SegmentEvent, survive::SegmentEvent, self_intersection::Bool;
     fill_rule::FillRule=EVEN_ODD
     )
+    # discard is assumed to be on top of survive 
     @debug("[merge_same_segments!] discard=$discard")
     @debug("[merge_same_segments!] survive=$survive")
     pop_key!(queue, discard)
@@ -506,11 +507,10 @@ function merge_same_segments!(
         # fill status is calculated bottom to top, so surviving's fill_below cannot change
         # however, surviving fill_above will be whatever the discarded's one would have been
         if fill_rule == EVEN_ODD
-            toggle = isnothing(discard.self_annotations.fill_below) ? true : discard.self_annotations.fill_above != discard.self_annotations.fill_below
-            if toggle
-                @assert !isnothing(survive.self_annotations.fill_above) "missing self_annotations in surviving segment: $(survive)" # preempt !nothing error
-                survive.self_annotations.fill_above = !survive.self_annotations.fill_above
-            end
+            # discard.self_annotations.fill_below = survive.self_annotations.fill_above
+            # discard.self_annotations.fill_above = !discard.self_annotations.fill_below => survive.self_annotations.fill_above
+            @assert !isnothing(survive.self_annotations.fill_above) "missing self_annotations in surviving segment: $(survive)" # preempt !nothing error
+            survive.self_annotations.fill_above = !survive.self_annotations.fill_above
         else
             winding_below = survive.self_annotations.fill_below ? 1 : 0
             winding_above = winding_below + (
@@ -535,21 +535,15 @@ function merge_same_segments!(
 end
 
 function calculate_self_annotations!(ev::SegmentEvent, below::Union{Nothing, SegmentEvent})
-    # if a new segment, than toggle, else use existing knowledge
     @debug("[calculate_self_annotations!] event: $(ev)")
     @debug("[calculate_self_annotations!] below: $(below)")
-    toggle = isnothing(ev.self_annotations.fill_below) ? true : ev.self_annotations.fill_above != ev.self_annotations.fill_below
     if isnothing(below)
         ev.self_annotations.fill_below = false
     else
         @assert !isnothing(below.self_annotations.fill_above) "missing annotations below: $(below)" # preempt !nothing error
         ev.self_annotations.fill_below = below.self_annotations.fill_above # below should already be filled
     end
-    if toggle
-        ev.self_annotations.fill_above = !ev.self_annotations.fill_below
-    else
-        ev.self_annotations.fill_above = ev.self_annotations.fill_below
-    end
+    ev.self_annotations.fill_above = !ev.self_annotations.fill_below
     @debug("[calculate_self_annotations!] self_annotations: $(ev.self_annotations)")
     ev.self_annotations
 end
