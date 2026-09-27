@@ -232,7 +232,6 @@ function add_annotated_segment!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent)
     add_segment_event!(
         queue, segment, ev.primary,
         ev.self_annotations, ev.other_annotations,
-        ev.forward, ev.winding_top_to_bottom, ev.winding_left_to_right
     )
 end
 
@@ -465,12 +464,12 @@ function divide_event!(
     pop_key!(queue, e2)
     insert_in_order!(queue, e2; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
     # add new segment at the end. Reset other_annotations. Reset self-annotations if self-intersection.
+    forward  = ev.self_annotations.forward  # need to recalculate winding above
     add_segment_event!(
         queue, new_segment, ev.primary,
-        self_intersection ? SegmentAnnotations() : ev.self_annotations,
-        SegmentAnnotations(),
-        ev.forward, ev.winding_top_to_bottom, ev.winding_left_to_right;
-        atol=atol, rtol=rtol
+        self_intersection ? SegmentAnnotations(forward=forward) : ev.self_annotations,
+        SegmentAnnotations()
+        ; atol=atol, rtol=rtol
     )
 end
 
@@ -516,7 +515,7 @@ function merge_same_segments!(
             winding_above = winding_below + (
                 get_winding_top_to_bottom!(survive) == 0 ? 
                 get_winding_left_to_right!(survive) : 
-                survive.winding_top_to_bottom
+                survive.self_annotations.winding_top_to_bottom
             )
             survive.self_annotations.fill_above = winding_above != 0 ? true : false
         end
@@ -564,7 +563,7 @@ function calculate_self_winding_annotations!(
     winding_above = winding_below + (
         get_winding_top_to_bottom!(ev; atol=atol) == 0 ? 
         get_winding_left_to_right!(ev; atol=atol) : 
-        ev.winding_top_to_bottom
+        ev.self_annotations.winding_top_to_bottom
     )
     if fill_rule == NON_ZERO
         ev.self_annotations.fill_above = winding_above != 0 ? true : false

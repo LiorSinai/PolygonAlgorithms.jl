@@ -27,7 +27,7 @@ function convert_to_event_queue!(
         tail = forward < Int8(0) ? pt2 : pt1
         segment = (start, tail)
         add_segment_event!(
-            queue, segment, primary, SegmentAnnotations(), SegmentAnnotations(), forward
+            queue, segment, primary, SegmentAnnotations(forward=forward), SegmentAnnotations()
             ; atol=atol, rtol=rtol
         )
     end
@@ -40,14 +40,11 @@ function add_segment_event!(
     primary::Bool,
     shared_self_annotations::SegmentAnnotations=SegmentAnnotations(),
     shared_other_annotations::SegmentAnnotations=SegmentAnnotations(),
-    forward::Int8=Int8(-1),
-    winding_top_to_bottom::Union{Nothing,Int8}=nothing,
-    winding_left_to_right::Union{Nothing,Int8}=nothing;
-    atol::AbstractFloat=default_atol,
+    ; atol::AbstractFloat=default_atol,
     rtol::AbstractFloat=default_rtol
     )
-    start_event = SegmentEvent(segment, true, primary, shared_self_annotations, shared_other_annotations, forward, winding_top_to_bottom, winding_left_to_right)
-    end_event = SegmentEvent(segment, false, primary, shared_self_annotations, shared_other_annotations, forward, winding_top_to_bottom, winding_left_to_right)
+    start_event = SegmentEvent(segment, true, primary, shared_self_annotations, shared_other_annotations)
+    end_event = SegmentEvent(segment, false, primary, shared_self_annotations, shared_other_annotations)
     start_event.other = end_event
     end_event.other = start_event   
     insert_in_order!(queue, start_event; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
