@@ -274,11 +274,7 @@ function event_loop!(
                 continue # either head was removed or something was inserted ahead of it
             end
             if self_intersection
-                if fill_rule == EVEN_ODD
-                    calculate_self_annotations!(head, below)
-                else
-                    calculate_self_winding_annotations!(head, below, fill_rule; atol=atol)
-                end
+                calculate_self_annotations!(head, below; fill_rule, atol=atol)
             else
                 calculate_other_annotations!(head, below)
             end
@@ -545,52 +541,47 @@ function merge_same_segments!(
     queue
 end
 
-function calculate_self_annotations!(ev::SegmentEvent, below::Union{Nothing, SegmentEvent})
+function calculate_self_annotations!(
+    ev::SegmentEvent,
+    below::Union{Nothing, SegmentEvent}
+    ;  fill_rule::FillRule,
+    atol::AbstractFloat=default_atol
+    )
     @debug("[calculate_self_annotations!] event: $(ev)")
     @debug("[calculate_self_annotations!] below: $(below)")
-    if isnothing(below)
-        ev.self_annotations.fill_below = false
+    if fill_rule == EVEN_ODD
+        if isnothing(below)
+            ev.self_annotations.fill_below = false
+        else
+            @assert !isnothing(below.self_annotations.fill_above) "missing annotations below: $(below)" # preempt !nothing error
+            ev.self_annotations.fill_below = below.self_annotations.fill_above # below should already be filled
+        end
+        ev.self_annotations.fill_above = !ev.self_annotations.fill_below
     else
-        @assert !isnothing(below.self_annotations.fill_above) "missing annotations below: $(below)" # preempt !nothing error
-        ev.self_annotations.fill_below = below.self_annotations.fill_above # below should already be filled
+        # the winding from the region below to the bottom = winding_above below segment
+        winding_below = isnothing(below) ? 0 :
+            below.self_annotations.winding_below + get_winding_top_to_bottom!(below)
+        ev.self_annotations.winding_below = winding_below
+        # the winding from the region above to the bottom = winding_below + Δwinding
+        # For a vertical edge, the winding does NOT change along y axis, but it does change along x-axis
+        winding_above = winding_below + (
+            get_winding_top_to_bottom!(ev; atol=atol) == 0 ? 
+            get_winding_left_to_right!(ev; atol=atol) : 
+            ev.self_annotations.winding_top_to_bottom
+        )
+        if fill_rule == NON_ZERO
+            ev.self_annotations.fill_above = winding_above != 0
+            ev.self_annotations.fill_below = winding_below != 0
+        elseif fill_rule == POSITIVE
+            ev.self_annotations.fill_above = winding_above > 0
+            ev.self_annotations.fill_below = winding_below > 0
+        elseif fill_rule == NEGATIVE
+            ev.self_annotations.fill_above = winding_above < 0
+            ev.self_annotations.fill_below = winding_below < 0
+        else throw("Unknown fill_rule: $fill_rule")
+        end
     end
-    ev.self_annotations.fill_above = !ev.self_annotations.fill_below
     @debug("[calculate_self_annotations!] self_annotations: $(ev.self_annotations)")
-    ev.self_annotations
-end
-
-function calculate_self_winding_annotations!(
-    ev::SegmentEvent, 
-    below::Union{Nothing, SegmentEvent},
-    fill_rule::FillRule
-    ; atol::AbstractFloat=default_atol
-    )
-    # the winding from the region below to the bottom = winding_above of below
-    if !isnothing(below)
-        winding_below = below.self_annotations.winding_below + get_winding_top_to_bottom!(below)
-    else
-        winding_below = 0
-    end
-    ev.self_annotations.winding_below = winding_below
-    # the winding from the region above to the bottom = winding_below + segment_winding
-    # For a vertical edge, the winding does NOT change along y axis, but it does change along x-axis
-    winding_above = winding_below + (
-        get_winding_top_to_bottom!(ev; atol=atol) == 0 ? 
-        get_winding_left_to_right!(ev; atol=atol) : 
-        ev.self_annotations.winding_top_to_bottom
-    )
-    if fill_rule == NON_ZERO
-        ev.self_annotations.fill_above = winding_above != 0
-        ev.self_annotations.fill_below = winding_below != 0
-    elseif fill_rule == POSITIVE
-        ev.self_annotations.fill_above = winding_above > 0
-        ev.self_annotations.fill_below = winding_below > 0
-    elseif fill_rule == NEGATIVE
-        ev.self_annotations.fill_above = winding_above < 0
-        ev.self_annotations.fill_below = winding_below < 0
-    else throw("Unknown fill_rule: $fill_rule")
-    end
-    @debug("[calculate_self_winding_annotations!] self_annotations: $(ev.self_annotations)")
     ev.self_annotations
 end
 
