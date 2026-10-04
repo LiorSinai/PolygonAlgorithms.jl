@@ -5,14 +5,15 @@ mutable struct SegmentAnnotations
     forward::Int8 # original direction of segment. -1 is current, 0 is zero-length, 1 is reversed
     winding_top_to_bottom::Union{Nothing,Int8}
     winding_left_to_right::Union{Nothing,Int8}
+    winding_below::Int
 end
 
 function SegmentAnnotations(
     fill_above::Union{Nothing, Bool}=nothing,
     fill_below::Union{Nothing, Bool}=nothing
-    ; forward::Union{Nothing,Int8}=Int8(0)
+    ; forward::Union{Nothing,Int8}=Int8(-1), winding_below::Int=0
     )
-    SegmentAnnotations(fill_above, fill_below, forward, nothing, nothing)
+    SegmentAnnotations(fill_above, fill_below, forward, nothing, nothing, winding_below)
 end
 
 ==(ann1::SegmentAnnotations, ann2::SegmentAnnotations) = 

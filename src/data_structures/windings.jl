@@ -22,6 +22,8 @@ References:
 @enum FillRule EVEN_ODD NON_ZERO POSITIVE NEGATIVE
 
 function calc_winding_top_to_bottom(start::Point2D, tail::Point2D ; atol::AbstractFloat=default_atol)
+    # going from top to bottom, we cross right to left from the ray's perspective
+    # when the ray goes left to right
     dx = tail[1] - start[1]
     if abs(dx) <= atol
         return Int8(0)
