@@ -5,7 +5,7 @@ struct GiftWrappingAlg <: ConvexHullAlgorithm end
 struct GrahamScanAlg <: ConvexHullAlgorithm end
 
 """
-    convex_hull([GiftWrappingAlg()], points, ; atol=default_atol)
+    convex_hull([GiftWrappingAlg()], points, ; atol=default_atol, rtol=default_rtol)
 
 Determine the indices of the convex hull for a set of points.
 
@@ -34,7 +34,7 @@ function convex_hull(::GiftWrappingAlg, points::Path2D; atol::AbstractFloat=defa
         # find more counter-clockwise point than q
         for i in eachindex(points)
             point_i = points[i]
-            turn = get_orientation(point_p, point_i, point_q; atol=atol)
+            turn = get_orientation(point_p, point_i, point_q; atol=atol, rtol=rtol)
             if turn == COUNTER_CLOCKWISE
                 q = i
                 point_q = point_i
@@ -75,12 +75,12 @@ function convex_hull(::GrahamScanAlg, points::Path2D; atol::AbstractFloat=defaul
     idxs = sortperm(points, lt=(p, q) -> isless_orientation(p, q, p0; atol=atol))
 
     hull = idxs[[1, 2, 3]]
-    if get_orientation(points[hull[1]], points[hull[2]], points[hull[3]]; atol=atol) == COLINEAR
+    if get_orientation(points[hull[1]], points[hull[2]], points[hull[3]]; atol=atol, rtol=rtol) == COLINEAR
         deleteat!(hull, 2)
     end
     for idx in idxs[4:end]
         while length(hull) > 1 &&
-            get_orientation(points[hull[end-1]], points[hull[end]], points[idx]; atol=atol) != COUNTER_CLOCKWISE
+            get_orientation(points[hull[end-1]], points[hull[end]], points[idx]; atol=atol, rtol=rtol) != COUNTER_CLOCKWISE
             pop!(hull)
         end
         push!(hull, idx)

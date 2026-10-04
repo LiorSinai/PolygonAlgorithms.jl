@@ -20,7 +20,7 @@ using PolygonAlgorithms: BLANK
         # now, the tail should be inserted after it.
         tail = SegmentEvent(event_queue[3].segment, false)
         idx = searchsortedfirst(event_queue, tail; lt=compare_events)
-        @test_broken idx == 5
+        @test idx == 5 skip=(VERSION < v"1.11") # this fails in Julia 1.8
     end
 
     @testset "divide" begin

@@ -37,6 +37,8 @@ mutable struct SegmentEvent{T}
     winding_left_to_right::Union{Nothing,Int8}
 end
 
+eltype(ev::SegmentEvent{T}) where T = T
+
 function SegmentEvent(
     segment::Segment2D,
     is_start::Bool,

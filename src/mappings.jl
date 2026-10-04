@@ -33,7 +33,7 @@ function is_hole(polygon::AbstractVector{<:AnnotatedSegment{T}}, counter_clockwi
     for segment in polygon
         Δx = segment[2][1] - segment[1][1]
         ann = segment.self_annotations
-        if (Δx == 0) || (ann.fill_above == ann.fill_below)
+        if (abs(Δx) <= eps(T)) || (ann.fill_above == ann.fill_below)
             # skip vertical segments or filled both sides or filled on neither
             continue
         end
@@ -128,7 +128,10 @@ function segments_to_paths(
     exteriors, holes
 end
 
-function match_interiors(polygons::Vector{<:Path2D}; atol::AbstractFloat=default_atol)
+function match_interiors(
+    polygons::Vector{<:Path2D}
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    )
     areas = map(area_polygon, polygons)
     # sort by descending areas. Therefore largest parent is matched first.
     idxs = sortperm(areas, rev=true)
@@ -144,7 +147,7 @@ function match_interiors(polygons::Vector{<:Path2D}; atol::AbstractFloat=default
             while (j < length(polygon)) && on_border(parent, polygon[j]; atol=atol)
                 j += 1
             end
-            found = contains(parent, polygon[1]; atol=atol, on_border_is_inside=false)
+            found = contains(parent, polygon[1]; atol=atol, rtol=rtol, on_border_is_inside=false)
             if found
                 parents[idx1] = idx2
                 break
@@ -174,7 +177,7 @@ Then this runs in `O(phn)` time where `p` is the number polygons,
 function match_holes_polygons(
     polygons::Vector{<:Path2D},
     holes::Vector{<:Path2D}
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
     if length(polygons) == 1
         return fill(1, length(holes))
@@ -190,7 +193,7 @@ function match_holes_polygons(
         for (idx_p, parent) in zip(idxs, polygons[idxs])
             # Assume that no segments intersect.
             # Then only need to check a point.
-            found = contains(parent, candidate[1]; atol=atol, on_border_is_inside=true)
+            found = contains(parent, candidate[1]; atol=atol, rtol=rtol, on_border_is_inside=true)
             if found
                 parents[idx_h] = idx_p
                 break
@@ -203,10 +206,10 @@ end
 function paths_to_polygons(
     exteriors::Vector{<:Vector{<:Point2D}},
     holes::Vector{<:Vector{<:Point2D}},
-    ; atol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_rtol, rtol::AbstractFloat=default_rtol
     )
     polygons = Polygon.(exteriors)
-    parents = match_holes_polygons(exteriors, holes; atol=atol)
+    parents = match_holes_polygons(exteriors, holes; atol=atol, rtol=rtol)
     for (idx, hole) in zip(parents, holes)
         if idx != 0
             push!(polygons[idx].holes, hole)
@@ -219,8 +222,9 @@ function segments_to_polygons(
     segments::Union{AbstractVector{<:SegmentEvent}, AbstractVector{<:AnnotatedSegment}}
     ; 
     atol::AbstractFloat=default_atol,
+    rtol::AbstractFloat=default_rtol,
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
     )
     exteriors, holes = segments_to_paths(segments; atol=atol, face_selection=face_selection)
-    paths_to_polygons(exteriors, holes; atol=atol)
+    paths_to_polygons(exteriors, holes; atol=atol, rtol=rtol)
 end
