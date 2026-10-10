@@ -4,8 +4,9 @@
     1. [Example](#example)
     1. [Representation](#representation)
 1. [Polygon Functions](#polygon-functions)
-1. [Robustness](#Robustness)
 1. [Segments to Paths](#segments-to-paths)
+1. [Fill rules](#fill-rules)
+1. [Robustness](#Robustness)
 1. [Installation](#installation)
 1. [Related](#related)
 
@@ -48,7 +49,7 @@ There are several ways to represent polygons:
 - With the internal `PolygonAlgorithms.Polygon` struct. This struct consists of an `exterior` and `holes`. Each sub-object must be a list of points (tuples). The holes should be properly contained in the polygon.
 Validation is not performed by default. Pass `validate=true` to the constructor to enable it.
 - As a list of segments. This representation naturally allows multi-polygons and holes. 
-It is used internally for some algorithms including the `martinez_rueda_algorithm`. There is some data transformation when converting back from this representation to a path. See the section [Segments to paths](#segments-to-paths) for more detail.
+It is used internally for algorithms including the `martinez_rueda_algorithm`. Graph face computation is used to link segments back to a path. See the [Segments to paths](#segments-to-paths) section for more detail.
 - As a 2&times;N matrix for `N` points. This is not used here, but can be more efficient for indexing and broadcasting operations such as translation and rotation. To convert to this representation and back, use `matrix_to_points` or `points_to_matrix`.
 
 ## Polygon Functions
@@ -114,6 +115,47 @@ For all of the the following `n` and `m` are the number of vertices of the polyg
     <img src="images/martinez_reuda.png" width="80%" style="padding:5px"/>
    </p>
 
+## Segments to paths
+
+Segments are converted back to paths and polygons by computing the faces of a graph. This has several implications.
+- It requires casting to a grid to match starting and end points of segments. This is achieved by rounding any decimal places, by default to the 6th decimal place.
+- Every zero area polygon (lines) will return a single face. 
+- For every non-zero area polygon, the graph will always have one counter-clockwise exterior and one or more clockwise interiors. Every area in the graph is therefore counted twice. There are two methods to reduce the faces in half:
+    - `MERGE_FACES`: all exterior faces that are not holes and holes are interior faces that are holes.
+    - `SPLIT_FACES`: all interior faces that are not holes that are on the exterior and interior faces that are holes that are not on the exterior.
+
+The following is a comparison of the two while running `difference(subject, clip; face_selection=method)`:
+<p align="center">
+  <img src="images/face_selection.png" width="80%" style="padding:5px"/>
+</p>
+
+The functions which implement this are `PolygonAlgorithms.segments_to_paths` and `PolygonAlgorithms.segments_to_polygons`.
+
+## Fill Rules
+
+There are different rules to determine whether or not the interior of a self-intersecting polygon is considered inside the polygon or a hole.
+The Martinez-Rueda algorithm here implements the common even-odd and non-zero fill rules, as will as the less used positive and negative fill rules.
+
+These rules are based on the winding number for each interior which is calculated as follows:
+1. Construct a ray heading out from a given point `P` in any direction towards infinity.
+1. Find all the intersections of the contour `C` with this ray. 
+1. Score up the winding number as follows:
+    - for every clockwise intersection (line heading left to right through the ray) subtract 1.
+    - for every counter-clockwise intersection (line heading right to left through the ray) add 1.
+1. Use the winding number to determine if filled or not.
+    - `EVEN_ODD`: alternative between filled and not filled.
+    - `NON_ZERO`: non-zero windings are filled.
+    - `POSITIVE`: only positive windings are filled (top to bottom ray).
+    - `NEGATIVE`: only negative winding are filled (top to bottom ray).
+
+Here is are examples of the even-odd and non-zero rules combined with the different face selection strategies:
+<p align="center">
+  <img src="images/fill_rule_9.png" width="45%" style="padding:5px"/>
+  <img src="images/fill_rule_star.png" width="45%"  style="padding:5px"/> 
+</p>
+
+See https://www.angusj.com/clipper2/Docs/Units/Clipper/Types/FillRule.htm and https://en.wikipedia.org/wiki/Nonzero-rule.
+
 ## Robustness
 
 Mathematically, the algorithms are infinitely precise.
@@ -176,22 +218,6 @@ This example is from [Clipper2: test 141](https://github.com/AngusJohnson/Clippe
 [Clipper2](https://www.angusj.com/clipper2/Docs/Robustness.htm) has a different approach to robustness: it casts all numbers to integers.
 Hence for this example the intersections will be collapsed to a single point, and the segments adjusted slightly.
 This means that the two halves of each segment will no longer lie perfectly on a straight line.
-
-## Segments to paths
-
-Segments are converted back to paths and polygons by computing the faces of a graph. This has several implications.
-- It requires casting to a grid to match starting and end points of segments. This is achieved by rounding any decimal places, by default to the 6th decimal place.
-- Every zero area polygon (lines) will return a single face. 
-- For every non-zero area polygon, the graph will always have one counter-clockwise exterior and one or more clockwise interiors. Every area in the graph is therefore counted twice. There are two methods to reduce the faces in half:
-    - `MERGE_FACES`: all exterior faces that are not holes and holes are interior faces that are holes.
-    - `SPLIT_FACES`: all interior faces that are not holes that are on the exterior and interior faces that are holes that are not on the exterior.
-
-The following is a comparison of the two while running `difference(subject, clip; face_selection=method)`:
-<p align="center">
-  <img src="images/face_selection.png" width="80%" style="padding:5px"/>
-</p>
-
-The functions which implement this are `PolygonAlgorithms.segments_to_paths` and `PolygonAlgorithms.segments_to_polygons`.
 
 ## Installation
 

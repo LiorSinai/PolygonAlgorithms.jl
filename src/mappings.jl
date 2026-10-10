@@ -55,6 +55,19 @@ function is_hole(polygon::AbstractVector{<:AnnotatedSegment{T}}, counter_clockwi
     votes_hole > votes_face
 end
 
+"""
+Segments are converted back to paths and polygons by computing the faces of a graph.
+
+For every non-zero area polygon, every area in the graph is counted twice.
+The graph will always have one counter-clockwise exterior and one or more clockwise
+interiors. 
+
+The following selection strategies are used to return half the faces with no duplicates:
+- `MERGE_FACES`: selects all exterior faces that are not holes with interior faces that are holes, resulting in connected graphs being be merged together. This returns fewer, larger polygons with holes.
+- `SPLIT_FACES`: As exteriors, select all interior faces that are not holes that are on the exterior and reverse to make them counter-clockwise. As holes, select interior faces that are holes that are not on the exterior. This splits connected graphs across multiple interiors and returns smaller polygons with fewer explicit holes.
+- `CLOCKWISE_FACES`: all clockwise faces.
+- `COUNTER_CLOCKWISE_FACES`: all counter-clockwise faces.
+"""
 @enum FaceSelectionStrategy MERGE_FACES SPLIT_FACES CLOCKWISE_FACES COUNTER_CLOCKWISE_FACES
 
 """
