@@ -1,6 +1,6 @@
 using PolygonAlgorithms: PointSet, translate
 
-@testset "edge intersections" begin
+@testset "segment intersections" begin
 
 @testset "intersect segments" begin
     seg1 = ((1.0, 1.0), (2.0, 3.0));
@@ -65,7 +65,6 @@ end
     @test do_intersect(seg1, seg2)
     @test all(intersect_geometry(seg1, seg2) .≈ (0.21821313839369444, 0.42855558044826847))
 
-    # these give conflicting answers (they don't intersect)
     seg1 = ((0.950520984763203, 0.9955447269810986), (0.8147603032908444, 0.0733985670511772))
     seg2 = ((0.9238819633881898, 0.8146036454030574), (0.7570281114911228, 0.8580955127719763))
     @test !do_intersect(seg1, seg2; atol=1e-7) # fails with bigger atol
@@ -73,8 +72,8 @@ end
 
     seg1 = ((0.4856517528012627, 0.8793324264376292), (0.5066211310466722, 0.03827488541514157))
     seg2 = ((0.6514230424916896, 0.8877275468529608), (0.5042397387902877, 0.13379459881948708))
-    @test !do_intersect(seg1, seg2; atol=1e-7) # fails with bigger atol
-    @test isnothing(intersect_geometry(seg1, seg2))
+    @test do_intersect(seg1, seg2; atol=1e-7) # fails with bigger atol
+    @test all(intersect_geometry(seg1, seg2) .≈ (0.5042396322136217, 0.13379405289030877))
 end
 
 @testset "intersect rectangles" begin

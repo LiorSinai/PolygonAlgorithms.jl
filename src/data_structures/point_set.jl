@@ -1,4 +1,5 @@
-import Base: length, show, isempty, iterate, KeySet, union!, push!, show_vector, in, Set
+import Base: length, show, isempty, iterate, union!, push!, show_vector, in
+using Base: KeySet
 
 """
     PointSet([itr]; digits=6)
@@ -32,9 +33,6 @@ length(s::PointSet)  = length(s.dict)
 iterate(s::PointSet, i...)  = iterate(KeySet(s.dict), i...)
 in(x, s::PointSet) = haskey(s.dict, fudge(x, s.digits))
 
-Set(s::PointSet) = Set(KeySet(s.dict))
-PointSet(s::Set{T}) where T = PointSet(collect(KeySet(s.dict)))
-
 function union!(s::PointSet, itr)
     for x in itr
         push!(s, x)
@@ -47,13 +45,9 @@ function push!(s::PointSet, x::Tuple)
     s
 end
 
-function fudge(point::Tuple, digits::Int)
-    point = round.(point, digits=digits)
-    if (point[1] == -0 || point[2] == -0)
-        x, y = point
-        point = (x == -0 ? zero(x) : x, y == -0 ? zero(y) : y)
-    end
-    point
+function fudge(point::Tuple{T1, T2}, digits::Int) where {T1 <: Number, T2 <: Number}
+    # add 0.0 to cast -0.0 to 0.0
+    round.(point, digits=digits) .+ zero(T1)
 end
 
 function show(io::IO, s::PointSet)

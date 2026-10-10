@@ -1,38 +1,42 @@
 @enum Orientation COLINEAR=0 CLOCKWISE=1 COUNTER_CLOCKWISE=2
 
 """
-    get_orientation(p, q, r; atol=default_atol)
+    get_orientation(p, q, r; atol=default_atol, rtol=default_rtol)
 
 Determine orientation of three points. 
 
-Colinear is returned if `cross(pq, qr) <= atol`.
-The relative tolerance `rtol` is no longer used and will be removed in the future.
+Colinear if `cross(pq, qr) <= atol + rtol * |pq| * |qr|`.
 
-Clockwise is returned if `cross(pq, qr)` is positive, else counter-clockwise.
+Clockwise if `cross(pq, qr)` is positive, else counter-clockwise.
 """
 function get_orientation(p::Point2D, q::Point2D, r::Point2D; rtol::AbstractFloat=default_rtol, atol::AbstractFloat=default_atol)
     pq = (q[1] - p[1], q[2] - p[2])
     qr = (r[1] - q[1], r[2] - q[2])
     cross_product = pq[2] * qr[1] - qr[2] * pq[1]
-    orientation = abs(cross_product) <= atol ? COLINEAR : 
+    scale = abs(pq[2] * qr[1]) + abs(qr[2] * pq[1])
+    tol = atol + rtol * scale
+    orientation = abs(cross_product) < tol ? COLINEAR : 
         cross_product >= 0 ?  CLOCKWISE : 
         COUNTER_CLOCKWISE
     orientation
 end
 
 """
-    on_segment(point, segment, [on_line]; atol=default_atol)
+    on_segment(point, segment, [on_line]; atol=default_atol, rtol=default_rtol)
 
 Determine if a point lies on the segment. 
 """
-function on_segment(q::Point2D, segment::NTuple{2, Point2D}; atol::AbstractFloat=default_atol)
-    on_line = get_orientation(q, segment[1], segment[2]; atol=atol) == COLINEAR
-    on_segment(q, segment, on_line; atol=atol)
+function on_segment(
+    q::Point2D, segment::NTuple{2, Point2D}
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    )
+    on_line = get_orientation(q, segment[1], segment[2]; atol=atol, rtol=rtol) == COLINEAR
+    on_segment(q, segment, on_line; atol=atol, rtol=rtol)
 end
 
 function on_segment(
     q::Point2D, segment::NTuple{2, Point2D}, on_line::Bool
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
     p, r = segment
     return on_line && (
@@ -43,12 +47,15 @@ function on_segment(
         )
 end
 
-function isless_orientation(p::Point2D, q::Point2D, p0::Point2D; atol::AbstractFloat=default_atol)
+function isless_orientation(
+    p::Point2D, q::Point2D, p0::Point2D
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    )
     # a point p is "less than" another if it has a smaller angle from p0 in a counter-clockwise direction
     # or if the angle is the same, if is closer
     # instead of calculating the angle atan(p[2]-p0[2], p[1]-p0[1]), determine if (p0, p, q) is counter-clockwise
     # doesn't seem to work properly for on a circle
-    ori = get_orientation(p0, p, q; atol=atol)
+    ori = get_orientation(p0, p, q; atol=atol, rtol=rtol)
     if ori == COLINEAR
         dp = norm2(p, p0)
         dq = norm2(q, p0)
@@ -112,7 +119,7 @@ function in_half_plane(edge::Segment2D, x::Point2D, is_counter_clockwise::Bool=t
 end
 
 """
-    is_above_or_on(point, segment; atol=default_atol)
+    is_above_or_on(point, segment; atol=default_atol, rtol=default_rtol)
 
 Is `point` above or on `segment`?
 
@@ -132,10 +139,12 @@ In the special case of a vertical segment (`x₂=x₁`), this compares `y` value
 yp ≥ max(y₂, y₁)
 ```
 """
-function is_above_or_on(point::Point2D, segment::Segment2D; atol::AbstractFloat=default_atol)
-    if abs(segment[2][1] - segment[1][1]) <= atol # vertical segment
+function is_above_or_on(point::Point2D{T}, segment::Segment2D{T}
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ) where T
+    if abs(segment[2][1] - segment[1][1]) <= eps(T) # vertical segment
         return point[2] >= max(segment[1][2], segment[2][2])
     end
-    cmp = get_orientation(segment[1], segment[2], point; atol=atol)
+    cmp = get_orientation(segment[1], segment[2], point; atol=atol, rtol=rtol)
     cmp != CLOCKWISE # is counter-clockwise or co-linear
 end

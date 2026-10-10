@@ -3,7 +3,7 @@
 """
     martinez_rueda_algorithm(
     selection_criteria, subject, others...
-    ; atol=default_atol, rtol=default_rtol, fuzzy_rtol=1.0
+    ; atol=default_atol, rtol=default_rtol, face_selection=SPLIT_FACES, fill_rule=EVEN_ODD
     )
 
 The Martínez-Rueda-Feito polygon clipping algorithm.
@@ -11,6 +11,8 @@ Returns regions and edges of intersection.
 It runs in `O((n+m+k)log(n+m))` time where `n` and `m` are the number of vertices of `polygon1` 
 and `polygon2` respectively and `k` is the total number of intersections between all segments.
 Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
+
+See `PolygonAlgorithms.segments_to_events` for details on the `face_selection` parameter.
 
 The input polygons can be:
 - A list of points: `Vector{Tuple{Float64, Float64}}`.
@@ -27,16 +29,15 @@ Description:
 - The key assumption is that only the segments immediately above and below the current segment need to be inspected for intersections.
     This makes the algorithm fast but also sensitive to determining these segments correctly.
 - The segment that is immediately below (or empty space) is used to determine the fill annotations for the current segment.
-- Once all annotations are done, the desired segments can be selected that match a given criteria.
-- These segments are then chained together to form the polygons.
+- Once all annotations are done, the desired segments can be selected based on a given criteria.
+- These segments are then chained back to paths and polygons.
+    This requires casting to a grid to match starting and end points of segments.
+    This is achieved by rounding any decimal places, by default to the 6th decimal place.
+    See `PolygonAlgorithms.segments_to_paths` and `PolygonAlgorithms.segments_to_polygons` for more detail. 
 
 Limitations
-1. It can fail for improper polygons: polygons with lines sticking out.
-2. It is sensitive to numeric inaccuracies e.g. a line that is almost vertical or tiny regions 
+1. It is sensitive to numeric inaccuracies e.g. a line that is almost vertical or tiny regions 
     of intersection.
-3. Sometimes the segment chaining can fail. This might happen if the polygons are improper.
-    For some cases when the segment chaining fails it is possible to "fuzzy" close them.
-    The criteria is that the ratio of the remaining gap to the mean segment length is less than `fuzzy_rtol`.
 
 References 
 - paper: https://www.researchgate.net/publication/220163820_A_new_algorithm_for_computing_Boolean_operations_on_polygons
@@ -47,94 +48,145 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subject::Path2D{T},
     others::Vararg{Path2D{T}},
-    ; atol::AbstractFloat=default_atol, options...
+    ;
+    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    face_selection::FaceSelectionStrategy=SPLIT_FACES,
+    options...
     ) where T
-    event_queue_base = convert_to_event_queue(subject; primary=true, atol=atol)
-    event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
-    region_segments = martinez_rueda_algorithm(
-        selection_criteria, event_queue_base, event_queue_others...; atol=atol, options...
+    event_queue_base = convert_to_event_queue(subject; primary=true, atol=atol, rtol=rtol)
+    event_queue_others = map(
+        p -> convert_to_event_queue(p; primary=false, atol=atol, rtol=rtol)
+        , others
     )
-    map(segments -> map(event -> event.point, segments), region_segments)
+    segments = martinez_rueda_algorithm(
+        selection_criteria, event_queue_base, event_queue_others...
+        ; atol=atol, rtol=rtol, options...
+    )
+    exteriors, holes = segments_to_paths(
+        segments;
+        face_selection=face_selection
+    )
+    vcat(exteriors, holes)
 end
 
+# Multiple subjects
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subjects::AbstractVector{<:Path2D{T}},
     others::Vararg{Path2D{T}},
-    ; atol::AbstractFloat=default_atol, options...
+    ;
+    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    face_selection::FaceSelectionStrategy=SPLIT_FACES,
+    options...
     ) where T
     subject_queue = SegmentEvent{T}[]
-    map(p -> convert_to_event_queue!(subject_queue, p; primary=true, atol=atol), subjects)
-    event_queue_others = map(p -> convert_to_event_queue(p; primary=false, atol=atol), others)
-    region_segments = martinez_rueda_algorithm(
-        selection_criteria, subject_queue, event_queue_others...; atol=atol, options...
+    map(
+        p -> convert_to_event_queue!(subject_queue, p; primary=true, atol=atol, rtol=rtol),
+        subjects
     )
-    map(segments -> map(event -> event.point, segments), region_segments)
+    event_queue_others = map(
+        p -> convert_to_event_queue(p; primary=false, atol=atol, rtol=rtol),
+        others
+    )
+    segments = martinez_rueda_algorithm(
+        selection_criteria, subject_queue, event_queue_others...
+        ; atol=atol, rtol=rtol, options...
+    )
+    exteriors, holes = segments_to_paths(
+        segments;
+        face_selection=face_selection
+    )
+    vcat(exteriors, holes)
 end
 
-# Polygon with hole input
-
+# Polygons with holes
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subject::Polygon{T},
     others::Vararg{Polygon{T}},
-    ; atol::AbstractFloat=default_atol, options...
+    ;
+    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    face_selection::FaceSelectionStrategy=SPLIT_FACES,
+    options...
     ) where T
-    event_queue_base = convert_to_event_queue(subject.exterior; primary=true, atol=atol)
+    event_queue_base = convert_to_event_queue(subject.exterior; primary=true, atol=atol, rtol=rtol)
     for hole in subject.holes
-        convert_to_event_queue!(event_queue_base, hole; primary=true, atol=atol)
+        convert_to_event_queue!(event_queue_base, hole; primary=true, atol=atol, rtol=rtol)
     end
-    event_queue_others = map(p -> convert_to_event_queue(p.exterior; primary=false, atol=atol), others)
+    event_queue_others = map(
+        p -> convert_to_event_queue(p.exterior; primary=false, atol=atol, rtol=rtol),
+        others
+    )
     for (queue, other) in zip(event_queue_others, others)
         for hole in other.holes
-            convert_to_event_queue!(queue, hole; primary=false, atol=atol)
+            convert_to_event_queue!(queue, hole; primary=false, atol=atol, rtol=rtol)
         end
     end
-    region_segments = martinez_rueda_algorithm(
-        selection_criteria, event_queue_base, event_queue_others...; atol=atol, options...
+    segments = martinez_rueda_algorithm(
+        selection_criteria, event_queue_base, event_queue_others...
+        ; atol=atol, rtol=rtol, options...
     )
-    convert_segments_to_polygons(region_segments; atol=atol)
+    segments_to_polygons(
+        segments
+        ; atol=atol, rtol=rtol,
+        face_selection=face_selection,
+    )
 end
 
+# Multiple subjects with holes
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subjects::AbstractVector{<:Polygon{T}},
     clips::Vararg{Polygon{T}},
-    ; atol::AbstractFloat=default_atol, options...
+    ;
+    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    face_selection::FaceSelectionStrategy=SPLIT_FACES,
+    options...
     ) where T
     subject_queue = SegmentEvent{T}[]
-    map(p -> convert_to_event_queue!(subject_queue, p.exterior; primary=true, atol=atol), subjects)
+    map(
+        p -> convert_to_event_queue!(subject_queue, p.exterior; primary=true, atol=atol, rtol=rtol),
+        subjects
+    )
     for subject in subjects
         for hole in subject.holes
-            convert_to_event_queue!(subject_queue, hole; primary=true, atol=atol)
+            convert_to_event_queue!(subject_queue, hole; primary=true, atol=atol, rtol=rtol)
         end
     end
-    event_queue_clips = map(p -> convert_to_event_queue(p.exterior; primary=false, atol=atol), clips)
+    event_queue_clips = map(
+        p -> convert_to_event_queue(p.exterior; primary=false, atol=atol, rtol=rtol),
+        clips
+    )
     for (queue, other) in zip(event_queue_clips, clips)
         for hole in other.holes
-            convert_to_event_queue!(queue, hole; primary=false, atol=atol)
+            convert_to_event_queue!(queue, hole; primary=false, atol=atol, rtol=rtol)
         end
     end
-    region_segments = martinez_rueda_algorithm(
-        selection_criteria, subject_queue, event_queue_clips...; atol=atol, options...
+    segments = martinez_rueda_algorithm(
+        selection_criteria, subject_queue, event_queue_clips...
+        ; atol=atol, rtol=rtol, options...
     )
-    convert_segments_to_polygons(region_segments; atol=atol)
+    segments_to_polygons(
+        segments
+        ; atol=atol, rtol=rtol,
+        face_selection=face_selection,
+    )
 end
 
 # Core algorithm: SegmentEvent input
-
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subject::Vector{<:SegmentEvent{T}},
     polygons::Vararg{Vector{<:SegmentEvent{T}}},
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol, fuzzy_rtol::AbstractFloat=1.0
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    fill_rule::FillRule=EVEN_ODD
     ) where T
-    base_annotated_segments = event_loop!(subject; self_intersection=true, atol=atol, rtol=rtol)
+    base_annotated_segments = event_loop!(subject; self_intersection=true, atol=atol, rtol=rtol, fill_rule=fill_rule)
     for polygon in polygons
-        annotated_segments = event_loop!(polygon; self_intersection=true, atol=atol, rtol=rtol)
+        annotated_segments = event_loop!(polygon; self_intersection=true, atol=atol, rtol=rtol, fill_rule=fill_rule)
         queue = SegmentEvent{T}[]
         for ev in vcat(base_annotated_segments, annotated_segments)
-            add_annotated_segment!(queue, ev)
+            add_annotated_segment!(queue, ev; atol=atol, rtol=rtol)
         end
         combined_annotated_segments = event_loop!(queue; self_intersection=false, atol=atol, rtol=rtol)
         # for consistent reporting, swap annotations so that self annotations are always the primary
@@ -147,26 +199,44 @@ function martinez_rueda_algorithm(
         end
         base_annotated_segments = apply_selection_criteria(combined_annotated_segments, selection_criteria)
     end
-    empty_segments, region_segments = separate(is_empty_segment, base_annotated_segments)
-    regions = chain_segments(region_segments; atol=atol, check_closes=true, fuzzy_rtol=fuzzy_rtol)
-    segment_chains = chain_segments(empty_segments; atol=atol, check_closes=false)
-    # It is also possible to attach some segment_chains to regions.
-    # This will give consistent results with the Weiler-Atherton implementation.
-    # For now, skipping this step.
-    vcat(regions, segment_chains)
+    base_annotated_segments
 end
 
-function add_annotated_segment!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent)
+# Core algorithm for 1 polygon
+function martinez_rueda_algorithm(
+    selection_criteria::Vector{AnnotationFill},
+    subject::Vector{<:SegmentEvent{T}},
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    fill_rule::FillRule=EVEN_ODD
+    ) where T
+    base_annotated_segments = event_loop!(subject; self_intersection=true, atol=atol, rtol=rtol, fill_rule=fill_rule)
+    for seg in base_annotated_segments
+        # apply_selection_criteria will fail (and should fail) if annotations are nothing
+        seg.other_annotations.fill_above = false
+        seg.other_annotations.fill_below = false
+    end
+    selected_segments = apply_selection_criteria(base_annotated_segments, selection_criteria)
+    selected_segments
+end
+
+function add_annotated_segment!(
+    queue::Vector{<:SegmentEvent}, ev::SegmentEvent
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    )
     pt1 = ev.segment[1]
     pt2 = ev.segment[2]
-    forward = _compare_points(pt1, pt2)
-    if forward == 0
+    forward = _compare_points(pt1, pt2; atol=atol)
+    if forward == Int8(0)
         return queue # zero length segment
     end
-    start = forward < 0 ? pt1 : pt2
-    end_ = forward < 0 ? pt2 : pt1
+    start = forward < Int8(0) ? pt1 : pt2
+    end_ = forward < Int8(0) ? pt2 : pt1
     segment = (start, end_)
-    add_segment_event!(queue, segment, ev.primary, ev.self_annotations, ev.other_annotations)
+    add_segment_event!(
+        queue, segment, ev.primary,
+        ev.self_annotations, ev.other_annotations
+        ; atol=atol, rtol=rtol
+    )
 end
 
 #############################################################
@@ -175,7 +245,9 @@ end
 
 function event_loop!(
     queue::Vector{SegmentEvent{T}}
-    ; self_intersection::Bool, atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_atol
+    ; self_intersection::Bool,
+    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_atol,
+    fill_rule::FillRule=EVEN_ODD
     ) where T # eventLoop
     annotated_segments = SegmentEvent{T}[]
     sweep_status = SegmentEvent{T}[] # current events in a vertical line, top to bottom.
@@ -185,31 +257,37 @@ function event_loop!(
         status_length = length(sweep_status)
         @debug("[event_loop!] ($(queue_length), $(status_length)): $(head)")
         if head.is_start # then check for intersections and add to sweep status
-            idx = find_transition(sweep_status, head; atol=atol)
+            idx = find_transition(sweep_status, head; atol=atol, rtol=rtol)
             above = idx == 1 ? nothing : sweep_status[idx - 1]
             below = (idx > length(sweep_status)) ? nothing : sweep_status[idx]
             @debug("[event_loop!] transition idx=$idx")
             @debug("[event_loop!] above=$above")
             @debug("[event_loop!] below=$below")
-            check_and_divide_intersection!(queue, head, above, self_intersection; atol=atol, rtol=rtol)
+            check_and_divide_intersection!(
+                queue, head, above, self_intersection
+                ; atol=atol, rtol=rtol, fill_rule=fill_rule
+            )
             if queue[1] != head
                 continue # either head was removed or something was inserted ahead of it
             end
-            check_and_divide_intersection!(queue, head, below, self_intersection; atol=atol, rtol=rtol)
+            check_and_divide_intersection!(
+                queue, head, below, self_intersection
+                ; atol=atol, rtol=rtol, fill_rule=fill_rule
+            )
             if queue[1] != head
                 continue # either head was removed or something was inserted ahead of it
             end
             if self_intersection
-                calculate_self_annotations!(head, below)
+                calculate_self_annotations!(head, below; fill_rule, atol=atol)
             else
                 calculate_other_annotations!(head, below)
             end
             insert!(sweep_status, idx, head)
         else # event is ending, so remove it from the status
-            idx = find_transition(sweep_status, head.other; atol=atol)
+            idx = find_transition(sweep_status, head.other; atol=atol, rtol=rtol)
             if !(0 < idx <= length(sweep_status) && sweep_status[idx] === head.other)
                 @warn "$(head.other) was not in the expected location in the sweep status. " * 
-                    "Falling back to linear search. This might result in incorrect annotations and hence open chains."
+                    "Falling back to linear search."
                 idx = findfirst(x -> x === head.other, sweep_status)
                 @assert(
                     !isnothing(idx),
@@ -220,7 +298,8 @@ function event_loop!(
                 # there will be 2 new adjacent edges, so check the intersection between them
                 check_and_divide_intersection!(
                     queue, sweep_status[idx - 1], sweep_status[idx + 1], self_intersection
-                    ; atol=atol, rtol=rtol)
+                    ; atol=atol, rtol=rtol, fill_rule=fill_rule
+                )
             end
             push!(annotated_segments, copy_segment(head.other, head.other.primary))
             popat!(sweep_status, idx)
@@ -232,7 +311,7 @@ end
 
 function check_and_divide_intersection!(
     queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::Nothing, self_intersection::Bool
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol, fill_rule::FillRule=EVEN_ODD
     )
     queue
 end
@@ -242,24 +321,31 @@ function check_and_divide_intersection!(
     ev1::SegmentEvent,
     ev2::SegmentEvent,
     self_intersection::Bool
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    fill_rule::FillRule=EVEN_ODD
     )
     pt = intersect_geometry(ev1.segment, ev2.segment; atol=atol, rtol=rtol)
     if isnothing(pt)
         @debug("no intersection or parallel lines at $ev1 -- $ev2")
         # Lines might be on top of each other 
-        ori2_start = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[1]; atol=atol)
-        ori2_end = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[2]; atol=atol)
+        ori2_start = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[1]; atol=atol, rtol=rtol)
+        ori2_end = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[2]; atol=atol, rtol=rtol)
         if (ori2_start == COLINEAR) && (ori2_end == COLINEAR)
-            divide_coincident_intersection!(queue, ev1, ev2, self_intersection; atol=atol)
+            divide_coincident_intersection!(
+                queue, ev1, ev2, self_intersection
+                ; fill_rule=fill_rule, atol=atol, rtol=rtol
+            )
         end
         return queue
     else
-        divide_intersection!(queue, ev1, ev2, pt; atol=atol)
+        divide_intersection!(queue, ev1, ev2, pt, self_intersection; atol=atol, rtol=rtol)
     end
 end
 
-function divide_intersection!(queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::SegmentEvent, pt::Nothing; atol=1e-6)
+function divide_intersection!(
+    queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::SegmentEvent, pt, self_intersection::Bool=false::Nothing
+    ; atol=default_atol, rtol=default_rtol
+    )
     queue
 end
 
@@ -267,28 +353,30 @@ function divide_intersection!(
     queue::Vector{<:SegmentEvent},
     ev1::SegmentEvent,
     ev2::SegmentEvent,
-    pt::Point2D
-    ; atol::AbstractFloat=default_atol
+    pt::Point2D,
+    self_intersection::Bool=false,
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) # checkIntersection
+    _divide_event!(args...) = divide_event!(args...; atol=atol, rtol=rtol)
     @debug("[divide_intersection!] $(ev1.segment) -- $(ev2.segment) at $(pt)")
     at_start1, at_end1, along1 = classify_intersection(ev1.segment, pt; atol=atol)
     at_start2, at_end2, along2 = classify_intersection(ev2.segment, pt; atol=atol)
     @debug("[divide_intersection!] $at_start1 $at_end1 $along1")
     @debug("[divide_intersection!] $at_start2 $at_end2 $along2")
     if along1 && along2
-        divide_event!(queue, ev1, pt; atol=atol)
-        divide_event!(queue, ev2, pt; atol=atol)
+        _divide_event!(queue, ev1, pt, self_intersection)
+        _divide_event!(queue, ev2, pt, self_intersection)
     elseif along1
         if at_start2
-            divide_event!(queue, ev1, ev2.segment[1]; atol=atol)
+            _divide_event!(queue, ev1, ev2.segment[1], self_intersection)
         elseif at_end2
-            divide_event!(queue, ev1, ev2.segment[2]; atol=atol)
+            _divide_event!(queue, ev1, ev2.segment[2], self_intersection)
         end
     elseif along2
         if at_start1
-            divide_event!(queue, ev2, ev1.segment[1]; atol=atol)
+            _divide_event!(queue, ev2, ev1.segment[1], self_intersection)
         elseif at_end1
-            divide_event!(queue, ev2, ev1.segment[2]; atol=atol)
+            _divide_event!(queue, ev2, ev1.segment[2], self_intersection)
         end
     end
     queue
@@ -296,11 +384,12 @@ end
 
 function divide_coincident_intersection!(
     queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::SegmentEvent, self_intersection::Bool
-    ; atol::AbstractFloat=default_atol
+    ; fill_rule::FillRule=EVEN_ODD, atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
     # This assumes:
     # - ev1 is on top of or to the right of ev2, because events are processed left to right.
-    # - both points of ev2 are colinear with ev1 .
+    # - both points of ev2 are colinear with ev1
+    _divide_event!(args...) = divide_event!(args...; atol=atol, rtol=rtol)
     @debug("[divide_coincident_intersection!] $(ev1) -- $ev2")
     start1_on_end2 = is_same_point(ev1.segment[1], ev2.segment[2]; atol=atol)
     end1_on_start2 = is_same_point(ev1.segment[2], ev2.segment[1]; atol=atol)
@@ -313,35 +402,35 @@ function divide_coincident_intersection!(
     @debug("[divide_coincident_intersection!] ends_equal=$ends_equal")
     if starts_equal && ends_equal
         # segments are equal. Keep the second one
-        return merge_same_segments!(queue, ev1, ev2, self_intersection)
+        return merge_same_segments!(queue, ev1, ev2, self_intersection; fill_rule=fill_rule)
     end
     start1_between = !starts_equal && on_segment(ev1.segment[1], ev2.segment; atol=atol)
-    end1_between = !ends_equal && on_segment(ev1.segment[2], ev2.segment; atol=atol)
-    end2_between = !ends_equal && on_segment(ev2.segment[2], ev1.segment; atol=atol)
+    end1_between = !ends_equal && on_segment(ev1.segment[2], ev2.segment; atol=atol, rtol=rtol)
+    end2_between = !ends_equal && on_segment(ev2.segment[2], ev1.segment; atol=atol, rtol=rtol)
     if starts_equal
         if end1_between
             # (a1)---(a2)
             # (b1)----x------(b2)
-            divide_event!(queue, ev2, ev1.segment[2]; atol=atol)
+            _divide_event!(queue, ev2, ev1.segment[2], self_intersection)
         elseif end2_between
             # (a1)----x-----(a2)
             # (b1)---(b2)
-            divide_event!(queue, ev1, ev2.segment[2]; atol=atol)
+            _divide_event!(queue, ev1, ev2.segment[2], self_intersection)
         else # are these segment colinear?
             return queue
         end
         # duplicate a1->x, so remove ev1
-        return merge_same_segments!(queue, ev1, ev2, self_intersection)
+        return merge_same_segments!(queue, ev1, ev2, self_intersection; fill_rule=fill_rule)
     elseif start1_between
         if !ends_equal # then make a2 equal to b2
             if end1_between
                 #         (a1)---(a2)
                 #  (b1)-----------x-----(b2)
-                divide_event!(queue, ev2, ev1.segment[2]; atol=atol)
+                _divide_event!(queue, ev2, ev1.segment[2], self_intersection)
             elseif end2_between
                 #         (a1)----x-----(a2)
                 #  (b1)----------(b2)
-                divide_event!(queue, ev1, ev2.segment[2]; atol=atol);
+                _divide_event!(queue, ev1, ev2.segment[2], self_intersection);
             else # are these segments colinear?
                 return queue
             end
@@ -349,33 +438,43 @@ function divide_coincident_intersection!(
         #         (a1)---(a2)
         #  (b1)----x-----(b2)
         # equal segment a1-b2 isn't in the status stack yet, so don't return it
-        divide_event!(queue, ev2, ev1.segment[1]; atol=atol);
+        _divide_event!(queue, ev2, ev1.segment[1], self_intersection);
     end
     queue
 end
 
 """
-    divide_event!(queue, ev, pt; atol=1e-6)
+    divide_event!(queue, ev, pt; [atol, rtol])
 
 Divide an event `ev` and `ev.other` in `queue` into 4:
 ```
 --x-->  to  --> x-->
 ```
 """
-function divide_event!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent, pt::Point2D; atol::AbstractFloat=default_atol) # eventDivide
+function divide_event!(
+    queue::Vector{<:SegmentEvent}, ev::SegmentEvent, pt::Point2D,
+    self_intersection::Bool=false
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ) # eventDivide
     # assumes pt lies on ev.segment
     new_segment = (pt, ev.segment[2])
     @debug("[divide_event!] new_segment=$(new_segment)")
-    e1, e2 = update_end!(ev, pt; atol=atol)
+    e1, e2 = update_end!(ev, pt)
     # fix position of end in queue
     pop_key!(queue, e2)
-    insert_in_order!(queue, e2; lt=compare_events)
-    # add new segment at the end. Reset other_annotations
-    add_segment_event!(queue, new_segment, ev.primary, ev.self_annotations, SegmentAnnotations())
+    insert_in_order!(queue, e2; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
+    # add new segment at the end. Reset other_annotations. Reset self-annotations if self-intersection.
+    forward  = ev.self_annotations.forward  # need to recalculate winding above
+    add_segment_event!(
+        queue, new_segment, ev.primary,
+        self_intersection ? SegmentAnnotations(forward=forward) : ev.self_annotations,
+        SegmentAnnotations()
+        ; atol=atol, rtol=rtol
+    )
 end
 
 """
-    update_end!(queue, ev, pt; atol=1e-6)
+    update_end!(queue, ev, pt)
 
 Slides an end backwards.
 ```
@@ -383,7 +482,7 @@ Slides an end backwards.
     (start)---(end)
 ```
 """
-function update_end!(ev::SegmentEvent, end_point::Point2D; atol::AbstractFloat=default_atol)
+function update_end!(ev::SegmentEvent, end_point::Point2D)
     # Assumes ev is a start event.        
     @assert ev.is_start
     ev.segment = (ev.segment[1], end_point)
@@ -391,16 +490,14 @@ function update_end!(ev::SegmentEvent, end_point::Point2D; atol::AbstractFloat=d
     other = ev.other
     other.segment = (ev.segment[1], end_point)
     other.point = end_point
-    if abs(ev.segment[1][1] - end_point[1]) <= atol &&
-        (ev.segment[1][2] > end_point[2]) && ev.is_start
-        @warn "Reversing direction for new vertical segment: $(ev.segment)."
-        ev.is_start = false
-        other.is_start = true
-    end
     ev, other
 end
 
-function merge_same_segments!(queue::Vector{<:SegmentEvent}, discard::SegmentEvent, survive::SegmentEvent, self_intersection::Bool)
+function merge_same_segments!(
+    queue::Vector{<:SegmentEvent}, discard::SegmentEvent, survive::SegmentEvent, self_intersection::Bool
+    ; fill_rule::FillRule=EVEN_ODD, atol::AbstractFloat=default_atol
+    )
+    # discard is assumed to be on top of survive 
     @debug("[merge_same_segments!] discard=$discard")
     @debug("[merge_same_segments!] survive=$survive")
     pop_key!(queue, discard)
@@ -408,10 +505,31 @@ function merge_same_segments!(queue::Vector{<:SegmentEvent}, discard::SegmentEve
     if self_intersection
         # fill status is calculated bottom to top, so surviving's fill_below cannot change
         # however, surviving fill_above will be whatever the discarded's one would have been
-        toggle = isnothing(discard.self_annotations.fill_below) ? true : discard.self_annotations.fill_above != discard.self_annotations.fill_below
-        if toggle
+        if fill_rule == EVEN_ODD
+            # discard.self_annotations.fill_below = survive.self_annotations.fill_above
+            # discard.self_annotations.fill_above = !discard.self_annotations.fill_below => survive.self_annotations.fill_above
             @assert !isnothing(survive.self_annotations.fill_above) "missing self_annotations in surviving segment: $(survive)" # preempt !nothing error
             survive.self_annotations.fill_above = !survive.self_annotations.fill_above
+        else
+            winding_below = survive.self_annotations.winding_below + get_winding_top_to_bottom!(survive)
+            winding_above = winding_below + (
+                get_winding_top_to_bottom!(discard; atol=atol) == 0 ? 
+                get_winding_left_to_right!(discard; atol=atol) : 
+                discard.self_annotations.winding_top_to_bottom
+            ) + (
+                get_winding_top_to_bottom!(survive; atol=atol) == 0 ? 
+                get_winding_left_to_right!(survive; atol=atol) : 
+                survive.self_annotations.winding_top_to_bottom
+            )
+            survive.self_annotations.winding_below = winding_below
+            if fill_rule == NON_ZERO
+                survive.self_annotations.fill_above = winding_above != 0
+            elseif fill_rule == POSITIVE
+                survive.self_annotations.fill_above = winding_above > 0
+            elseif fill_rule == NEGATIVE
+                survive.self_annotations.fill_above = winding_above < 0
+            else throw("Unknown fill_rule: $fill_rule")
+            end
         end
     elseif discard.primary != survive.primary # merge two segments that belong to different polygons
         # each segment has distinct knowledge, so no special logic is needed
@@ -419,29 +537,53 @@ function merge_same_segments!(queue::Vector{<:SegmentEvent}, discard::SegmentEve
         survive.other_annotations = discard.self_annotations
     else # merge two segments that belong to the same polygon
         if isnothing(survive.other_annotations.fill_above)
-            @assert !isnothing(dicard.self_annotations.fill_above) "missing self_annotations in discarded segment: $(dicard)"
+            @assert !isnothing(discard.self_annotations.fill_above) "missing self_annotations in discarded segment: $(discard)"
             survive.other_annotations = discard.other_annotations
         end
     end
-    @debug("[merge_same_segments!] survive=$survive")
+    @debug("[merge_same_segments!] survive=$survive\n")
     queue
 end
 
-function calculate_self_annotations!(ev::SegmentEvent, below::Union{Nothing, SegmentEvent})
-    # if a new segment, than toggle, else use existing knowledge
+function calculate_self_annotations!(
+    ev::SegmentEvent,
+    below::Union{Nothing, SegmentEvent}
+    ;  fill_rule::FillRule,
+    atol::AbstractFloat=default_atol
+    )
     @debug("[calculate_self_annotations!] event: $(ev)")
     @debug("[calculate_self_annotations!] below: $(below)")
-    toggle = isnothing(ev.self_annotations.fill_below) ? true : ev.self_annotations.fill_above != ev.self_annotations.fill_below
-    if isnothing(below)
-        ev.self_annotations.fill_below = false
-    else
-        @assert !isnothing(below.self_annotations.fill_above) "missing annotations below: $(below)" # preempt !nothing error
-        ev.self_annotations.fill_below = below.self_annotations.fill_above # below should already be filled
-    end
-    if toggle
+    if fill_rule == EVEN_ODD
+        if isnothing(below)
+            ev.self_annotations.fill_below = false
+        else
+            @assert !isnothing(below.self_annotations.fill_above) "missing annotations below: $(below)" # preempt !nothing error
+            ev.self_annotations.fill_below = below.self_annotations.fill_above # below should already be filled
+        end
         ev.self_annotations.fill_above = !ev.self_annotations.fill_below
     else
-        ev.self_annotations.fill_above = ev.self_annotations.fill_below
+        # the winding from the region below to the bottom = winding_above below segment
+        winding_below = isnothing(below) ? 0 :
+            below.self_annotations.winding_below + get_winding_top_to_bottom!(below)
+        ev.self_annotations.winding_below = winding_below
+        # the winding from the region above to the bottom = winding_below + Δwinding
+        # For a vertical edge, the winding does NOT change along y axis, but it does change along x-axis
+        winding_above = winding_below + (
+            get_winding_top_to_bottom!(ev; atol=atol) == 0 ? 
+            get_winding_left_to_right!(ev; atol=atol) : 
+            ev.self_annotations.winding_top_to_bottom
+        )
+        if fill_rule == NON_ZERO
+            ev.self_annotations.fill_above = winding_above != 0
+            ev.self_annotations.fill_below = winding_below != 0
+        elseif fill_rule == POSITIVE
+            ev.self_annotations.fill_above = winding_above > 0
+            ev.self_annotations.fill_below = winding_below > 0
+        elseif fill_rule == NEGATIVE
+            ev.self_annotations.fill_above = winding_above < 0
+            ev.self_annotations.fill_below = winding_below < 0
+        else throw("Unknown fill_rule: $fill_rule")
+        end
     end
     @debug("[calculate_self_annotations!] self_annotations: $(ev.self_annotations)")
     ev.self_annotations
@@ -555,295 +697,3 @@ function apply_selection_criteria(annotated_segments::Vector{<:SegmentEvent{T}},
     result
 end
 
-#############################################################
-##                 Segment Chaining                        ##
-#############################################################
-
-is_empty_segment(ev::SegmentEvent) = (ev.self_annotations.fill_above == false) && (ev.self_annotations.fill_below == false)
-struct SegmentChainCandidate{T}
-    chain_idx::Int
-    match_chain_start::Bool
-    segment_event::SegmentEvent{T}
-end
-
-function chain_segments(
-    segments::AbstractVector{SegmentEvent{T}}
-    ; atol::AbstractFloat=default_atol, check_closes::Bool=true, fuzzy_rtol::AbstractFloat=1.0
-    ) where T
-    # Note: if any of the regions intersect at a vertex, than this is not guaranteed to give consistent results
-    # They might be joined into one region or presented as separate regions.
-    # This algorithm can fail if the polygon is improper (it has lines jutting out)
-    chains = Vector{SegmentEvent{T}}[]
-    regions = Vector{SegmentEvent{T}}[]
-    processed = Set{Segment2D{T}}()
-    for event in segments
-        if event.segment in processed
-            continue
-        end
-        push!(processed, event.segment)
-        candidates = SegmentChainCandidate{T}[]
-        @debug("[chain_segment]: event=$event")
-        @debug("[chain_segment]: candidates=$candidates")
-        for (chain_idx, chain) in enumerate(chains)
-            insert_matching_candidate!(candidates, chain, chain_idx, event; atol=atol)
-        end
-        if length(candidates) == 0 # start a new open chain
-            chain = [
-                SegmentEvent(event.segment, true, true, deepcopy(event.self_annotations)),
-                SegmentEvent(event.segment, false, true, deepcopy(event.self_annotations))
-            ]
-            @debug("[chain_segment]: new chain")
-            push!(chains, chain)
-        elseif length(candidates) == 1 # check if it closes else append to chain
-            candidate = candidates[1]
-            chain = chains[candidate.chain_idx]
-            if check_closes && closes_chain(chain, candidate; atol=atol)
-                popat!(chains, candidate.chain_idx)
-                push!(regions, chain)
-                @debug("[chain_segment]: closed chain")
-            else
-                append_candidate!(chain, candidate)
-                @debug("[chain_segment]: appended chain")
-            end
-        elseif length(candidates) == 2 # join two chains together
-            cand1 = candidates[1]
-            cand2 = candidates[2]
-            chain1 = chains[cand1.chain_idx]
-            chain2 = chains[cand2.chain_idx]
-            append_candidate!(chain1, cand1)
-            new_chain = join_chains!(chain1, chain2, cand1.match_chain_start, cand2.match_chain_start)
-            chains[cand1.chain_idx] = new_chain
-            @debug("[chain_segment]: combined chains")
-            deleteat!(chains, cand2.chain_idx)
-        else # confused
-            throw("Matched segment $(candidate.segment) to more than 2 chains.")
-        end
-    end
-    # TODO: it might be possible to close some open chains
-    # - it is improper: the beginning and end is a segment(s) jutting out, so it can be closed with a segment in processing
-    if check_closes
-        if !isempty(chains)
-            fuzzy_close!(chains, regions; atol=atol, rtol=fuzzy_rtol)
-        end
-        @assert isempty(chains) "There are still open chains at the end of processing all segments."
-        return regions
-    else
-        return chains
-    end
-end
-
-function insert_matching_candidate!(
-    candidates::Vector{<:SegmentChainCandidate},
-    chain::Vector{<:SegmentEvent},
-    chain_idx::Int,
-    event::SegmentEvent
-    ; atol::AbstractFloat=default_atol
-    )
-    segment = event.segment
-    is_match = false
-    if is_same_point(chain[1].point, segment[1]; atol=atol)
-        is_match = true
-        match_chain_start = true
-        match_idx = 1
-    elseif is_same_point(chain[1].point, segment[2]; atol=atol)
-        is_match = true
-        match_chain_start = true
-        match_idx = 2
-    elseif is_same_point(chain[end].point, segment[1]; atol=atol)
-        is_match = true
-        match_chain_start = false
-        match_idx = 1
-    elseif is_same_point(chain[end].point, segment[2]; atol=atol)
-        is_match = true
-        match_chain_start = false
-        match_idx = 2
-    end
-    if is_match
-        is_start = match_idx == 1
-        candidate = SegmentChainCandidate(
-            chain_idx,
-            match_chain_start,
-            # add segment for the other point
-            SegmentEvent(segment, !is_start, true, deepcopy(event.self_annotations))
-        )
-        push!(candidates, candidate)
-    end
-end
-
-function append_candidate!(
-    chain::Vector{<:SegmentEvent},
-    candidate::SegmentChainCandidate
-    ; atol::AbstractFloat=default_atol
-    )
-    if candidate.match_chain_start
-        if length(chain) > 1 && 
-            get_orientation(
-                candidate.segment_event.point,
-                chain[1].point,
-                chain[2].point
-                ; atol=atol
-            ) == COLINEAR
-            popfirst!(chain)
-        end
-        insert!(chain, 1, candidate.segment_event)
-    else
-        if length(chain) > 1 && 
-            get_orientation(
-                chain[end-1].point,
-                chain[end].point,
-                candidate.segment_event.point
-                ; atol=atol
-            ) == COLINEAR
-            pop!(chain)
-        end
-        push!(chain, candidate.segment_event)
-    end
-end
-
-function closes_chain(chain::Vector{<:SegmentEvent}, candidate::SegmentChainCandidate; atol::AbstractFloat=default_atol)
-    candidate_point = candidate.segment_event.point
-    if candidate.match_chain_start
-        return is_same_point(chain[end].point, candidate_point; atol=atol)
-    else
-        return is_same_point(chain[1].point, candidate_point; atol=atol)
-    end
-end
-
-function fuzzy_close!(
-    chains::Vector{<:Vector{<:SegmentEvent}},
-    regions::Vector{<:Vector{<:SegmentEvent}}
-    ; atol::AbstractFloat, rtol::AbstractFloat=1.0
-    )
-    for idx in reverse(eachindex(chains))
-        if is_fuzzy_closed(chains[idx], length(regions) + 1; atol=atol, rtol=rtol)
-            push!(regions, popat!(chains, idx))
-        end
-    end
-    regions
-end
-
-function is_fuzzy_closed(chain::Vector{<:SegmentEvent}, idx::Int; atol::AbstractFloat, rtol::AbstractFloat=1.0)
-    if is_same_point(chain[1].point, chain[end].point; atol=atol)
-        return true
-    end
-    gap = norm(chain[1].point, chain[end].point)
-    path = map(event -> event.point, chain)
-    gaps = norm.(path[1:(end-1)], path[2:end])
-    mean_gap = sum(gaps) / length(gaps)
-    if gap / mean_gap <= rtol
-        @warn("Region $idx was not closed, but it has a relatively small gap and will be considered closed.
-        |gap| / |mean_segment| = $gap / $mean_gap < $rtol.")
-        return true
-    end
-    false
-end
-
-function join_chains!(chain1::Vector{<:SegmentEvent}, chain2::Vector{<:SegmentEvent}, match_chain1_start, match_chain2_start)
-    # Note: with clever use of reverse! can change this to always modify chain1 in place for the same output
-    if match_chain1_start && match_chain2_start
-        # <--- --->
-        return push!(reverse!(chain2), chain1...)
-    elseif match_chain1_start && !match_chain2_start
-        # <--- <----
-        return push!(chain2, chain1...)
-    elseif !match_chain1_start && match_chain2_start
-        # ---> --->
-        return push!(chain1, chain2...) 
-    else # !match_chain1_start && !match_chain2_start
-        # ----> <-----
-        return push!(chain1, reverse!(chain2)...) 
-    end
-end
-
-#############################################################
-##                  Polygons and Holes                     ##
-#############################################################
-
-function convert_segments_to_polygons(
-    regions::Vector{<:Vector{<:SegmentEvent}}
-    ; atol::AbstractFloat=default_rtol
-    )
-    candidates, exteriors  = separate(p -> is_hole(p; atol=atol), regions)
-    polygons = map(segments -> Polygon(map(event -> event.point, segments)), exteriors)
-    holes = map(segments -> map(event -> event.point, segments), candidates)
-    parents = match_holes_polygons(polygons, holes; atol=atol)
-    for (idx, hole) in zip(parents, holes)
-        if idx == 0
-            compact_vec = "[$(hole[1])...$(hole[end])]"
-            @debug "Hole $(compact_vec) has no parent. Casting to Polygon."
-            push!(polygons, Polygon(hole))
-        else
-            push!(polygons[idx].holes, hole)
-        end
-    end
-    polygons
-end
-
-"""
-    is_hole(polygon::Vector{<:SegmentEvent}; atol=default_atol)
-
-A necessary and sufficient condition for a polygon to be classified as a hole is that
-at its lowest point it must be filled below and not above.
-
-The `self_annotations` must therefore not be `nothing`.
-
-Note: if the direction of the polygon was known (clockwise/counter-clockwise) then any point could be used.
-"""
-function is_hole(polygon::Vector{<:SegmentEvent}; atol::AbstractFloat=default_atol)
-    # instead of sorting the whole vector, get the lowest segments first
-    y = minimum(event -> event.point[2], polygon)
-    lowest_segments = filter(event -> event.point[2] == y || event.other_point[2] == y, polygon)
-    # sort and check annotations
-    sort!(lowest_segments, lt=(x, y) -> is_above(x, y; atol=atol))
-    annotations = lowest_segments[end].self_annotations
-    annotations.fill_below && !annotations.fill_above
-end
-
-"""
-    match_holes_polygons(polygons::Vector{<:Polygon}, holes::Vector{<:Tuple})
-
-An algorithm for matching holes to polygons.
-Returns the index of each parent for each hole.
-
-For every hole, match to a polygon that contains the hole.
-If there are multiple polygons possible, the polygon with the least area is chosen.
-If no polygons are found, return the hole as a `Polygon`.
-
-In the best case there is one polygon or one hole. Then this runs in `O(1)` time.
-In the worst case, none of the holes match to a polygon.
-Then this runs in `O(phn)` time where `p` is the number polygons,
-`h` is the number of holes and `n` is the average number of vertices defining each polygon.
-"""
-function match_holes_polygons(
-    polygons::Vector{<:Polygon},
-    holes::Vector{<:Path2D}
-    ; atol::AbstractFloat=default_atol
-    )
-    if length(polygons) == 1
-        return fill(1, length(holes))
-    elseif isempty(holes)
-        return Int[]
-    end
-    areas = map(area_polygon, polygons)
-    # sort by ascending areas. Therefore smallest parent is matched first.
-    # Trade off is the hole may be tried in many smaller polygons first.
-    idxs = sortperm(areas)
-    parents = zeros(Int, length(holes))
-    for (idx_h, candidate) in enumerate(holes)
-        found = false
-        for (idx_p, parent) in zip(idxs, polygons[idxs])
-            # Assume that no segments intersect after the Martínez-Rueda algorithm.
-            # Then only need to check a point not on the exterior.
-            j = 1
-            while (j < length(candidate)) && on_border(parent.exterior, candidate[j])
-                j += 1
-            end
-            found = contains(parent.exterior, candidate[j]; atol=atol, on_border_is_inside=false)
-            if found
-                parents[idx_h] = idx_p
-                break
-            end
-        end
-    end
-    parents
-end
