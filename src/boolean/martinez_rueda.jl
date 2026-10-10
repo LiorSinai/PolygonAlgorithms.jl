@@ -186,7 +186,7 @@ function martinez_rueda_algorithm(
         annotated_segments = event_loop!(polygon; self_intersection=true, atol=atol, rtol=rtol, fill_rule=fill_rule)
         queue = SegmentEvent{T}[]
         for ev in vcat(base_annotated_segments, annotated_segments)
-            add_annotated_segment!(queue, ev)
+            add_annotated_segment!(queue, ev; atol=atol, rtol=rtol)
         end
         combined_annotated_segments = event_loop!(queue; self_intersection=false, atol=atol, rtol=rtol)
         # for consistent reporting, swap annotations so that self annotations are always the primary
@@ -219,10 +219,13 @@ function martinez_rueda_algorithm(
     selected_segments
 end
 
-function add_annotated_segment!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent)
+function add_annotated_segment!(
+    queue::Vector{<:SegmentEvent}, ev::SegmentEvent
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    )
     pt1 = ev.segment[1]
     pt2 = ev.segment[2]
-    forward = _compare_points(pt1, pt2)
+    forward = _compare_points(pt1, pt2; atol=atol)
     if forward == Int8(0)
         return queue # zero length segment
     end
@@ -231,7 +234,8 @@ function add_annotated_segment!(queue::Vector{<:SegmentEvent}, ev::SegmentEvent)
     segment = (start, end_)
     add_segment_event!(
         queue, segment, ev.primary,
-        ev.self_annotations, ev.other_annotations,
+        ev.self_annotations, ev.other_annotations
+        ; atol=atol, rtol=rtol
     )
 end
 
