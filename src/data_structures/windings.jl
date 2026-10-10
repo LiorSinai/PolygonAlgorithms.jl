@@ -22,6 +22,8 @@ References:
 @enum FillRule EVEN_ODD NON_ZERO POSITIVE NEGATIVE
 
 function calc_winding_top_to_bottom(start::Point2D, tail::Point2D ; atol::AbstractFloat=default_atol)
+    # going from top to bottom, we cross right to left from the ray's perspective
+    # when the ray goes left to right
     dx = tail[1] - start[1]
     if abs(dx) <= atol
         return Int8(0)
@@ -38,25 +40,27 @@ function calc_winding_left_to_right(start::Point2D, tail::Point2D; atol::Abstrac
 end
 
 function get_winding_top_to_bottom!(ev::SegmentEvent; atol::AbstractFloat=default_atol)
-    if isnothing(ev.winding_top_to_bottom)
-        pt1 = ev.forward < Int(0) ? ev.segment[1] : ev.segment[2]
-        pt2 = ev.forward < Int(0) ? ev.segment[2] : ev.segment[1]
-        ev.winding_top_to_bottom = calc_winding_top_to_bottom(pt1, pt2; atol=atol)
+    annotations = ev.self_annotations
+    if isnothing(annotations.winding_top_to_bottom)
+        pt1 = annotations.forward < Int(0) ? ev.segment[1] : ev.segment[2]
+        pt2 = annotations.forward < Int(0) ? ev.segment[2] : ev.segment[1]
+        annotations.winding_top_to_bottom = calc_winding_top_to_bottom(pt1, pt2; atol=atol)
         if !isnothing(ev.other)
-            ev.other.winding_top_to_bottom = ev.winding_top_to_bottom
+            ev.other.self_annotations.winding_top_to_bottom = annotations.winding_top_to_bottom
         end
     end
-    ev.winding_top_to_bottom
+    annotations.winding_top_to_bottom
 end
 
 function get_winding_left_to_right!(ev::SegmentEvent; atol::AbstractFloat=default_atol)
-    if isnothing(ev.winding_left_to_right)
-        pt1 = ev.forward < Int(0) ? ev.segment[1] : ev.segment[2]
-        pt2 = ev.forward < Int(0) ? ev.segment[2] : ev.segment[1]
-        ev.winding_left_to_right = calc_winding_left_to_right(pt1, pt2; atol=atol)
+    annotations = ev.self_annotations
+    if isnothing(annotations.winding_left_to_right)
+        pt1 = annotations.forward < Int(0) ? ev.segment[1] : ev.segment[2]
+        pt2 = annotations.forward < Int(0) ? ev.segment[2] : ev.segment[1]
+        annotations.winding_left_to_right = calc_winding_left_to_right(pt1, pt2; atol=atol)
         if !isnothing(ev.other)
-            ev.other.winding_left_to_right = ev.winding_left_to_right
+            ev.other.self_annotations.winding_left_to_right = annotations.winding_left_to_right
         end
     end
-    ev.winding_left_to_right
+    annotations.winding_left_to_right
 end

@@ -1,9 +1,20 @@
 mutable struct SegmentAnnotations
     fill_above::Union{Nothing, Bool}
     fill_below::Union{Nothing, Bool}
+    # fill rule properties
+    forward::Int8 # original direction of segment. -1 is current, 0 is zero-length, 1 is reversed
+    winding_top_to_bottom::Union{Nothing,Int8}
+    winding_left_to_right::Union{Nothing,Int8}
+    winding_below::Int
 end
 
-SegmentAnnotations() = SegmentAnnotations(nothing, nothing)
+function SegmentAnnotations(
+    fill_above::Union{Nothing, Bool}=nothing,
+    fill_below::Union{Nothing, Bool}=nothing
+    ; forward::Union{Nothing,Int8}=Int8(-1), winding_below::Int=0
+    )
+    SegmentAnnotations(fill_above, fill_below, forward, nothing, nothing, winding_below)
+end
 
 ==(ann1::SegmentAnnotations, ann2::SegmentAnnotations) = 
     (ann1.fill_above == ann2.fill_above) && (ann1.fill_below == ann2.fill_below)
@@ -11,8 +22,7 @@ SegmentAnnotations() = SegmentAnnotations(nothing, nothing)
 """
     SegmentEvent(
     segment, is_start, primary=true,
-    [self_annotations, other_annotations, 
-    forward=Int8(-1), winding_top_to_bottom, winding_left_to_right]
+    [self_annotations, other_annotations]
     )
 
 An event in a line sweep algorithm marking a change in state, either the 
@@ -31,10 +41,6 @@ mutable struct SegmentEvent{T}
     other::Union{Nothing,SegmentEvent{T}} # links to opposite event
     point::Point2D{T} # is_start ? segment[1] : segment[2]
     other_point::Point2D{T} # is_start ? segment[2] : segment[1]
-    # fill rule properties
-    forward::Int8 # original direction of segment. -1 is current, 0 is zero-length, 1 is reversed
-    winding_top_to_bottom::Union{Nothing,Int8}
-    winding_left_to_right::Union{Nothing,Int8}
 end
 
 eltype(ev::SegmentEvent{T}) where T = T
@@ -45,9 +51,6 @@ function SegmentEvent(
     primary::Bool=true,
     self_annotations::SegmentAnnotations=SegmentAnnotations(),
     other_annotations::SegmentAnnotations=SegmentAnnotations(),
-    forward::Int8=Int8(-1),
-    winding_top_to_bottom::Union{Nothing,Int8}=nothing,
-    winding_left_to_right::Union{Nothing,Int8}=nothing,
     )
     point = is_start ? segment[1] : segment[2]
     other_point = is_start ? segment[2] : segment[1]
@@ -56,7 +59,6 @@ function SegmentEvent(
         self_annotations, other_annotations,
         nothing,
         point, other_point,
-        forward, winding_top_to_bottom, winding_left_to_right
     )
 end
 
@@ -68,9 +70,6 @@ function copy_segment(event::SegmentEvent, is_primary::Bool)
         is_primary,
         deepcopy(event.self_annotations),
         deepcopy(event.other_annotations),
-        event.forward,
-        event.winding_top_to_bottom,
-        event.winding_left_to_right,
     )
 end
 
