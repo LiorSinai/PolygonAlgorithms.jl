@@ -245,17 +245,17 @@ end
 """
     xor_geometry([alg=MartinezRuedaAlg()], subject, others...; atol=default_atol, rtol=default_rtol)
 
-General case of polygon xor: in one polygon or the other but not a;;.
+General case of polygon xor: in one polygon or the other but not both.
 Possibly returns holes but does not classify them as holes.
 
 The polygons can be of type:
 - `Vector{<:Tuple{T, T}} where T<:AbstractFloat`. Output will be `Vector{Vector{Tuple{T, T}}}`. Possibly returns holes but does not classify them as holes.
 - `Polygon{T<:AbstractFloat}`. Output will be `Vector{Polygon{T}}`. This will classify holes and match them to the smallest possible parent.
-- The subject can also be the same type as the output. This enables the output to be an input. 
+- The subject can also be the same type as the output. This enables the output to be an input.
     Note that in this case the `subject` list is treated as a single polygon.
     If any of the polygons overlap, this is equivalent to passing a self-intersecting polygon and
     some areas might be classified as holes according to the even-odd rule.
-Segment2D
+
 Using multiple arguments is more efficient than looping through the polygons and applying `xor_geometry` sequentially.
 
 `alg` can only be `MartinezRuedaAlg()`.

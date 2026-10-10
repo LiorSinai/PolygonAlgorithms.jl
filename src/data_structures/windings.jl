@@ -3,7 +3,7 @@
 """
 Fill rules determine which regions of a self-intersecting polygon are considered filled.
 
-EVEN_ODD rule: alternative regions are filled.
+EVEN_ODD rule: alternating regions are filled.
 
 For winding rules:
 1. Construct a ray heading out from a given point P in any direction towards infinity.

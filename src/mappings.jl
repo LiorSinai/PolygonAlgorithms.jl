@@ -9,7 +9,7 @@ For robustness, the annotations of all segments are checked
 and a decision is made based on the majority outcome.
 
 If the direction `counter_clockwise` is not given, the segments must be in a chain.
-That is, `segments_{i}[2] == segments_{i+1}[2]` for all segments.
+That is, `segments_{i}[2] == segments_{i+1}[1]` for all segments.
 
 For a counter-clockwise polygon, the inner face is to the left of each segment.
 For a clockwise polygon, the inner face is to the right of each segment.

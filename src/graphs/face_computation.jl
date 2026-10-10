@@ -34,7 +34,7 @@ end
     map_connections(graph::Dict)
 
 If `Z` is the next neighbor clockwise around the node `X`, then the half-edge
-that comes before `(X, Y)`` is the half-edge `(Z, X)``.
+that comes before `(X, Y)` is the half-edge `(Z, X)`.
 """
 function map_connections(graph::Dict{Tuple{T, T}, <:AbstractVector{AnnotatedSegment{T}}}) where {T}
     connections = Dict{Segment2D{T}, AnnotatedSegment{T}}()

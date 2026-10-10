@@ -174,7 +174,7 @@ function link_intersections!(
 end
 
 function set_link!(inter1::Node{<:PointEvent}, inter2::Node{<:PointEvent}, entering_1_from_2::Bool)
-    if entering_1_from_2 # edge of polygon 2 is entering poylgon 1 
+    if entering_1_from_2 # edge of polygon 2 is entering polygon 1
         inter1.data.link = inter2
         inter2.data.type = ENTRY
     else 
