@@ -63,7 +63,7 @@ function chain_segments(
             @debug("[chain_segment]: combined chains")
             deleteat!(chains, cand2.chain_idx)
         else # confused
-            throw("Matched segment $(candidate.segment) to more than 2 chains.")
+            throw("Multiple chains ($(length(candidates))) connect to $(event.segment).")
         end
     end
     # TODO: it might be possible to close some open chains

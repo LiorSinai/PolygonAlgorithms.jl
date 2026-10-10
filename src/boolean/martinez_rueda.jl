@@ -246,7 +246,7 @@ end
 function event_loop!(
     queue::Vector{SegmentEvent{T}}
     ; self_intersection::Bool,
-    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_atol,
+    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
     fill_rule::FillRule=EVEN_ODD
     ) where T # eventLoop
     annotated_segments = SegmentEvent{T}[]
@@ -343,7 +343,7 @@ function check_and_divide_intersection!(
 end
 
 function divide_intersection!(
-    queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::SegmentEvent, pt, self_intersection::Bool=false::Nothing
+    queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::SegmentEvent, pt, self_intersection::Bool=false
     ; atol=default_atol, rtol=default_rtol
     )
     queue

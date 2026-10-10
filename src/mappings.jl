@@ -149,8 +149,9 @@ function match_interiors(
     # sort by descending areas. Therefore largest parent is matched first.
     idxs = sortperm(areas, rev=true)
     parents = zeros(Int, length(polygons))
-    for (idx1, polygon) in zip(idxs, polygons[idxs])
-        for idx2 in 1:(idx1 - 1) # can only be in larger polygons
+    for (rank, idx1) in enumerate(idxs)
+        polygon = polygons[idx1]
+        for idx2 in idxs[1:(rank - 1)] # can only be in larger polygons
             if parents[idx2] != 0
                 continue
             end
@@ -219,7 +220,7 @@ end
 function paths_to_polygons(
     exteriors::Vector{<:Vector{<:Point2D}},
     holes::Vector{<:Vector{<:Point2D}},
-    ; atol::AbstractFloat=default_rtol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
     polygons = Polygon.(exteriors)
     parents = match_holes_polygons(exteriors, holes; atol=atol, rtol=rtol)
