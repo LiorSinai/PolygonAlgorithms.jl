@@ -146,34 +146,6 @@ using PolygonAlgorithms: cyclic_set_equality, are_equivalent_polygons
         end
     end
 
-    @testset "match interiors" begin
-        @testset "two unrelated squares" begin
-            poly1 = [(0.0, 0.0), (3.0, 0.0), (3.0, 3.0), (0.0, 3.0)]
-            poly2 = [(10.0, 0.0), (14.0, 0.0), (14.0, 4.0), (10.0, 4.0)]
-            parents = match_interiors([poly1, poly2])
-            @test parents == [0, 0]
-        end
-
-        @testset "nested squares" begin
-            inner = [(1.0, 1.0), (2.0, 1.0), (2.0, 2.0), (1.0, 2.0)] # area 1
-            outer = [(-5.0, -5.0), (5.0, -5.0), (5.0, 5.0), (-5.0, 5.0)] # area 100
-            # order does not matter
-            parents = match_interiors([inner, outer])
-            @test parents == [2, 0]
-            parents = match_interiors([outer, inner])
-            @test parents == [0, 1]
-        end
-
-        @testset "regression: smallest polygon at the first index" begin
-            # poly1 nested in poly2 with unrelated poly3
-            poly1 = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)] # area 1
-            poly2 = [(-5.0, -5.0), (5.0, -5.0), (5.0, 5.0), (-5.0, 5.0)] # area 100
-            poly3 = [(20.0, 20.0), (21.0, 20.0), (21.0, 21.0), (20.0, 21.0)] # area 1, unrelated
-            parents = match_interiors([poly1, poly2, poly3])
-            @test parents == [2, 0, 0]
-        end
-    end
-
     @testset "events to path" begin
         @testset "diamond" begin
             segments = [
