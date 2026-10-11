@@ -1,4 +1,4 @@
-# see DataStrctures.jl for a full implementation
+# see DataStructures.jl for a full implementation
 
 mutable struct Node{T}
     data::T

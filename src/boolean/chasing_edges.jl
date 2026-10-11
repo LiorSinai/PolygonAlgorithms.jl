@@ -1,5 +1,5 @@
 """
-    chasing_edges_algorithm(polygon1, poly2; atol, rtol):
+    chasing_edges_algorithm(polygon1, polygon2; atol=default_atol, rtol=default_rtol)
 
 A fast algorithm for finding the intersection, if it exists, between two
 convex polygons.

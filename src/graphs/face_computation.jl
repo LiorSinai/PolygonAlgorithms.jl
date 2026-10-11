@@ -6,7 +6,7 @@ Each segment creates two half-edges.
 Each node is a point with the list of connected half edges,
 where each half edge points to another node and are sorted clockwise around the point.
 
-Assumes that the segments no not intersect.
+Assumes that the segments do not intersect.
 """
 function directed_graph_from_segments(
     events::Union{<:AbstractVector{SegmentEvent{T}}, <:AbstractVector{AnnotatedSegment{T}}}

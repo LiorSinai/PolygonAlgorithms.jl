@@ -5,7 +5,7 @@
 
 Determine orientation of three points. 
 
-Colinear if `cross(pq, qr) <= atol + rtol * |pq| * |qr|`.
+Colinear if `|cross(pq, qr)| < atol + rtol * scale` where `scale = |pq_y * qr_x| + |qr_y * pq_x|`.
 
 Clockwise if `cross(pq, qr)` is positive, else counter-clockwise.
 """

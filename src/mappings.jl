@@ -63,7 +63,7 @@ The graph will always have one counter-clockwise exterior and one or more clockw
 interiors. 
 
 The following selection strategies are used to return half the faces with no duplicates:
-- `MERGE_FACES`: selects all exterior faces that are not holes with interior faces that are holes, resulting in connected graphs being be merged together. This returns fewer, larger polygons with holes.
+- `MERGE_FACES`: selects all exterior faces that are not holes with interior faces that are holes, resulting in connected graphs being merged together. This returns fewer, larger polygons with holes.
 - `SPLIT_FACES`: As exteriors, select all interior faces that are not holes that are on the exterior and reverse to make them counter-clockwise. As holes, select interior faces that are holes that are not on the exterior. This splits connected graphs across multiple interiors and returns smaller polygons with fewer explicit holes.
 - `CLOCKWISE_FACES`: all clockwise faces.
 - `COUNTER_CLOCKWISE_FACES`: all counter-clockwise faces.
@@ -79,7 +79,7 @@ The segments are joined in a graph.
 Each face with non-zero area will return two faces, a counter-clockwise face with positive area (exterior)
 and a clockwise face with negative area (interior).
 The following selection strategies are used to return half the faces with no duplicates:
-- `MERGE_FACES`: selects all exterior faces that are not holes with interior faces that are holes, resulting in connected graphs being be merged together. This returns fewer, larger polygons with holes.
+- `MERGE_FACES`: selects all exterior faces that are not holes with interior faces that are holes, resulting in connected graphs being merged together. This returns fewer, larger polygons with holes.
 - `SPLIT_FACES`: As exteriors, select all interior faces that are not holes that are on the exterior and reverse to make them counter-clockwise. As holes, select interior faces that are holes that are not on the exterior. This splits connected graphs across multiple interiors and returns smaller polygons with fewer explicit holes.
 - `CLOCKWISE_FACES`: all clockwise faces.
 - `COUNTER_CLOCKWISE_FACES`: all counter-clockwise faces.
@@ -133,7 +133,7 @@ function segments_to_paths(
                     end
                 end
             end
-            # for holes, chose only inner faces not on the exterior
+            # for holes, choose only inner faces not on the exterior
             # because holes on the exterior are self-evident 
             filter!(pts -> !any(pt -> pt in exterior_points, pts), holes)
         end

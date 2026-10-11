@@ -154,7 +154,7 @@ function _normalise_points(pts::AbstractVector{<:Point2D{T}}; digits::Int=6) whe
 end
 
 """
-    are_equivalent_polygons(polygon1, polygon2; digits=6, match_reverse=true)
+    are_equivalent_polygons(polygon1, polygon2; digits=6, match_reverse=false)
 
 Determine if the polygons are equivalent,
 or alternatively, if a collections of polygons are equivalent.
