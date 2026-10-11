@@ -189,14 +189,14 @@ function any_intersect(
     for head in queue
         queue_length = length(queue)
         status_length = length(sweep_status)
-        @debug("[do_intersect] ($(queue_length), $(status_length)): $(head)")
+        @debug("[any_intersect] ($(queue_length), $(status_length)): $(head)")
         if head.is_start # then check for intersections and add to sweep status
             idx = find_transition(sweep_status, head; atol=atol, rtol=rtol)
             above = idx == 1 ? nothing : sweep_status[idx - 1]
             below = (idx > length(sweep_status)) ? nothing : sweep_status[idx]
-            @debug("[event_loop!] transition idx=$idx")
-            @debug("[event_loop!] above=$above")
-            @debug("[event_loop!] below=$below")
+            @debug("[any_intersect] transition idx=$idx")
+            @debug("[any_intersect] above=$above")
+            @debug("[any_intersect] below=$below")
             if !isnothing(above) && do_intersect(head.segment, above.segment; atol=atol, rtol=rtol) &&
                 (include_vertices || !is_vertex_intersection(head.segment, above.segment; atol=atol, rtol=rtol))
                 return true

@@ -1,6 +1,6 @@
 using Test
 using PolygonAlgorithms: AnnotatedSegment, SegmentEvent, SegmentAnnotations, Polygon
-using PolygonAlgorithms: is_hole, match_holes_polygons, segments_to_paths, segments_to_polygons
+using PolygonAlgorithms: is_hole, match_holes_polygons, match_interiors, segments_to_paths, segments_to_polygons
 using PolygonAlgorithms: MERGE_FACES, SPLIT_FACES
 using PolygonAlgorithms: cyclic_set_equality, are_equivalent_polygons
 
@@ -95,6 +95,54 @@ using PolygonAlgorithms: cyclic_set_equality, are_equivalent_polygons
             @test parents == [1, 2]
             parents = match_holes_polygons([poly2, poly1], holes)
             @test parents == [2, 1]
+        end
+
+        @testset "hole outside all polygons" begin
+            polygons = [
+                [(3.0, 3.0), (3.0, 0.0), (0.0, 0.0), (0.0, 3.0)],
+                [(7.0, 3.0), (7.0, 0.0), (4.0, 0.0), (4.0, 3.0)],
+            ]
+            holes = [
+                [(2.0, 2.0), (2.0, 1.0), (1.0, 1.0), (1.0, 2.0)],
+                [(12.0, 2.0), (12.0, 1.0), (11.0, 1.0), (11.0, 2.0)],
+            ]
+            parents = match_holes_polygons(polygons, holes)
+            @test parents == [1, 0]
+        end
+    end
+
+    @testset "match interiors" begin
+        @testset "two unrelated squares" begin
+            poly1 = [(0.0, 0.0), (3.0, 0.0), (3.0, 3.0), (0.0, 3.0)]
+            poly2 = [(10.0, 0.0), (14.0, 0.0), (14.0, 4.0), (10.0, 4.0)]
+            parents = match_interiors([poly1, poly2])
+            @test parents == [0, 0]
+        end
+
+        @testset "nested squares" begin
+            inner = [(1.0, 1.0), (2.0, 1.0), (2.0, 2.0), (1.0, 2.0)] # area 1
+            outer = [(-5.0, -5.0), (5.0, -5.0), (5.0, 5.0), (-5.0, 5.0)] # area 100
+            # order does not matter
+            parents = match_interiors([inner, outer])
+            @test parents == [2, 0]
+            parents = match_interiors([outer, inner])
+            @test parents == [0, 1]
+        end
+
+        @testset "regression: smallest polygon at the first index" begin
+            # poly1 nested in poly2 with unrelated poly3
+            poly1 = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)] # area 1
+            poly2 = [(-5.0, -5.0), (5.0, -5.0), (5.0, 5.0), (-5.0, 5.0)] # area 100
+            poly3 = [(20.0, 20.0), (21.0, 20.0), (21.0, 21.0), (20.0, 21.0)] # area 1, unrelated
+            parents = match_interiors([poly1, poly2, poly3])
+            @test parents == [2, 0, 0]
+        end
+
+        @testset "first point on the border" begin
+            outer = [(0.0, 0.0), (4.0, 0.0), (4.0, 4.0), (0.0, 4.0)]
+            inner = [(0.0, 1.0), (1.0, 1.0), (1.0, 2.0)] # first point touches outer
+            parents = match_interiors([outer, inner])
+            @test parents == [0, 1]
         end
     end
 

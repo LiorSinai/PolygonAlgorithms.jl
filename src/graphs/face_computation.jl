@@ -6,7 +6,7 @@ Each segment creates two half-edges.
 Each node is a point with the list of connected half edges,
 where each half edge points to another node and are sorted clockwise around the point.
 
-Assumes that the segments no not intersect.
+Assumes that the segments do not intersect.
 """
 function directed_graph_from_segments(
     events::Union{<:AbstractVector{SegmentEvent{T}}, <:AbstractVector{AnnotatedSegment{T}}}
@@ -25,7 +25,7 @@ function directed_graph_from_segments(
     end
     # sort clockwise around the node
     for node in keys(graph)
-        sort!(graph[node], lt=(seg1, seg2) -> !isless_polar_angle(seg1[2], seg2[2], seg1[1]))
+        sort!(graph[node], lt=(seg1, seg2) -> isless_polar_angle(seg2[2], seg1[2], seg1[1]))
     end
     graph
 end
@@ -34,7 +34,7 @@ end
     map_connections(graph::Dict)
 
 If `Z` is the next neighbor clockwise around the node `X`, then the half-edge
-that comes before `(X, Y)`` is the half-edge `(Z, X)``.
+that comes before `(X, Y)` is the half-edge `(Z, X)`.
 """
 function map_connections(graph::Dict{Tuple{T, T}, <:AbstractVector{AnnotatedSegment{T}}}) where {T}
     connections = Dict{Segment2D{T}, AnnotatedSegment{T}}()

@@ -11,7 +11,7 @@ abstract type PolygonIntersectionAlgorithm end
     Not guaranteed to give correct results.
 - Description:
     1. Intersect all edge pairs.
-    2. Selected all points in the other polygon.
+    2. Select all points in the other polygon.
     3. Sort results counter-clockwise. 
 - For general non-intersecting polygons, the intersection points are valid but the order is not.
 """
@@ -51,7 +51,7 @@ struct WeilerAthertonAlg <: PolygonIntersectionAlgorithm end
     and `k` is the total number of intersections between all segments.
 - Returns regions and edges of interest. Does not return single points.
 - Works for convex and concave polygons including with holes and self-intersections.
-- Description: operates at a segment level and is an extension of the Bentley-Ottman line intersection algorithm.
+- Description: operates at a segment level and is an extension of the Bentley-Ottmann line intersection algorithm.
     - Segments are scanned from left to right, bottom to top. 
     - The key assumption is that only the segments immediately above and below the current segment need to be inspected for intersections. This makes the algorithm fast but also sensitive to determining these segments correctly.
     - The segment that is immediately below (or empty space) is used to determine the fill annotations for the current segment.
@@ -188,7 +188,7 @@ end
 """
     union_geometry([alg=MartinezRuedaAlg()], subject, others...; atol=default_atol, rtol=default_rtol)
 
-General case of polygon union: in all polygons. 
+General case of polygon union: in any of the polygons.
 
 The polygons can be of type:
 - `Vector{<:Tuple{T, T}} where T<:AbstractFloat`. Output will be `Vector{Vector{Tuple{T, T}}}`. Possibly returns holes but does not classify them as holes.
@@ -245,17 +245,17 @@ end
 """
     xor_geometry([alg=MartinezRuedaAlg()], subject, others...; atol=default_atol, rtol=default_rtol)
 
-General case of polygon xor: in one polygon or the other but not a;;.
+General case of polygon xor: in one polygon or the other but not both.
 Possibly returns holes but does not classify them as holes.
 
 The polygons can be of type:
 - `Vector{<:Tuple{T, T}} where T<:AbstractFloat`. Output will be `Vector{Vector{Tuple{T, T}}}`. Possibly returns holes but does not classify them as holes.
 - `Polygon{T<:AbstractFloat}`. Output will be `Vector{Polygon{T}}`. This will classify holes and match them to the smallest possible parent.
-- The subject can also be the same type as the output. This enables the output to be an input. 
+- The subject can also be the same type as the output. This enables the output to be an input.
     Note that in this case the `subject` list is treated as a single polygon.
     If any of the polygons overlap, this is equivalent to passing a self-intersecting polygon and
     some areas might be classified as holes according to the even-odd rule.
-Segment2D
+
 Using multiple arguments is more efficient than looping through the polygons and applying `xor_geometry` sequentially.
 
 `alg` can only be `MartinezRuedaAlg()`.
@@ -353,7 +353,7 @@ function intersect_convex(
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
     #https://www.swtestacademy.com/intersection-convex-polygons-algorithm/
-    intersection_points = intersect_edges(polygon1, polygon2; atol=atol)
+    intersection_points = intersect_edges(polygon1, polygon2; atol=atol, rtol=rtol)
     
     i1_in_2 = [contains(polygon2, p; atol=atol, rtol=rtol) for p in polygon1]
     p1_in_2 = polygon1[i1_in_2]

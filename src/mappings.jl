@@ -9,7 +9,7 @@ For robustness, the annotations of all segments are checked
 and a decision is made based on the majority outcome.
 
 If the direction `counter_clockwise` is not given, the segments must be in a chain.
-That is, `segments_{i}[2] == segments_{i+1}[2]` for all segments.
+That is, `segments_{i}[2] == segments_{i+1}[1]` for all segments.
 
 For a counter-clockwise polygon, the inner face is to the left of each segment.
 For a clockwise polygon, the inner face is to the right of each segment.
@@ -63,7 +63,7 @@ The graph will always have one counter-clockwise exterior and one or more clockw
 interiors. 
 
 The following selection strategies are used to return half the faces with no duplicates:
-- `MERGE_FACES`: selects all exterior faces that are not holes with interior faces that are holes, resulting in connected graphs being be merged together. This returns fewer, larger polygons with holes.
+- `MERGE_FACES`: selects all exterior faces that are not holes with interior faces that are holes, resulting in connected graphs being merged together. This returns fewer, larger polygons with holes.
 - `SPLIT_FACES`: As exteriors, select all interior faces that are not holes that are on the exterior and reverse to make them counter-clockwise. As holes, select interior faces that are holes that are not on the exterior. This splits connected graphs across multiple interiors and returns smaller polygons with fewer explicit holes.
 - `CLOCKWISE_FACES`: all clockwise faces.
 - `COUNTER_CLOCKWISE_FACES`: all counter-clockwise faces.
@@ -79,7 +79,7 @@ The segments are joined in a graph.
 Each face with non-zero area will return two faces, a counter-clockwise face with positive area (exterior)
 and a clockwise face with negative area (interior).
 The following selection strategies are used to return half the faces with no duplicates:
-- `MERGE_FACES`: selects all exterior faces that are not holes with interior faces that are holes, resulting in connected graphs being be merged together. This returns fewer, larger polygons with holes.
+- `MERGE_FACES`: selects all exterior faces that are not holes with interior faces that are holes, resulting in connected graphs being merged together. This returns fewer, larger polygons with holes.
 - `SPLIT_FACES`: As exteriors, select all interior faces that are not holes that are on the exterior and reverse to make them counter-clockwise. As holes, select interior faces that are holes that are not on the exterior. This splits connected graphs across multiple interiors and returns smaller polygons with fewer explicit holes.
 - `CLOCKWISE_FACES`: all clockwise faces.
 - `COUNTER_CLOCKWISE_FACES`: all counter-clockwise faces.
@@ -133,7 +133,7 @@ function segments_to_paths(
                     end
                 end
             end
-            # for holes, chose only inner faces not on the exterior
+            # for holes, choose only inner faces not on the exterior
             # because holes on the exterior are self-evident 
             filter!(pts -> !any(pt -> pt in exterior_points, pts), holes)
         end
@@ -149,18 +149,19 @@ function match_interiors(
     # sort by descending areas. Therefore largest parent is matched first.
     idxs = sortperm(areas, rev=true)
     parents = zeros(Int, length(polygons))
-    for (idx1, polygon) in zip(idxs, polygons[idxs])
-        for idx2 in 1:(idx1 - 1) # can only be in larger polygons
+    for (rank, idx1) in enumerate(idxs)
+        polygon = polygons[idx1]
+        for idx2 in idxs[1:(rank - 1)] # can only be in larger polygons
             if parents[idx2] != 0
                 continue
             end
             # Assume that no segments intersect. Then only need to check a single point
             parent = polygons[idx2]
             j = 1
-            while (j < length(polygon)) && on_border(parent, polygon[j]; atol=atol)
+            while (j < length(polygon)) && on_border(parent, polygon[j]; atol=atol, rtol=rtol)
                 j += 1
             end
-            found = contains(parent, polygon[1]; atol=atol, rtol=rtol, on_border_is_inside=false)
+            found = contains(parent, polygon[j]; atol=atol, rtol=rtol, on_border_is_inside=false)
             if found
                 parents[idx1] = idx2
                 break
@@ -180,7 +181,6 @@ Assumes that the polygons do not intersect.
 
 For every hole, match to a polygon that contains the hole.
 If there are multiple polygons possible, the polygon with the least area is chosen.
-If no polygons are found, return the hole as a `Polygon`.
 
 In the best case there is one polygon or one hole. Then this runs in `O(1)` time.
 In the worst case, none of the holes match to a polygon.
@@ -219,13 +219,15 @@ end
 function paths_to_polygons(
     exteriors::Vector{<:Vector{<:Point2D}},
     holes::Vector{<:Vector{<:Point2D}},
-    ; atol::AbstractFloat=default_rtol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
     polygons = Polygon.(exteriors)
     parents = match_holes_polygons(exteriors, holes; atol=atol, rtol=rtol)
     for (idx, hole) in zip(parents, holes)
         if idx != 0
             push!(polygons[idx].holes, hole)
+        else
+            @warn "Hole $hole has no parent and will be dropped."
         end
     end
     polygons

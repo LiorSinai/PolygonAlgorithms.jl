@@ -47,22 +47,23 @@ function intersect_geometry(
     segment1::Segment2D, segment2::Segment2D; 
     atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
-    ΔPX = segment1[2][1] - segment1[1][1] # A11
-    ΔPY = segment2[1][1] - segment2[2][1] # A12
-    ΔQX = segment1[2][2] - segment1[1][2] # A21
-    ΔQY = segment2[1][2] - segment2[2][2] # A24
-    determinant = ΔPX * ΔQY - ΔPY * ΔQX # = orientation(segment1[1], segment2[1], segment2[2]) - orientation(segment1[2], segment2[1], segment2[2])
-    if abs(determinant) < atol + rtol * (abs(ΔPX * ΔQY) + abs(ΔPY * ΔQX))
+    # A = [P2-P1  Q1-Q2]
+    A11 = segment1[2][1] - segment1[1][1] # ΔPx
+    A12 = segment2[1][1] - segment2[2][1] # -ΔQx
+    A21 = segment1[2][2] - segment1[1][2] # ΔPy
+    A22 = segment2[1][2] - segment2[2][2] # -ΔQy
+    determinant = A11 * A22 - A12 * A21 # = orientation(segment1[1], segment2[1], segment2[2]) - orientation(segment1[2], segment2[1], segment2[2])
+    if abs(determinant) < atol + rtol * (abs(A11 * A22) + abs(A12 * A21))
         return nothing # parallel lines or coincident
     end
     b1 = segment2[1][1] - segment1[1][1]
     b2 = segment2[1][2] - segment1[1][2]
     # tu = A \ b
-    t = (ΔQY * b1 - ΔPY * b2) / determinant
-    u = (ΔPX * b2 - ΔQX * b1) / determinant
+    t = (A22 * b1 - A12 * b2) / determinant
+    u = (A11 * b2 - A21 * b1) / determinant
     if -rtol <= t <= (1.0 + rtol) && -rtol <= u <= (1.0 + rtol)
-        x = segment1[1][1] + t * ΔPX
-        y = segment1[1][2] + t * ΔQX
+        x = segment1[1][1] + t * A11
+        y = segment1[1][2] + t * A21
         return (x, y)
     else
         return nothing
@@ -103,7 +104,7 @@ function intersect_geometry(line1::Line2D, line2::Line2D; atol::AbstractFloat=de
 end
 
 """
-    intersect_edges(polygon1, polygon2; atol=default_atol)
+    intersect_edges(polygon1, polygon2; atol=default_atol, rtol=default_rtol)
 
 Find all points which lie on the intersection of the edges of the vertices given by `polygon1` and `polygon2`.
 
@@ -111,7 +112,7 @@ Time complexity is `O(nm)` where `n` and `m` are the number of vertices of polyg
 """
 function intersect_edges(
     polygon1::Path2D{T}, polygon2::Path2D{T}
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) where T
     points = Point2D{T}[]
     n = length(polygon1)
@@ -120,7 +121,7 @@ function intersect_edges(
         edge1 = (polygon1[i], polygon1[i % n + 1])
         for j in 1:m
             edge2 = (polygon2[j], polygon2[j % m + 1])
-            p = intersect_geometry(edge1, edge2; atol=atol)
+            p = intersect_geometry(edge1, edge2; atol=atol, rtol=rtol)
             if !isnothing(p)
                 push!(points, (p[1], p[2]))
             end

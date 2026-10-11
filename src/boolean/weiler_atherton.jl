@@ -174,7 +174,7 @@ function link_intersections!(
 end
 
 function set_link!(inter1::Node{<:PointEvent}, inter2::Node{<:PointEvent}, entering_1_from_2::Bool)
-    if entering_1_from_2 # edge of polygon 2 is entering poylgon 1 
+    if entering_1_from_2 # edge of polygon 2 is entering polygon 1
         inter1.data.link = inter2
         inter2.data.type = ENTRY
     else 
@@ -193,7 +193,7 @@ end
 function walk_linked_lists(polygon::DoublyLinkedList{PointEvent{T}}) where T
     regions = Vector{Point2D{T}}[]
     node = polygon.head
-    visited = PointSet()
+    visited = PointSet(Dict{Point2D{T}, Nothing}(), 6)
     while !isnothing(node)
         if !(node.data.point in visited) && node.data.type == ENTRY
             loop, visited_in_loop = walk_loop(node)

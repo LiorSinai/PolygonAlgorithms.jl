@@ -53,7 +53,7 @@ end
 
 """
     validate_polygon(polygon::Polygon)
-    validate_polygon(exterior::Path2D; holes=Path2D{T}[]; atol=default_atol)
+    validate_polygon(exterior::Path2D; holes=Path2D{T}[], atol=default_atol, rtol=default_rtol)
     
 The following checks are done:
 1. The exterior and each hole has 3 or more points.
@@ -71,18 +71,18 @@ function validate_polygon(
     , rtol::AbstractFloat=default_rtol
     ) where T
     @assert length(exterior) > 2 "exterior requires at least 3 points."
-    queue = convert_to_event_queue(exterior)
-    @assert !any_intersect(queue; atol=atol, include_vertices=false) "Invalid exterior: edges self-intersect."
+    queue = convert_to_event_queue(exterior; atol=atol, rtol=rtol)
+    @assert !any_intersect(queue; atol=atol, rtol=rtol, include_vertices=false) "Invalid exterior: edges self-intersect."
     for (idx, hole) in enumerate(holes)
         @assert length(hole) > 2 "Invalid hole $(idx): requires at least 3 points."
-        queue_h = convert_to_event_queue(hole)
-        @assert !any_intersect(queue_h; atol=atol, include_vertices=false) "Invalid hole $(idx): edges self-intersect."
+        queue_h = convert_to_event_queue(hole; atol=atol, rtol=rtol)
+        @assert !any_intersect(queue_h; atol=atol, rtol=rtol, include_vertices=false) "Invalid hole $(idx): edges self-intersect."
         for event in queue
             insert_in_order!(queue_h, event; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
         end
-        @assert !any_intersect(queue_h; atol=atol, include_vertices=false) "Hole $(idx) intersects with the exterior."
+        @assert !any_intersect(queue_h; atol=atol, rtol=rtol, include_vertices=false) "Hole $(idx) intersects with the exterior."
         j = 1
-        while (j < length(hole)) && on_border(exterior, hole[j])
+        while (j < length(hole)) && on_border(exterior, hole[j]; atol=atol, rtol=rtol)
             j += 1
         end
         @assert contains(
@@ -98,9 +98,10 @@ function Polygon(
     exterior::Path2D{T}
     ; holes::Vector{<:Path2D}=Vector{Point2D{T}}[],
     validate::Bool=false,
-    atol::AbstractFloat=default_atol) where T
+    atol::AbstractFloat=default_atol,
+    rtol::AbstractFloat=default_rtol) where T
     if validate
-        validate_polygon(exterior; holes=holes, atol=atol)
+        validate_polygon(exterior; holes=holes, atol=atol, rtol=rtol)
     end
     Polygon{T}(exterior, holes)
 end
@@ -120,10 +121,10 @@ and `polygon2` respectively and `k` is the total number of intersections
 """
 function fully_contains(
     polygon1::Path2D, polygon2::Path2D
-    ; atol::AbstractFloat=default_atol, rtol=default_rtol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
-    queue = convert_to_event_queue(polygon1; atol=atol)
-    events2 = convert_to_event_queue(polygon2; primary=false, atol=atol)
+    queue = convert_to_event_queue(polygon1; atol=atol, rtol=rtol)
+    events2 = convert_to_event_queue(polygon2; primary=false, atol=atol, rtol=rtol)
     for event in events2
         insert_in_order!(queue, event; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
     end
@@ -131,7 +132,7 @@ function fully_contains(
         return false
     end
     j = 1
-    while (j < length(polygon2)) && on_border(polygon1, polygon2[j])
+    while (j < length(polygon2)) && on_border(polygon1, polygon2[j]; atol=atol, rtol=rtol)
         j += 1
     end
     contains(polygon1, polygon2[j]; atol=atol, rtol=rtol, on_border_is_inside=false)
@@ -145,11 +146,11 @@ A rectangle which bounds the polygon, given as `(xmin, ymin, xmax, ymax)`.
 bounds(polygon::Polygon) = bounds(polygon.exterior)
 
 """
-    bounds(polygons::Polygon)
+    bounds(polygons::Vector{<:Polygon})
 
 A rectangle which bounds all the polygons, given as `(xmin, ymin, xmax, ymax)`.
 """
-bounds(polygons::Vector{<:Polygon}) = bounds(map(p -> p.exterior), polygons)
+bounds(polygons::Vector{<:Polygon}) = bounds(map(p -> p.exterior, polygons))
 
 first_moment(polygon) = first_moment(polygon.exterior) + sum(first_moment, polygon.holes, init=0.0)
 

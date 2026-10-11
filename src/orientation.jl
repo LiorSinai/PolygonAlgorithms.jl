@@ -5,7 +5,7 @@
 
 Determine orientation of three points. 
 
-Colinear if `cross(pq, qr) <= atol + rtol * |pq| * |qr|`.
+Colinear if `|cross(pq, qr)| < atol + rtol * scale` where `scale = |pq_y * qr_x| + |qr_y * pq_x|`.
 
 Clockwise if `cross(pq, qr)` is positive, else counter-clockwise.
 """
@@ -59,7 +59,7 @@ function isless_orientation(
     if ori == COLINEAR
         dp = norm2(p, p0)
         dq = norm2(q, p0)
-        val = dp <= dq
+        val = dp < dq
     else
         val = ori == COUNTER_CLOCKWISE
     end
@@ -72,7 +72,7 @@ function isless_polar_angle(p::Point2D, q::Point2D, p0::Point2D)
     if angle_p == angle_q
         dp = norm2(p, p0)
         dq = norm2(q, p0)
-        val = dp <= dq
+        val = dp < dq
     else
         val = angle_p < angle_q
     end
@@ -88,7 +88,7 @@ sort_counter_clockwise(points::Vector{<:Point2D}) = sort_counter_clockwise!(copy
 
 function sort_clockwise!(points::Vector{<:Point2D})
     middle = reduce(.+, points, init=(0.0, 0.0)) ./ length(points)
-    sort!(points, lt=(p, q) -> !isless_polar_angle(p, q, middle))
+    sort!(points, lt=(p, q) -> isless_polar_angle(q, p, middle))
 end
 
 sort_clockwise(points::Vector{<:Point2D}) = sort_clockwise!(copy(points))
