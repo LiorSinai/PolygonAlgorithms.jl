@@ -64,3 +64,37 @@ function get_winding_left_to_right!(ev::SegmentEvent; atol::AbstractFloat=defaul
     end
     annotations.winding_left_to_right
 end
+
+"""
+    get_winding_change!(ev; atol=default_atol)
+
+Change in winding number when crossing `ev` from the region below to the region above.
+For a vertical segment the winding does not change along the y-axis, so instead use the change 
+when crossing it from left to right.
+
+If `ev` represents multiple coincident edges, this is the sum of their changes.
+"""
+function get_winding_change!(ev::SegmentEvent; atol::AbstractFloat=default_atol)
+    winding = get_winding_top_to_bottom!(ev; atol=atol)
+    winding == 0 ? get_winding_left_to_right!(ev; atol=atol) : winding
+end
+
+"""
+    is_filled(winding, fill_rule)
+
+Whether a region with winding number `winding` is filled according to `fill_rule`.
+The even-odd rule is equivalent to an odd winding number because each edge crossed changes 
+the winding number by ±1.
+"""
+function is_filled(winding::Integer, fill_rule::FillRule)
+    if fill_rule == EVEN_ODD
+        return isodd(winding)
+    elseif fill_rule == NON_ZERO
+        return winding != 0
+    elseif fill_rule == POSITIVE
+        return winding > 0
+    elseif fill_rule == NEGATIVE
+        return winding < 0
+    end
+    throw("Unknown fill_rule: $fill_rule")
+end
