@@ -466,10 +466,20 @@ function divide_event!(
     pop_key!(queue, e2)
     insert_in_order!(queue, e2; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
     # add new segment at the end. Reset other_annotations. Reset self-annotations if self-intersection.
-    forward  = ev.self_annotations.forward  # need to recalculate winding above
+    if self_intersection
+        # the fill can be recalculated, but the windings must be kept because ev might
+        # represent multiple merged coincident edges. See merge_same_segments!
+        self_annotations = SegmentAnnotations(
+            forward=ev.self_annotations.forward,
+            winding_top_to_bottom=ev.self_annotations.winding_top_to_bottom,
+            winding_left_to_right=ev.self_annotations.winding_left_to_right,
+        )
+    else
+        self_annotations = ev.self_annotations
+    end
     add_segment_event!(
         queue, new_segment, ev.primary,
-        self_intersection ? SegmentAnnotations(forward=forward) : ev.self_annotations,
+        self_annotations,
         SegmentAnnotations()
         ; atol=atol, rtol=rtol
     )
@@ -505,33 +515,21 @@ function merge_same_segments!(
     pop_key!(queue, discard)
     pop_key!(queue, discard.other)
     if self_intersection
-        # fill status is calculated bottom to top, so surviving's fill_below cannot change
-        # however, surviving fill_above will be whatever the discarded's one would have been
+        # fill status is calculated bottom to top, so survive's winding_below and fill_below are already correct.
+        # Add discard's windings to survive's, so that survive's winding change accounts for all its coincident edges.
+        @assert !isnothing(survive.self_annotations.fill_above) "missing self_annotations in surviving segment: $(survive)"
+        winding_atol = fill_rule == EVEN_ODD ? zero(atol) : atol # see calculate_self_annotations!
+        annotations = survive.self_annotations
+        annotations.winding_top_to_bottom = get_winding_top_to_bottom!(survive; atol=winding_atol) +
+            get_winding_top_to_bottom!(discard; atol=winding_atol)
+        annotations.winding_left_to_right = get_winding_left_to_right!(survive; atol=winding_atol) +
+            get_winding_left_to_right!(discard; atol=winding_atol)
         if fill_rule == EVEN_ODD
-            # discard.self_annotations.fill_below = survive.self_annotations.fill_above
-            # discard.self_annotations.fill_above = !discard.self_annotations.fill_below => survive.self_annotations.fill_above
-            @assert !isnothing(survive.self_annotations.fill_above) "missing self_annotations in surviving segment: $(survive)" # preempt !nothing error
-            survive.self_annotations.fill_above = !survive.self_annotations.fill_above
+            is_odd_count = isodd(get_winding_change!(survive; atol=winding_atol))
+            annotations.fill_above = is_odd_count ? !annotations.fill_below : annotations.fill_below
         else
-            winding_below = survive.self_annotations.winding_below + get_winding_top_to_bottom!(survive)
-            winding_above = winding_below + (
-                get_winding_top_to_bottom!(discard; atol=atol) == 0 ? 
-                get_winding_left_to_right!(discard; atol=atol) : 
-                discard.self_annotations.winding_top_to_bottom
-            ) + (
-                get_winding_top_to_bottom!(survive; atol=atol) == 0 ? 
-                get_winding_left_to_right!(survive; atol=atol) : 
-                survive.self_annotations.winding_top_to_bottom
-            )
-            survive.self_annotations.winding_below = winding_below
-            if fill_rule == NON_ZERO
-                survive.self_annotations.fill_above = winding_above != 0
-            elseif fill_rule == POSITIVE
-                survive.self_annotations.fill_above = winding_above > 0
-            elseif fill_rule == NEGATIVE
-                survive.self_annotations.fill_above = winding_above < 0
-            else throw("Unknown fill_rule: $fill_rule")
-            end
+            winding_above = annotations.winding_below + get_winding_change!(survive; atol=atol)
+            annotations.fill_above = is_filled(winding_above, fill_rule)
         end
     elseif discard.primary != survive.primary # merge two segments that belong to different polygons
         # each segment has distinct knowledge, so no special logic is needed
@@ -562,30 +560,23 @@ function calculate_self_annotations!(
             @assert !isnothing(below.self_annotations.fill_above) "missing annotations below: $(below)" # preempt !nothing error
             ev.self_annotations.fill_below = below.self_annotations.fill_above # below should already be filled
         end
-        ev.self_annotations.fill_above = !ev.self_annotations.fill_below
+        # Each edge toggles the fill. Usually ev is one edge, but it may represent multiple coincident edges
+        # (see merge_same_segments!). Its winding change is the sum of their ±1 changes, so it is odd if
+        # and only if the number of edges is odd.
+        # Use no tolerance so that every edge, however short, counts as ±1.
+        is_odd_count = isodd(get_winding_change!(ev; atol=zero(atol)))
+        ev.self_annotations.fill_above = is_odd_count ? !ev.self_annotations.fill_below : ev.self_annotations.fill_below
     else
-        # the winding from the region below to the bottom = winding_above below segment
+        # the winding from the region below to the bottom
+        #   = winding of the region above the below segment
+        #   = (winding_below + winding_top_to_bottom) of the below segment
         winding_below = isnothing(below) ? 0 :
-            below.self_annotations.winding_below + get_winding_top_to_bottom!(below)
+            below.self_annotations.winding_below + get_winding_top_to_bottom!(below; atol=atol)
         ev.self_annotations.winding_below = winding_below
         # the winding from the region above to the bottom = winding_below + Δwinding
-        # For a vertical edge, the winding does NOT change along y axis, but it does change along x-axis
-        winding_above = winding_below + (
-            get_winding_top_to_bottom!(ev; atol=atol) == 0 ? 
-            get_winding_left_to_right!(ev; atol=atol) : 
-            ev.self_annotations.winding_top_to_bottom
-        )
-        if fill_rule == NON_ZERO
-            ev.self_annotations.fill_above = winding_above != 0
-            ev.self_annotations.fill_below = winding_below != 0
-        elseif fill_rule == POSITIVE
-            ev.self_annotations.fill_above = winding_above > 0
-            ev.self_annotations.fill_below = winding_below > 0
-        elseif fill_rule == NEGATIVE
-            ev.self_annotations.fill_above = winding_above < 0
-            ev.self_annotations.fill_below = winding_below < 0
-        else throw("Unknown fill_rule: $fill_rule")
-        end
+        winding_above = winding_below + get_winding_change!(ev; atol=atol)
+        ev.self_annotations.fill_above = is_filled(winding_above, fill_rule)
+        ev.self_annotations.fill_below = is_filled(winding_below, fill_rule)
     end
     @debug("[calculate_self_annotations!] self_annotations: $(ev.self_annotations)")
     ev.self_annotations

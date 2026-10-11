@@ -97,7 +97,7 @@ end
         (6.0, 1.0), (3.0, 1.0), (6.0, 1.0), (4.0, 1.0), (5.0, 5.0)
     ]
     regions = union_geometry(alg, poly1)
-    @test_broken are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected)
 
     # mirror across the X-axis
     poly2 = [
@@ -112,7 +112,55 @@ end
         (6.0, 5.0), (3.0, 5.0), (6.0, 5.0), (5.0, 1.0), (4.0, 5.0),
     ]
     regions = union_geometry(alg, poly2)
-    @test_broken are_equivalent_polygons(regions, expected)
+    @test are_equivalent_polygons(regions, expected)
+end
+
+@testset verbose=true "merged coincident edges" begin
+    #= Coincident edges in the same polygon are merged into one segment that represents all of them.
+    If that segment is divided later, the new pieces must still represent all the edges.
+    =#
+    square = [(0.0, 0.0), (4.0, 0.0), (4.0, 2.0), (4.0, 4.0), (0.0, 4.0)]
+
+    @testset "doubled spike outside" begin
+        # The spike is traced out and back in opposite directions, so the windings cancel.
+        # It is merged but never divided.
+        poly = [(0.0, 0.0), (4.0, 0.0), (4.0, 2.0), (6.0, 3.0), (4.0, 2.0), (4.0, 4.0), (0.0, 4.0)]
+        regions = union_geometry(alg, poly)
+        @test are_equivalent_polygons(regions, [square])
+
+        regions = union_geometry(alg, poly; fill_rule=NON_ZERO)
+        @test are_equivalent_polygons(regions, [square])
+    end
+
+    @testset "doubled spike inside" begin
+        # The spike enters through the left edge. It is merged at (0, 1) and divided at (2, 2)
+        # so the piece inside is a new segment.
+        poly = [(2.0, 0.0), (6.0, 0.0), (6.0, 4.0), (0.0, 1.0), (6.0, 4.0), (2.0, 4.0)]
+        expected = [[(2.0, 0.0), (6.0, 0.0), (6.0, 4.0), (2.0, 4.0), (2.0, 2.0)]]
+        regions = union_geometry(alg, poly)
+        @test are_equivalent_polygons(regions, expected)
+
+        regions = union_geometry(alg, poly; fill_rule=NON_ZERO)
+        @test are_equivalent_polygons(regions, expected)
+    end
+
+    @testset "partial overlap" begin
+        # The rectangles share the edge y=2. The triangle's base partially overlaps it,
+        # which divides the merged edge into 3 pieces with 2, 3 and 2 edges.
+        rect_lower = [(0.0, 0.0), (6.0, 0.0), (6.0, 2.0), (0.0, 2.0)]
+        rect_upper = [(0.0, 2.0), (6.0, 2.0), (6.0, 4.0), (0.0, 4.0)]
+        triangle = [(2.0, 2.0), (4.0, 2.0), (3.0, 3.0)]
+        exterior = [(0.0, 0.0), (6.0, 0.0), (6.0, 2.0), (6.0, 4.0), (0.0, 4.0), (0.0, 2.0)]
+
+        # the triangle overlaps rect_upper so it is a hole
+        regions = union_geometry(alg, [rect_lower, rect_upper, triangle])
+        hole = reverse(triangle) # holes are clockwise
+        @test are_equivalent_polygons(regions, [exterior, hole])
+
+        # all have the same orientation so the triangle has a winding of 2
+        regions = union_geometry(alg, [rect_lower, rect_upper, triangle]; fill_rule=NON_ZERO)
+        @test are_equivalent_polygons(regions, [exterior])
+    end
 end
 
 @testset verbose=true "self-intersecting star" begin
