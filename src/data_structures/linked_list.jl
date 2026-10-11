@@ -54,7 +54,7 @@ function Base.push!(list::DoublyLinkedList{T}, data::T) where {T}
     node
 end
 
-Base.iterate(list::DoublyLinkedList) = (list.head.data, list.head.next)
+Base.iterate(list::DoublyLinkedList) = isnothing(list.head) ? nothing : (list.head.data, list.head.next)
 Base.iterate(list::DoublyLinkedList, state::Node) = state == list.head ? nothing : (state.data, state.next)
 
 function Base.show(io::IO, list::DoublyLinkedList)
@@ -74,6 +74,9 @@ function Base.show(io::IO, m::MIME"text/plain", list::DoublyLinkedList)
 end
 
 function Base.length(list::DoublyLinkedList)
+    if isnothing(list.head)
+        return 0
+    end
     count = 1
     next = list.head.next
     while next != list.head
@@ -86,6 +89,9 @@ end
 function collect_nodes(list::DoublyLinkedList{T}) where T
     # A standard collect(list) will return the data, not the nodes themselves
     vec = Node{T}[]
+    if isnothing(list.head)
+        return vec
+    end
     node = list.head
     push!(vec, node)
     while node.next != list.head

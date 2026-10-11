@@ -28,12 +28,8 @@ function contains(
     extreme_right = (maximum(x) + one(T), point[2])
 
     # step 1: point intersects a vertex or edge
-    for i in 1:n
-        next_i = (i % n) + 1
-        segment = (vertices[i], vertices[next_i])
-        if (point == segment[1]) || on_segment(point, segment; atol=atol)
-            return on_border_is_inside
-        end
+    if on_border(vertices, point; atol=atol, rtol=rtol)
+        return on_border_is_inside
     end
 
     # step 3: check intersections with vertices
@@ -79,7 +75,7 @@ function contains(
 end
 
 """
-    on_border(vertices, point; atol=default_atol)
+    on_border(vertices, point; atol=default_atol, rtol=default_rtol)
 
 Return true if `point` lies on any segment between the `vertices`.
 
@@ -87,14 +83,13 @@ Runs in `O(n)` time where `n=length(vertices)`.
 """
 function on_border(
     vertices::Path2D, point::Point2D{T}
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) where T
     n = length(vertices)
-    # step 1: point intersects a vertex or edge
     for i in 1:n
         next_i = (i % n) + 1
         segment = (vertices[i], vertices[next_i])
-        if on_segment(point, segment; atol=atol)
+        if on_segment(point, segment; atol=atol, rtol=rtol)
             return true
         end
     end

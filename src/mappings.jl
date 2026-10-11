@@ -158,10 +158,10 @@ function match_interiors(
             # Assume that no segments intersect. Then only need to check a single point
             parent = polygons[idx2]
             j = 1
-            while (j < length(polygon)) && on_border(parent, polygon[j]; atol=atol)
+            while (j < length(polygon)) && on_border(parent, polygon[j]; atol=atol, rtol=rtol)
                 j += 1
             end
-            found = contains(parent, polygon[1]; atol=atol, rtol=rtol, on_border_is_inside=false)
+            found = contains(parent, polygon[j]; atol=atol, rtol=rtol, on_border_is_inside=false)
             if found
                 parents[idx1] = idx2
                 break
@@ -181,7 +181,6 @@ Assumes that the polygons do not intersect.
 
 For every hole, match to a polygon that contains the hole.
 If there are multiple polygons possible, the polygon with the least area is chosen.
-If no polygons are found, return the hole as a `Polygon`.
 
 In the best case there is one polygon or one hole. Then this runs in `O(1)` time.
 In the worst case, none of the holes match to a polygon.
@@ -227,6 +226,8 @@ function paths_to_polygons(
     for (idx, hole) in zip(parents, holes)
         if idx != 0
             push!(polygons[idx].holes, hole)
+        else
+            @warn "Hole $hole has no parent and will be dropped."
         end
     end
     polygons

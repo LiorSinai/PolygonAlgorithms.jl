@@ -1,6 +1,7 @@
 using PolygonAlgorithms
 using PolygonAlgorithms: MartinezRuedaAlg, Polygon, translate
 using PolygonAlgorithms: are_equivalent_polygons
+using PolygonAlgorithms: MERGE_FACES
 
 @testset "polygon boolean pairs - $alg" for alg in [
     MartinezRuedaAlg(),

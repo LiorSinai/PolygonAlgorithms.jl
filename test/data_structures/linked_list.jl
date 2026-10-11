@@ -55,4 +55,14 @@ end
     @test result == expected
 end
 
+@testset "empty list" begin
+    list = DoublyLinkedList{Float64}(nothing)
+    @test length(list) == 0
+    @test isempty(collect(list))
+    @test isempty(collect_nodes(list))
+    push!(list, 1.0)
+    @test length(list) == 1
+    @test collect(list) == [1.0]
+end
+
 end

@@ -12,7 +12,7 @@ It runs in `O((n+m+k)log(n+m))` time where `n` and `m` are the number of vertice
 and `polygon2` respectively and `k` is the total number of intersections between all segments.
 Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
 
-See `PolygonAlgorithms.segments_to_events` for details on the `face_selection` parameter.
+See `PolygonAlgorithms.segments_to_paths` for details on the `face_selection` parameter.
 
 The input polygons can be:
 - A list of points: `Vector{Tuple{Float64, Float64}}`.
@@ -24,7 +24,7 @@ The input polygons can be:
     some areas might be classified as holes according to the even-odd rule
 
 Description:
-- Operates at a segment level and is an extension of the Bentley-Ottman line intersection algorithm.
+- Operates at a segment level and is an extension of the Bentley-Ottmann line intersection algorithm.
     Segments are scanned from left to right, bottom to top. 
 - The key assumption is that only the segments immediately above and below the current segment need to be inspected for intersections.
     This makes the algorithm fast but also sensitive to determining these segments correctly.
@@ -64,6 +64,7 @@ function martinez_rueda_algorithm(
     )
     exteriors, holes = segments_to_paths(
         segments;
+        atol=atol,
         face_selection=face_selection
     )
     vcat(exteriors, holes)
@@ -94,6 +95,7 @@ function martinez_rueda_algorithm(
     )
     exteriors, holes = segments_to_paths(
         segments;
+        atol=atol,
         face_selection=face_selection
     )
     vcat(exteriors, holes)
@@ -655,7 +657,7 @@ INTERSECTION_SEGMENT_CRITERIA = [
     BLANK, BLANK, EMPTY, BLANK,
     BLANK, EMPTY, BLANK, BLANK,
     BLANK, BLANK, BLANK, BLANK,
-] # above and below different segments
+] # empty above and below different segments
 
 UNION_CRITERIA = [
     BLANK, BELOW, ABOVE, BLANK,

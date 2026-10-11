@@ -11,7 +11,7 @@ end
 function SegmentAnnotations(
     fill_above::Union{Nothing, Bool}=nothing,
     fill_below::Union{Nothing, Bool}=nothing
-    ; forward::Union{Nothing,Int8}=Int8(-1), winding_below::Int=0
+    ; forward::Int8=Int8(-1), winding_below::Int=0
     )
     SegmentAnnotations(fill_above, fill_below, forward, nothing, nothing, winding_below)
 end

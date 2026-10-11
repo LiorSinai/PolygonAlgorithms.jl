@@ -72,7 +72,10 @@ function convex_hull(::GrahamScanAlg, points::Path2D; atol::AbstractFloat=defaul
     # https://www.geeksforgeeks.org/convex-hull-using-graham-scan/
     idx = bottom_leftmost(points)
     p0 = points[idx]
-    idxs = sortperm(points, lt=(p, q) -> isless_orientation(p, q, p0; atol=atol))
+    idxs = sortperm(points, lt=(p, q) -> isless_orientation(p, q, p0; atol=atol, rtol=rtol))
+    if length(idxs) < 3
+        return idxs
+    end
 
     hull = idxs[[1, 2, 3]]
     if get_orientation(points[hull[1]], points[hull[2]], points[hull[3]]; atol=atol, rtol=rtol) == COLINEAR

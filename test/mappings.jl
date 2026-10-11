@@ -96,6 +96,19 @@ using PolygonAlgorithms: cyclic_set_equality, are_equivalent_polygons
             parents = match_holes_polygons([poly2, poly1], holes)
             @test parents == [2, 1]
         end
+
+        @testset "hole outside all polygons" begin
+            polygons = [
+                [(3.0, 3.0), (3.0, 0.0), (0.0, 0.0), (0.0, 3.0)],
+                [(7.0, 3.0), (7.0, 0.0), (4.0, 0.0), (4.0, 3.0)],
+            ]
+            holes = [
+                [(2.0, 2.0), (2.0, 1.0), (1.0, 1.0), (1.0, 2.0)],
+                [(12.0, 2.0), (12.0, 1.0), (11.0, 1.0), (11.0, 2.0)],
+            ]
+            parents = match_holes_polygons(polygons, holes)
+            @test parents == [1, 0]
+        end
     end
 
     @testset "match interiors" begin
@@ -123,6 +136,13 @@ using PolygonAlgorithms: cyclic_set_equality, are_equivalent_polygons
             poly3 = [(20.0, 20.0), (21.0, 20.0), (21.0, 21.0), (20.0, 21.0)] # area 1, unrelated
             parents = match_interiors([poly1, poly2, poly3])
             @test parents == [2, 0, 0]
+        end
+
+        @testset "first point on the border" begin
+            outer = [(0.0, 0.0), (4.0, 0.0), (4.0, 4.0), (0.0, 4.0)]
+            inner = [(0.0, 1.0), (1.0, 1.0), (1.0, 2.0)] # first point touches outer
+            parents = match_interiors([outer, inner])
+            @test parents == [0, 1]
         end
     end
 

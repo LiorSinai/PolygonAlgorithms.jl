@@ -25,7 +25,7 @@ function directed_graph_from_segments(
     end
     # sort clockwise around the node
     for node in keys(graph)
-        sort!(graph[node], lt=(seg1, seg2) -> !isless_polar_angle(seg1[2], seg2[2], seg1[1]))
+        sort!(graph[node], lt=(seg1, seg2) -> isless_polar_angle(seg2[2], seg1[2], seg1[1]))
     end
     graph
 end

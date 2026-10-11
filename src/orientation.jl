@@ -59,7 +59,7 @@ function isless_orientation(
     if ori == COLINEAR
         dp = norm2(p, p0)
         dq = norm2(q, p0)
-        val = dp <= dq
+        val = dp < dq
     else
         val = ori == COUNTER_CLOCKWISE
     end
@@ -72,7 +72,7 @@ function isless_polar_angle(p::Point2D, q::Point2D, p0::Point2D)
     if angle_p == angle_q
         dp = norm2(p, p0)
         dq = norm2(q, p0)
-        val = dp <= dq
+        val = dp < dq
     else
         val = angle_p < angle_q
     end
@@ -88,7 +88,7 @@ sort_counter_clockwise(points::Vector{<:Point2D}) = sort_counter_clockwise!(copy
 
 function sort_clockwise!(points::Vector{<:Point2D})
     middle = reduce(.+, points, init=(0.0, 0.0)) ./ length(points)
-    sort!(points, lt=(p, q) -> !isless_polar_angle(p, q, middle))
+    sort!(points, lt=(p, q) -> isless_polar_angle(q, p, middle))
 end
 
 sort_clockwise(points::Vector{<:Point2D}) = sort_clockwise!(copy(points))
@@ -110,6 +110,12 @@ function inner_angle(p::Point2D, q::Point2D, r::Point2D)
     mag1 = dot_product(p, q, p)
     mag2 = dot_product(r, q, r)
     acos(dot / (sqrt(mag1 * mag2)))
+end
+
+# the half-plane is drawn by extending the edge to ±infinity and back into the polygon
+function in_half_plane(edge::Segment2D, x::Point2D, is_counter_clockwise::Bool=true; on_border_is_inside=true)
+    c = cross_product(edge, (edge[1], x))
+    (c == 0.0 && on_border_is_inside) || (is_counter_clockwise ? c > 0 : c < 0)
 end
 
 # the half-plane is drawn by extending the edge to ±infinity and back into the polygon

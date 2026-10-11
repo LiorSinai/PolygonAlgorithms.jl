@@ -193,7 +193,7 @@ end
 function walk_linked_lists(polygon::DoublyLinkedList{PointEvent{T}}) where T
     regions = Vector{Point2D{T}}[]
     node = polygon.head
-    visited = PointSet()
+    visited = PointSet(Dict{Point2D{T}, Nothing}(), 6)
     while !isnothing(node)
         if !(node.data.point in visited) && node.data.type == ENTRY
             loop, visited_in_loop = walk_loop(node)
