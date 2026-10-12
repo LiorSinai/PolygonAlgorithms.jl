@@ -118,6 +118,9 @@ function in_half_plane(edge::Segment2D, x::Point2D, is_counter_clockwise::Bool=t
     (c == 0.0 && on_border_is_inside) || (is_counter_clockwise ? c > 0 : c < 0)
 end
 
+is_vertical(seg::Segment2D{T}) where T = abs(seg[2][1] - seg[1][1]) <= eps(T)
+is_vertical(pt1::Point2D{T}, pt2::Point2D{T}) where T = abs(pt2[1] - pt1[1]) <= eps(T)
+
 """
     is_above_or_on(point, segment; atol=default_atol, rtol=default_rtol)
 
@@ -142,7 +145,7 @@ yp ≥ max(y₂, y₁)
 function is_above_or_on(point::Point2D{T}, segment::Segment2D{T}
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) where T
-    if abs(segment[2][1] - segment[1][1]) <= eps(T) # vertical segment
+    if is_vertical(segment)
         return point[2] >= max(segment[1][2], segment[2][2])
     end
     cmp = get_orientation(segment[1], segment[2], point; atol=atol, rtol=rtol)

@@ -59,7 +59,7 @@ Return:
 - 1 if pt2 is smaller
 """
 function _compare_points(pt1::Point2D{T}, pt2::Point2D{T}; atol::AbstractFloat=default_atol) where T # pointsCompare
-    if abs(pt1[1] - pt2[1]) <= eps(T) # on a vertical line
+    if is_vertical(pt1, pt2)
         if abs(pt1[2] - pt2[2]) <= atol # same point
             return Int8(0)
         end
@@ -95,7 +95,7 @@ function compare_events(
     end
     # share a common start point ⋅< or a common end point >⋅
     # Manually calculate if the other point is above
-    if abs(here.segment[1][1] - here.segment[2][1]) <= eps(eltype(event)) # vertical
+    if is_vertical(here.segment)
         # projecting the point won't work.
         # instead, assume smaller segment leans towards the right
         return event.other_point[1] > here.segment[1][1]
@@ -125,12 +125,12 @@ Or symmetrically:
 Assumes segments always go left to right.
 """
 function is_above(
-    ev::SegmentEvent, other::SegmentEvent
+    ev::SegmentEvent{T}, other::SegmentEvent{T}
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
-    ) # statusCompare
+    ) where T # statusCompare
     seg1 = ev.segment
     seg2 = other.segment
-    if (seg1[1][1] < seg2[1][1])
+    if (seg2[1][1] - seg1[1][1]) > eps(T) # seg1 starts left of seg2 by more than eps
         orient = get_orientation(seg1[1], seg1[2], seg2[1]; atol=atol, rtol=rtol)
         if orient == COLINEAR
             orient = get_orientation(seg1[1], seg1[2], seg2[2]; atol=atol, rtol=rtol)

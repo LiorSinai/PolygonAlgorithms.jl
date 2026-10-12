@@ -33,7 +33,7 @@ function is_hole(polygon::AbstractVector{<:AnnotatedSegment{T}}, counter_clockwi
     for segment in polygon
         Δx = segment[2][1] - segment[1][1]
         ann = segment.self_annotations
-        if (abs(Δx) <= eps(T)) || (ann.fill_above == ann.fill_below)
+        if is_vertical(segment.segment) || (ann.fill_above == ann.fill_below)
             # skip vertical segments or filled both sides or filled on neither
             continue
         end

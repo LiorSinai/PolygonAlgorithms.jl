@@ -280,7 +280,7 @@ function event_loop!(
                 continue # either head was removed or something was inserted ahead of it
             end
             if self_intersection
-                calculate_self_annotations!(head, below; fill_rule, atol=atol)
+                calculate_self_annotations!(head, below; fill_rule=fill_rule)
             else
                 calculate_other_annotations!(head, below)
             end
@@ -507,9 +507,9 @@ end
 
 function merge_same_segments!(
     queue::Vector{<:SegmentEvent}, discard::SegmentEvent, survive::SegmentEvent, self_intersection::Bool
-    ; fill_rule::FillRule=EVEN_ODD, atol::AbstractFloat=default_atol
+    ; fill_rule::FillRule=EVEN_ODD
     )
-    # discard is assumed to be on top of survive 
+    # discard is assumed to be on top of survive
     @debug("[merge_same_segments!] discard=$discard")
     @debug("[merge_same_segments!] survive=$survive")
     pop_key!(queue, discard)
@@ -518,17 +518,14 @@ function merge_same_segments!(
         # fill status is calculated bottom to top, so survive's winding_below and fill_below are already correct.
         # Add discard's windings to survive's, so that survive's winding change accounts for all its coincident edges.
         @assert !isnothing(survive.self_annotations.fill_above) "missing self_annotations in surviving segment: $(survive)"
-        winding_atol = fill_rule == EVEN_ODD ? zero(atol) : atol # see calculate_self_annotations!
         annotations = survive.self_annotations
-        annotations.winding_top_to_bottom = get_winding_top_to_bottom!(survive; atol=winding_atol) +
-            get_winding_top_to_bottom!(discard; atol=winding_atol)
-        annotations.winding_left_to_right = get_winding_left_to_right!(survive; atol=winding_atol) +
-            get_winding_left_to_right!(discard; atol=winding_atol)
+        annotations.winding_top_to_bottom = get_winding_top_to_bottom!(survive) + get_winding_top_to_bottom!(discard)
+        annotations.winding_left_to_right = get_winding_left_to_right!(survive) + get_winding_left_to_right!(discard)
         if fill_rule == EVEN_ODD
-            is_odd_count = isodd(get_winding_change!(survive; atol=winding_atol))
+            is_odd_count = isodd(get_winding_change!(survive))
             annotations.fill_above = is_odd_count ? !annotations.fill_below : annotations.fill_below
         else
-            winding_above = annotations.winding_below + get_winding_change!(survive; atol=atol)
+            winding_above = annotations.winding_below + get_winding_change!(survive)
             annotations.fill_above = is_filled(winding_above, fill_rule)
         end
     elseif discard.primary != survive.primary # merge two segments that belong to different polygons
@@ -548,8 +545,7 @@ end
 function calculate_self_annotations!(
     ev::SegmentEvent,
     below::Union{Nothing, SegmentEvent}
-    ;  fill_rule::FillRule,
-    atol::AbstractFloat=default_atol
+    ;  fill_rule::FillRule
     )
     @debug("[calculate_self_annotations!] event: $(ev)")
     @debug("[calculate_self_annotations!] below: $(below)")
@@ -563,18 +559,17 @@ function calculate_self_annotations!(
         # Each edge toggles the fill. Usually ev is one edge, but it may represent multiple coincident edges
         # (see merge_same_segments!). Its winding change is the sum of their ±1 changes, so it is odd if
         # and only if the number of edges is odd.
-        # Use no tolerance so that every edge, however short, counts as ±1.
-        is_odd_count = isodd(get_winding_change!(ev; atol=zero(atol)))
+        is_odd_count = isodd(get_winding_change!(ev))
         ev.self_annotations.fill_above = is_odd_count ? !ev.self_annotations.fill_below : ev.self_annotations.fill_below
     else
         # the winding from the region below to the bottom
         #   = winding of the region above the below segment
         #   = (winding_below + winding_top_to_bottom) of the below segment
         winding_below = isnothing(below) ? 0 :
-            below.self_annotations.winding_below + get_winding_top_to_bottom!(below; atol=atol)
+            below.self_annotations.winding_below + get_winding_top_to_bottom!(below)
         ev.self_annotations.winding_below = winding_below
         # the winding from the region above to the bottom = winding_below + Δwinding
-        winding_above = winding_below + get_winding_change!(ev; atol=atol)
+        winding_above = winding_below + get_winding_change!(ev)
         ev.self_annotations.fill_above = is_filled(winding_above, fill_rule)
         ev.self_annotations.fill_below = is_filled(winding_below, fill_rule)
     end

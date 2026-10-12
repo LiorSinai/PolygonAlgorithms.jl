@@ -21,30 +21,30 @@ References:
 """
 @enum FillRule EVEN_ODD NON_ZERO POSITIVE NEGATIVE
 
-function calc_winding_top_to_bottom(start::Point2D, tail::Point2D ; atol::AbstractFloat=default_atol)
+function calc_winding_top_to_bottom(start::Point2D{T}, tail::Point2D{T}) where T
     # going from top to bottom, we cross right to left from the ray's perspective
     # when the ray goes left to right
     dx = tail[1] - start[1]
-    if abs(dx) <= atol
+    if abs(dx) <= eps(T)
         return Int8(0)
     end
     dx > Int8(0) ? Int8(1) : Int8(-1)
 end
 
-function calc_winding_left_to_right(start::Point2D, tail::Point2D; atol::AbstractFloat=default_atol)
+function calc_winding_left_to_right(start::Point2D{T}, tail::Point2D{T}) where T
     dy = tail[2] - start[2]
-    if abs(dy) <= atol
+    if abs(dy) <= eps(T)
         return Int8(0)
     end
     dy > Int8(0) ? Int8(1) : Int8(-1)
 end
 
-function get_winding_top_to_bottom!(ev::SegmentEvent; atol::AbstractFloat=default_atol)
+function get_winding_top_to_bottom!(ev::SegmentEvent)
     annotations = ev.self_annotations
     if isnothing(annotations.winding_top_to_bottom)
         pt1 = annotations.forward < Int(0) ? ev.segment[1] : ev.segment[2]
         pt2 = annotations.forward < Int(0) ? ev.segment[2] : ev.segment[1]
-        annotations.winding_top_to_bottom = calc_winding_top_to_bottom(pt1, pt2; atol=atol)
+        annotations.winding_top_to_bottom = calc_winding_top_to_bottom(pt1, pt2)
         if !isnothing(ev.other)
             ev.other.self_annotations.winding_top_to_bottom = annotations.winding_top_to_bottom
         end
@@ -52,12 +52,12 @@ function get_winding_top_to_bottom!(ev::SegmentEvent; atol::AbstractFloat=defaul
     annotations.winding_top_to_bottom
 end
 
-function get_winding_left_to_right!(ev::SegmentEvent; atol::AbstractFloat=default_atol)
+function get_winding_left_to_right!(ev::SegmentEvent)
     annotations = ev.self_annotations
     if isnothing(annotations.winding_left_to_right)
         pt1 = annotations.forward < Int(0) ? ev.segment[1] : ev.segment[2]
         pt2 = annotations.forward < Int(0) ? ev.segment[2] : ev.segment[1]
-        annotations.winding_left_to_right = calc_winding_left_to_right(pt1, pt2; atol=atol)
+        annotations.winding_left_to_right = calc_winding_left_to_right(pt1, pt2)
         if !isnothing(ev.other)
             ev.other.self_annotations.winding_left_to_right = annotations.winding_left_to_right
         end
@@ -66,17 +66,17 @@ function get_winding_left_to_right!(ev::SegmentEvent; atol::AbstractFloat=defaul
 end
 
 """
-    get_winding_change!(ev; atol=default_atol)
+    get_winding_change!(ev)
 
 Change in winding number when crossing `ev` from the region below to the region above.
-For a vertical segment the winding does not change along the y-axis, so instead use the change 
+For a vertical segment the winding does not change along the y-axis, so instead use the change
 when crossing it from left to right.
 
 If `ev` represents multiple coincident edges, this is the sum of their changes.
 """
-function get_winding_change!(ev::SegmentEvent; atol::AbstractFloat=default_atol)
-    winding = get_winding_top_to_bottom!(ev; atol=atol)
-    winding == 0 ? get_winding_left_to_right!(ev; atol=atol) : winding
+function get_winding_change!(ev::SegmentEvent)
+    winding = get_winding_top_to_bottom!(ev)
+    winding == 0 ? get_winding_left_to_right!(ev) : winding
 end
 
 """
