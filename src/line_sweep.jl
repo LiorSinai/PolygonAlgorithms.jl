@@ -2,6 +2,19 @@
 ##                  Initialise Events                      ##
 #############################################################
 
+"""
+    convert_to_event_queue(polygon; primary=true, atol=default_atol, rtol=default_rtol)
+
+Convert each edge of `polygon` into a start and end `SegmentEvent` and insert them in sorted order
+into a new queue. See `convert_to_event_queue!` to add to an existing queue.
+
+Segments are oriented so that they always go left to right, or bottom to top if vertical.
+Zero length edges are skipped.
+
+The queue is sorted by `compare_events`: left to right, bottom to top, with end events before start events.
+
+`primary` marks whether the segments belong to the subject (`true`) or the clip (`false`) polygon.
+"""
 function convert_to_event_queue(
     polygon::Path2D{T}; options...
     ) where T
@@ -9,6 +22,11 @@ function convert_to_event_queue(
     convert_to_event_queue!(SegmentEvent{T}[], polygon; options...)
 end
 
+"""
+    convert_to_event_queue!(queue, polygon; primary=true, atol=default_atol, rtol=default_rtol)
+
+In-place version of `convert_to_event_queue` which inserts the events into an existing sorted `queue`.
+"""
 function convert_to_event_queue!(
     queue::Vector{<:SegmentEvent}, polygon::Path2D
     ; primary::Bool=true,
@@ -34,6 +52,18 @@ function convert_to_event_queue!(
     queue
 end
 
+"""
+    add_segment_event!(
+        queue, segment, primary,
+        [shared_self_annotations, shared_other_annotations]
+        ; atol=default_atol, rtol=default_rtol
+    )
+
+Create a linked pair of start and end `SegmentEvent`s for `segment` and insert both in order into `queue`.
+
+The segment should already be ordered left to right (see `_compare_points`).
+The two events share the same annotation objects, so updating the annotations on one updates the other.
+"""
 function add_segment_event!(
     queue::Vector{<:SegmentEvent},
     segment::Segment2D,
@@ -53,9 +83,14 @@ end
 
 """
     _compare_points(pt1, pt2; atol=default_atol)
+
+Compare points left to right, then bottom to top.
+Points are compared by their `x` values unless they are vertically aligned (see `is_vertical`),
+in which case they are compared by their `y` values.
+
 Return:
 - -1 if pt1 is smaller
-- 0 if the same
+- 0 if the same (vertically aligned and the y values are within `atol`)
 - 1 if pt2 is smaller
 """
 function _compare_points(pt1::Point2D{T}, pt2::Point2D{T}; atol::AbstractFloat=default_atol) where T # pointsCompare
@@ -108,10 +143,9 @@ end
 #############################################################
 
 """
-    is_above(event, other, [atol, rtol])
+    is_above(event, other; atol=default_atol, rtol=default_rtol)
 
-
-!!!!! Critical function. May be source of errors that only emerge later.
+!!!!! Critical function. It may be source of errors that only emerge later.
 
 Return `true` if `event` is strictly above `other`.
 
@@ -145,6 +179,12 @@ function is_above(
     end
 end
 
+"""
+    find_transition(sweep_status, event; atol=default_atol, rtol=default_rtol)
+
+Binary search for the index in the sweep status (ordered top to bottom) where `event` should be inserted,
+i.e. the index of the first segment that `event` is above according to `is_above`.
+"""
 function find_transition(
     list::Vector{<:SegmentEvent}, event::SegmentEvent
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
@@ -152,6 +192,11 @@ function find_transition(
     searchsortedfirst(list, event; lt=(x, y) -> is_above(x, y; atol=atol, rtol=rtol))
 end
 
+"""
+    is_vertex_intersection(segment1, segment2; atol=default_atol, rtol=default_rtol)
+
+Return `true` if any end point of either segment lies on the other segment.
+"""
 function is_vertex_intersection(
     segment1::Segment2D, segment2::Segment2D
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
@@ -168,12 +213,15 @@ end
 #############################################################
 
 """
-    any_intersect(segment::Segment2D, ...; atol, rtol, include_vertices=true)
-    any_intersect(queue::Vector{SegmentEvent}}; options..)
+    any_intersect(segments::Segment2D...; atol=default_atol, rtol=default_rtol, include_vertices=true)
+    any_intersect(queue::Vector{<:SegmentEvent}; atol=default_atol, rtol=default_rtol, include_vertices=true)
 
 A line sweep algorithm for determining if any segment intersects with any other segment.
 
-Shamos-Hoey algorithm. It runs in `O(n*log(n))` time where `n` is the length of the segments.
+If `include_vertices=false`, intersections where an end point of one segment lies on another segment are ignored.
+This is useful for checking that a polygon does not self-intersect, because adjacent edges always share a vertex.
+
+Shamos-Hoey algorithm. It runs in `O(n*log(n))` time where `n` is the number of segments.
 
 Reference:
 - http://euro.ecom.cmu.edu/people/faculty/mshamos/1976GeometricIntersection.pdf

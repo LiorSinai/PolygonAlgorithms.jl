@@ -1,9 +1,32 @@
+"""
+    Point2D{T} = NTuple{2,T}
+
+A point `(x, y)` in the plane.
+"""
 const Point2D{T<:AbstractFloat} = NTuple{2,T}
+
+"""
+    Segment2D{T} = NTuple{2,Point2D{T}}
+
+A line segment between two points `(p1, p2)`.
+"""
 const Segment2D{T<:AbstractFloat} = NTuple{2,Point2D{T}}
+
+"""
+    Path2D{T} = Vector{<:Point2D{T}}
+
+A polygon represented as a list of vertices.
+The last point implicitly connects back to the first point, so it should not be repeated.
+"""
 const Path2D{T<:AbstractFloat} = Vector{<:Point2D{T}}
 const default_atol = 1e-6
 const default_rtol = 1e-6
 
+"""
+    decimal_tolerance(atol)
+
+The number of decimal places to round based on the tolerance.
+"""
 decimal_tolerance(atol::AbstractFloat) = atol > 1 ? 0 : ceil(Int, min(18, -log10(atol)))
 
 """
@@ -40,6 +63,11 @@ end
 norm2(p::Point2D, q::Point2D) = (p[1] - q[1]) * (p[1] - q[1]) + (p[2] - q[2]) * (p[2] - q[2])
 norm(p::Point2D, q::Point2D) = sqrt(norm2(p, q))
 
+"""
+    is_same_point(p, q; atol=default_atol)
+
+Return `true` if the Euclidean distance between `p` and `q` is at most `atol`.
+"""
 is_same_point(p::Point2D, q::Point2D; atol::AbstractFloat=default_atol) = norm(p, q) <= atol
 
 """
@@ -63,7 +91,23 @@ end
 rotate(points::Vector{<:Point2D}, θ::AbstractFloat, p0::Point2D) = 
     translate(rotate(translate(points, (-p0[1], -p0[2])), θ), p0)
 
+"""
+    x_coords(points, [idxs])
+    x_coords(polygon::Polygon)
+
+The x co-ordinates of `points`, optionally only at the indices `idxs`.
+
+For a `Polygon`, returns a vector of x co-ordinates for the exterior followed by each hole.
+"""
 x_coords(points::Path2D) = [p[1] for p in points]
 x_coords(points::Path2D, idxs::AbstractVector{Int}) = [p[1] for p in points[idxs]]
+"""
+    y_coords(points, [idxs])
+    y_coords(polygon::Polygon)
+
+The y co-ordinates of `points`, optionally only at the indices `idxs`.
+
+For a `Polygon`, returns a vector of y co-ordinates for the exterior followed by each hole.
+"""
 y_coords(points::Path2D) = [p[2] for p in points]
 y_coords(points::Path2D, idxs::AbstractVector{Int}) = [p[2] for p in points[idxs]]

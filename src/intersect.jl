@@ -70,6 +70,14 @@ function intersect_geometry(
     end
 end
 
+"""
+    classify_intersection(segment, point; atol=default_atol)
+
+Classify where `point` lies on `segment`. Returns a tuple of booleans `(at_start, at_end, along)`,
+where `along` is true if the point is strictly between the end points.
+
+Assumes `point` is on `segment`.
+"""
 function classify_intersection(segment::Segment2D, point::Point2D; atol::AbstractFloat=default_atol)
     # assumes point is on segment
     at_start = is_same_point(segment[1], point; atol=atol)

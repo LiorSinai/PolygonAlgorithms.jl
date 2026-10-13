@@ -7,6 +7,11 @@ Each node is a point with the list of connected half edges,
 where each half edge points to another node and are sorted clockwise around the point.
 
 Assumes that the segments do not intersect.
+
+Time complexity is `O(n + Σᵥ dᵥlog(dᵥ))` where `n` is the number of segments and `dᵥ` is the number
+of half-edges at node `v`, from sorting the half-edges around each node.
+This is `O(n*log(n))` in the worst case and `O(n)` if the number of edges at each node is bounded,
+as is typical for polygons.
 """
 function directed_graph_from_segments(
     events::Union{<:AbstractVector{SegmentEvent{T}}, <:AbstractVector{AnnotatedSegment{T}}}
@@ -35,6 +40,8 @@ end
 
 If `Z` is the next neighbor clockwise around the node `X`, then the half-edge
 that comes before `(X, Y)` is the half-edge `(Z, X)`.
+
+Time complexity is `O(E)` on average where `E` is the number of half-edges in the graph.
 """
 function map_connections(graph::Dict{Tuple{T, T}, <:AbstractVector{AnnotatedSegment{T}}}) where {T}
     connections = Dict{Segment2D{T}, AnnotatedSegment{T}}()
@@ -48,6 +55,16 @@ function map_connections(graph::Dict{Tuple{T, T}, <:AbstractVector{AnnotatedSegm
     connections
 end
 
+"""
+    walk_connections(connections::Dict)
+
+Follow the half-edge connections from `map_connections` until each chain returns to its start.
+Each half-edge is visited once, so each chain is one face of the graph.
+
+Returns a list of faces, each a list of `AnnotatedSegment` half-edges.
+
+Time complexity is `O(E)` on average where `E` is the number of half-edges.
+"""
 function walk_connections(connections::Dict{Segment2D{T}, AnnotatedSegment{T}}) where {T}
     chains = Vector{AnnotatedSegment{T}}[]
     visited = Set{Segment2D{T}}()
@@ -88,6 +105,9 @@ interior faces as clockwise.
 Each connected graph with non-zero area will result in one exterior face
 and one or more interior faces.
 The total area of the faces will be double the area of the graph.
+
+Time complexity is `O(E)` on average where `E` is the number of half-edges,
+given a graph with half-edges already sorted around each node (see `directed_graph_from_segments`).
 
 Source
 - https://stackoverflow.com/a/67169488. Posted by templatetypedef

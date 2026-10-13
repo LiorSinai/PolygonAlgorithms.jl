@@ -45,6 +45,11 @@ function push!(s::PointSet, x::Tuple)
     s
 end
 
+"""
+    fudge(point, digits)
+
+Round each co-ordinate of `point` to `digits` decimal places and convert `-0.0` to `0.0`.
+"""
 function fudge(point::Tuple{T1, T2}, digits::Int) where {T1 <: Number, T2 <: Number}
     # add 0.0 to cast -0.0 to 0.0
     round.(point, digits=digits) .+ zero(T1)

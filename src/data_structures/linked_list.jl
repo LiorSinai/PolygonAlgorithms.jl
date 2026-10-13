@@ -1,5 +1,12 @@
 # see DataStructures.jl for a full implementation
 
+"""
+    Node(data)
+    Node(data, prev, next)
+
+A node in a circular doubly linked list.
+A new node with only `data` is linked to itself in both directions.
+"""
 mutable struct Node{T}
     data::T
     prev::Node{T}
@@ -37,10 +44,25 @@ function Base.show(io::IO, node::Node)
     print(io, ')')
 end
 
+"""
+    DoublyLinkedList(head)
+
+A minimal circular doubly linked list.
+The tail is `head.prev` and an empty list has `head=nothing`.
+
+Iterating over the list returns the data in each node, starting from the head.
+Use `collect_nodes` to get the nodes themselves.
+"""
 mutable struct DoublyLinkedList{T}
     head::Union{Node{T}, Nothing}
 end
 
+"""
+    push!(list::DoublyLinkedList, data)
+
+Append a new node with `data` at the end of the list (between the tail and head).
+Returns the new node.
+"""
 function Base.push!(list::DoublyLinkedList{T}, data::T) where {T}
     if isnothing(list.head)
         list.head = Node(data)
@@ -86,6 +108,12 @@ function Base.length(list::DoublyLinkedList)
     count
 end
 
+"""
+    collect_nodes(list::DoublyLinkedList)
+
+Return a vector of the nodes in the list, starting from the head.
+Unlike `collect(list)`, which returns the data.
+"""
 function collect_nodes(list::DoublyLinkedList{T}) where T
     # A standard collect(list) will return the data, not the nodes themselves
     vec = Node{T}[]

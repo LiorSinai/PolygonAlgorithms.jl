@@ -7,6 +7,7 @@ A polygon is a hole if its outer face is filled but not its inner face.
 
 For robustness, the annotations of all segments are checked
 and a decision is made based on the majority outcome.
+The time complexity is therefore `O(n)` where `n` is the number of segments.
 
 If the direction `counter_clockwise` is not given, the segments must be in a chain.
 That is, `segments_{i}[2] == segments_{i+1}[1]` for all segments.
@@ -83,6 +84,14 @@ The following selection strategies are used to return half the faces with no dup
 - `SPLIT_FACES`: As exteriors, select all interior faces that are not holes that are on the exterior and reverse to make them counter-clockwise. As holes, select interior faces that are holes that are not on the exterior. This splits connected graphs across multiple interiors and returns smaller polygons with fewer explicit holes.
 - `CLOCKWISE_FACES`: all clockwise faces.
 - `COUNTER_CLOCKWISE_FACES`: all counter-clockwise faces.
+
+Time complexity is `O(n*log(n))` in the worst case where `n` is the number of segments, and `O(n)` if the
+number of segments at each vertex is bounded. See `directed_graph_from_segments` and `compute_graph_faces`.
+Classifying the faces is `O(n)` because the faces contain `2n` half-edges in total.
+
+`SPLIT_FACES` iteratively expands the exterior from the faces that touch it.
+This usually takes a few passes, but in the worst case it is `O(f*n)` where `f` is the number of interior faces,
+if each pass only adds one face.
 """
 function segments_to_paths(
     segments::Union{AbstractVector{<:SegmentEvent}, AbstractVector{<:AnnotatedSegment}}
@@ -141,6 +150,21 @@ function segments_to_paths(
     exteriors, holes
 end
 
+"""
+    match_interiors(polygons; atol=default_atol, rtol=default_rtol)
+
+For each polygon, find the index of the largest polygon that contains it, or `0` if there is none.
+Polygons that are already contained in another polygon cannot be parents.
+This results in alternating levels of exteriors and holes, where the top level polygons are exteriors.
+
+Assumes that the polygons do not intersect, so only one point needs to be checked.
+Returns a vector of parent indices.
+
+Time complexity is `O(p*log(p) + p²n)` where `p` is the number of polygons and `n` is the average number
+of vertices per polygon, because each polygon may be checked against every larger polygon.
+In the worst case, where many vertices of a polygon lie on the border of a candidate parent,
+finding a vertex to check costs `O(n²)` per pair instead of `O(n)`.
+"""
 function match_interiors(
     polygons::Vector{<:Path2D}
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
@@ -172,20 +196,24 @@ function match_interiors(
 end
 
 """
-    match_holes_polygons(polygons::Vector, holes::Vector; atol=default_atol)
+    match_holes_polygons(polygons::Vector, holes::Vector; atol=default_atol, rtol=default_rtol)
 
 An algorithm for matching holes to polygons.
-Returns the index of each parent for each hole.
+Returns the index of the parent for each hole, or `0` if no parent was found.
 
 Assumes that the polygons do not intersect.
 
 For every hole, match to a polygon that contains the hole.
 If there are multiple polygons possible, the polygon with the least area is chosen.
 
-In the best case there is one polygon or one hole. Then this runs in `O(1)` time.
-In the worst case, none of the holes match to a polygon.
-Then this runs in `O(phn)` time where `p` is the number polygons,
-`h` is the number of holes and `n` is the average number of vertices defining each polygon.
+Let `p` be the number of polygons, `h` the number of holes and `n` the average number of vertices
+per polygon.
+
+In the best case there is one polygon or no holes. Then this runs in `O(h)` time,
+because every hole is assigned to the one polygon without checking.
+Otherwise, calculating and sorting the areas costs `O(pn + p*log(p))`
+and each hole is checked against the polygons in order of increasing area, costing `O(n)` per check.
+In the worst case none of the holes match to a polygon, and this runs in `O(phn)` time.
 """
 function match_holes_polygons(
     polygons::Vector{<:Path2D},
@@ -216,6 +244,15 @@ function match_holes_polygons(
     parents
 end
 
+"""
+    paths_to_polygons(exteriors, holes; atol=default_atol, rtol=default_rtol)
+
+Create a `Polygon` for each exterior and assign each hole to its parent using `match_holes_polygons`.
+Holes without a parent are dropped with a warning.
+
+Time complexity is dominated by `match_holes_polygons`, which is `O(phn)` in the worst case where `p` is the
+number of exteriors, `h` is the number of holes and `n` is the average number of vertices per exterior.
+"""
 function paths_to_polygons(
     exteriors::Vector{<:Vector{<:Point2D}},
     holes::Vector{<:Vector{<:Point2D}},
@@ -233,6 +270,21 @@ function paths_to_polygons(
     polygons
 end
 
+"""
+    segments_to_polygons(segments; atol=default_atol, rtol=default_rtol, face_selection=SPLIT_FACES)
+
+Convert segments to a list of `Polygon`s with holes.
+
+The segments are first converted to exteriors and holes with `segments_to_paths`
+and then each hole is matched to its parent with `paths_to_polygons`.
+See `segments_to_paths` for details on `face_selection`.
+
+Assumes there are no intersections between the segments.
+
+Time complexity is the sum of `segments_to_paths` and `paths_to_polygons`:
+`O(n*log(n))` to compute the faces from `n` segments, plus up to `O(phm)` to match `h` holes to `p` exteriors
+with an average of `m` vertices each.
+"""
 function segments_to_polygons(
     segments::Union{AbstractVector{<:SegmentEvent}, AbstractVector{<:AnnotatedSegment}}
     ; 

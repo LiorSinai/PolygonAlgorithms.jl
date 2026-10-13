@@ -1,3 +1,9 @@
+"""
+    points_to_matrix(points)
+
+Convert a vector of `n` points to a `2×n` matrix where each column is a point.
+Inverse of `matrix_to_points`.
+"""
 function points_to_matrix(v::Vector{<:Point2D{T}}) where {T}
     X = Matrix{T}(undef, 2, length(v))
     for i in 1:length(v)
@@ -7,6 +13,12 @@ function points_to_matrix(v::Vector{<:Point2D{T}}) where {T}
     X
 end
 
+"""
+    matrix_to_points(m)
+
+Convert an `N×n` matrix to a vector of `n` tuples of length `N`, one per column.
+Inverse of `points_to_matrix`.
+"""
 function matrix_to_points(m::AbstractMatrix{T}) where {T}
     N = size(m, 1)
     points = NTuple{N,T}[]
@@ -16,17 +28,40 @@ function matrix_to_points(m::AbstractMatrix{T}) where {T}
     points
 end
 
+"""
+    separate(f, v)
+
+Split `v` into two views: the elements for which `f` is `true` and the elements for which it is `false`.
+Order is preserved within each view.
+"""
 function separate(f, v::Vector)
     idxs = findall(f, v)
     other_idxs = setdiff(eachindex(v), idxs)
     (@view(v[idxs]), @view(v[other_idxs]))
 end
 
+"""
+    insert_in_order!(vec, data; lt=isless, rev=false)
+
+Insert `data` into the sorted vector `vec` so that it remains sorted according to `lt`.
+`data` is inserted before any elements that compare equal to it.
+
+Runs in `O(n)` time because of the insertion, although the search is `O(log(n))`.
+"""
 function insert_in_order!(vec::Vector{T}, data::T; lt=isless, rev=false) where T
     idx = searchsortedfirst(vec, data; lt=lt, rev=rev)
     insert!(vec, idx, data)
 end
 
+"""
+    pop_key!(vec, key)
+
+Remove and return the element of `vec` which is identical (`===`) to `key`.
+Throws a `KeyError` if it is not found.
+
+Identity is used instead of equality so that a specific mutable object can be removed
+even if `vec` contains other objects that are equal (`==`) to it.
+"""
 function pop_key!(vec::Vector{T}, key::T) where T
     idx = findfirst(x->x===key, vec)
     if isnothing(idx)
@@ -96,6 +131,14 @@ function minimal_rotation(a::AbstractVector)
     best
 end
 
+"""
+    minimal_rotation_reverse(array)
+
+The lexicographically minimal rotation of either `array` or `reverse(array)`.
+Used to compare cyclic arrays regardless of direction.
+
+Warning: this function is used for testing only and it is not optimised.
+"""
 function minimal_rotation_reverse(a::AbstractVector)
     forward = minimal_rotation(a)
     backward = minimal_rotation(reverse(a))
@@ -132,6 +175,16 @@ function cyclic_set_equality(
     canonical_a == canonical_b
 end
 
+"""
+    compress_cyclic(array)
+
+Remove consecutive repeated elements from a cyclic array, including a final element
+that repeats the first.
+
+```julia
+compress_cyclic([1, 1, 2, 3, 3, 2, 1]) # [1, 2, 3, 2]
+```
+"""
 function compress_cyclic(a::AbstractVector)
     b = eltype(a)[]
     for x in a

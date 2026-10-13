@@ -1,13 +1,39 @@
+"""
+    ConvexHullAlgorithm
 
+Abstract type for convex hull algorithms. See `convex_hull`.
+"""
 abstract type ConvexHullAlgorithm end
 
+"""
+    GiftWrappingAlg()
+
+Gift wrapping (Jarvis march) convex hull algorithm.
+Starting from the leftmost point, it repeatedly selects the most counter-clockwise point as the next hull point.
+
+- Time complexity: `O(nh)` where `n` is the number of points and `h` is the number of points on the hull.
+- Reference: https://www.geeksforgeeks.org/convex-hull-using-jarvis-algorithm-or-wrapping/
+"""
 struct GiftWrappingAlg <: ConvexHullAlgorithm end
+
+"""
+    GrahamScanAlg()
+
+Graham scan convex hull algorithm.
+The points are sorted by angle around the bottom-left point and then scanned with a stack,
+popping points which do not make a counter-clockwise turn.
+
+- Time complexity: `O(n*log(n))` where `n` is the number of points.
+- Reference: https://www.geeksforgeeks.org/convex-hull-using-graham-scan/
+"""
 struct GrahamScanAlg <: ConvexHullAlgorithm end
 
 """
-    convex_hull([GiftWrappingAlg()], points, ; atol=default_atol, rtol=default_rtol)
+    convex_hull([alg=GiftWrappingAlg()], points; atol=default_atol, rtol=default_rtol)
 
 Determine the indices of the convex hull for a set of points.
+The indices are returned in counter-clockwise order.
+Use `points[convex_hull(points)]` to get the hull vertices.
 
 Algorithm can either be `GiftWrappingAlg()` or `GrahamScanAlg()`.
 
@@ -56,6 +82,11 @@ function convex_hull(::GiftWrappingAlg, points::Path2D; atol::AbstractFloat=defa
     hull_idxs
 end
 
+"""
+    left_topmost(points)
+
+The index of the leftmost point. Ties are broken by choosing the topmost point.
+"""
 function left_topmost(points::Path2D)
     idx = 1
     for i in eachindex(points)
@@ -91,6 +122,11 @@ function convex_hull(::GrahamScanAlg, points::Path2D; atol::AbstractFloat=defaul
     hull
 end
 
+"""
+    bottom_leftmost(points)
+
+The index of the bottommost point. Ties are broken by choosing the leftmost point.
+"""
 function bottom_leftmost(points::Path2D)
     idx = 1
     for i in eachindex(points)

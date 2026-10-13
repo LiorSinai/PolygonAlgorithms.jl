@@ -1,3 +1,23 @@
+"""
+    SegmentAnnotations(
+        [fill_above, fill_below]
+        ; forward=-1, winding_top_to_bottom=nothing, winding_left_to_right=nothing, winding_below=0
+    )
+
+Annotations of a segment for one polygon, used by the Martinez-Rueda algorithm.
+A value of `nothing` means it has not been calculated yet.
+
+Fields:
+- `fill_above`: whether the region directly above the segment is inside the polygon.
+- `fill_below`: whether the region directly below the segment is inside the polygon.
+- `forward`: the original direction of the segment, as returned by `_compare_points(pt1, pt2)`.
+    `-1` if the segment was originally left to right, `1` if it was reversed.
+- `winding_top_to_bottom`: change in winding number when crossing the segment from top to bottom.
+    If the segment represents multiple coincident edges, this is the sum of their changes.
+- `winding_left_to_right`: change in winding number when crossing the segment from left to right.
+    Used for vertical segments.
+- `winding_below`: the winding number of the region directly below the segment.
+"""
 mutable struct SegmentAnnotations
     fill_above::Union{Nothing, Bool}
     fill_below::Union{Nothing, Bool}
@@ -32,8 +52,16 @@ end
     [self_annotations, other_annotations]
     )
 
-An event in a line sweep algorithm marking a change in state, either the 
+An event in a line sweep algorithm marking a change in state, either the
 start of a segment or the end of it.
+
+Each segment has two events, a start and an end, which are linked to each other with the `other` field.
+Both events share the same `segment`, which goes left to right (see `_compare_points`).
+`point` is the point where the event occurs and `other_point` is the opposite end of the segment.
+
+For Martinez-Rueda, `primary` indicates if the segment belongs to the subject polygon (`true`)
+or a clip polygon (`false`), and `self_annotations`/`other_annotations` hold the fill annotations
+for its own polygon and the other polygon respectively. See `SegmentAnnotations`.
 
 See `any_intersect` and `martinez_rueda_algorithm`.
 """
@@ -69,7 +97,13 @@ function SegmentEvent(
     )
 end
 
-function copy_segment(event::SegmentEvent, is_primary::Bool) 
+"""
+    copy_segment(event, is_primary)
+
+Make a deep copy of `event` that is independent of the original, with `primary=is_primary`.
+The copy is not linked to an `other` event.
+"""
+function copy_segment(event::SegmentEvent, is_primary::Bool)
     # make a copy independent of the original event.
     SegmentEvent(
         deepcopy(event.segment),
@@ -109,7 +143,11 @@ getindex(ev::SegmentEvent, idx::Integer) = ev.segment[idx]
 
 
 """
-    AnnotatedSegment(point1, point2, annotations)
+    AnnotatedSegment(segment, annotations)
+    AnnotatedSegment(point1, point2, [annotations])
+
+A directed segment with the fill annotations of its polygon. Unlike a `SegmentEvent`, the
+segment can go in any direction.
 """
 struct AnnotatedSegment{T}
     segment::Segment2D{T}

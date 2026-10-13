@@ -1,3 +1,11 @@
+"""
+    Orientation
+
+The orientation of three ordered points `(p, q, r)`, as returned by `get_orientation`:
+- `COLINEAR`: the points lie on a straight line (within tolerance).
+- `CLOCKWISE`: the path `p → q → r` turns right.
+- `COUNTER_CLOCKWISE`: the path `p → q → r` turns left.
+"""
 @enum Orientation COLINEAR=0 CLOCKWISE=1 COUNTER_CLOCKWISE=2
 
 """
@@ -24,7 +32,13 @@ end
 """
     on_segment(point, segment, [on_line]; atol=default_atol, rtol=default_rtol)
 
-Determine if a point lies on the segment. 
+Determine if a point lies on the segment.
+
+The point must be colinear with the segment (see `get_orientation`) and lie within the
+bounding box of the segment expanded by `atol` on all sides.
+
+If `on_line::Bool` is given, it is used instead of calculating the colinearity.
+This is useful if the orientation is already known.
 """
 function on_segment(
     q::Point2D, segment::NTuple{2, Point2D}
@@ -47,6 +61,11 @@ function on_segment(
         )
 end
 
+"""
+    isless_orientation(p, q, p0; atol=default_atol, rtol=default_rtol)
+
+Comparison function for sorting points by angle around `p0` without calculating angles.
+"""
 function isless_orientation(
     p::Point2D, q::Point2D, p0::Point2D
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
@@ -66,6 +85,13 @@ function isless_orientation(
     val
 end
 
+"""
+    isless_polar_angle(p, q, p0)
+
+Comparison function for sorting points by their polar angle around `p0`,
+from `-π` to `π` (counter-clockwise starting from the negative x-axis).
+If the angles are exactly equal, the point closer to `p0` is smaller.
+"""
 function isless_polar_angle(p::Point2D, q::Point2D, p0::Point2D)
     angle_p = atan(p[2] - p0[2], p[1] - p0[1])
     angle_q = atan(q[2] - p0[2], q[1] - p0[1])
@@ -79,32 +105,68 @@ function isless_polar_angle(p::Point2D, q::Point2D, p0::Point2D)
     val
 end
 
+"""
+    sort_counter_clockwise!(points)
+
+Sort points in place counter-clockwise by polar angle around their mean.
+"""
 function sort_counter_clockwise!(points::Vector{<:Point2D})
     middle = reduce(.+, points, init=(0.0, 0.0)) ./ length(points)
     sort!(points, lt=(p, q) -> isless_polar_angle(p, q, middle))
 end
 
+"""
+    sort_counter_clockwise(points)
+
+Return a copy of `points` sorted counter-clockwise. See `sort_counter_clockwise!`.
+"""
 sort_counter_clockwise(points::Vector{<:Point2D}) = sort_counter_clockwise!(copy(points))
 
+"""
+    sort_clockwise!(points)
+
+Sort points in place clockwise by polar angle around their mean.
+"""
 function sort_clockwise!(points::Vector{<:Point2D})
     middle = reduce(.+, points, init=(0.0, 0.0)) ./ length(points)
     sort!(points, lt=(p, q) -> isless_polar_angle(q, p, middle))
 end
 
+"""
+    sort_clockwise(points)
+
+Return a copy of `points` sorted clockwise. See `sort_clockwise!`.
+"""
 sort_clockwise(points::Vector{<:Point2D}) = sort_clockwise!(copy(points))
 
-# orientation between two lines
+"""
+    cross_product(edge1, edge2)
+
+The z-component of the cross product of the direction vectors of `edge1` and `edge2`.
+
+Positive if `edge2` points counter-clockwise relative to `edge1`, negative if clockwise
+and zero if they are parallel.
+"""
 function cross_product(edge1::Segment2D, edge2::Segment2D)
     a = (edge1[2][1] - edge1[1][1], edge1[2][2] - edge1[1][2])
     b = (edge2[2][1] - edge2[1][1], edge2[2][2] - edge2[1][2])
     a[1] * b[2] - a[2] * b[1]
 end
 
-# angle between two lines
+"""
+    dot_product(p, q, r)
+
+The dot product of the vectors `qp` and `qr`, both starting at the vertex `q`.
+"""
 function dot_product(p::Point2D, q::Point2D, r::Point2D)
     (p[1] - q[1]) * (r[1] - q[1]) + (p[2] - q[2]) * (r[2] - q[2])
 end
 
+"""
+    inner_angle(p, q, r)
+
+The angle in radians at vertex `q` between the vectors `qp` and `qr`, in the range `[0, π]`.
+"""
 function inner_angle(p::Point2D, q::Point2D, r::Point2D)
     dot = dot_product(p, q, r)
     mag1 = dot_product(p, q, p)
@@ -112,12 +174,30 @@ function inner_angle(p::Point2D, q::Point2D, r::Point2D)
     acos(dot / (sqrt(mag1 * mag2)))
 end
 
-# the half-plane is drawn by extending the edge to ±infinity and back into the polygon
+"""
+    in_half_plane(edge, x, [is_counter_clockwise=true]; on_border_is_inside=true)
+
+Return `true` if the point `x` lies in the inner half-plane of `edge`.
+
+The half-plane is drawn by extending the edge to ±infinity and back into the polygon.
+For a counter-clockwise polygon this is the half-plane to the left of the edge;
+for a clockwise polygon it is the half-plane to the right.
+
+Uses exact comparisons with zero, so points very close to the line may be misclassified.
+"""
 function in_half_plane(edge::Segment2D, x::Point2D, is_counter_clockwise::Bool=true; on_border_is_inside=true)
     c = cross_product(edge, (edge[1], x))
     (c == 0.0 && on_border_is_inside) || (is_counter_clockwise ? c > 0 : c < 0)
 end
 
+"""
+    is_vertical(segment)
+    is_vertical(pt1, pt2)
+
+Return `true` if the x co-ordinates of the two points differ by at most `eps(T)`.
+
+This deliberately uses machine epsilon rather than `atol`.
+"""
 is_vertical(seg::Segment2D{T}) where T = abs(seg[2][1] - seg[1][1]) <= eps(T)
 is_vertical(pt1::Point2D{T}, pt2::Point2D{T}) where T = abs(pt2[1] - pt1[1]) <= eps(T)
 

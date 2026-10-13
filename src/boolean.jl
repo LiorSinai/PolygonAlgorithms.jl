@@ -2,6 +2,12 @@ include("boolean/weiler_atherton.jl")
 include("boolean/chasing_edges.jl")
 include("boolean/martinez_rueda.jl")
 
+"""
+    PolygonIntersectionAlgorithm
+
+Abstract type for polygon intersection and boolean algorithms.
+See `PointSearchAlg`, `ChasingEdgesAlg`, `WeilerAthertonAlg` and `MartinezRuedaAlg`.
+"""
 abstract type PolygonIntersectionAlgorithm end
 
 """
@@ -74,12 +80,18 @@ General case of polygon intersection.
 The polygons can be of type:
 - `Vector{<:Tuple{T, T}} where T<:AbstractFloat`. Output will be `Vector{Vector{Tuple{T, T}}}`. Possibly returns holes but does not classify them as holes.
 - `Polygon{T<:AbstractFloat}`. Output will be `Vector{Polygon{T}}`. This will classify holes and match them to the smallest possible parent.
-- The subject can also be the same type as the output. This enables the output to be an input. 
-    Note that in this case the `subject` list is treated as a single polygon.
-    If any of the polygons overlap, this is equivalent to passing a self-intersecting polygon and
-    some areas might be classified as holes according to the even-odd rule.
+- (Subject only) `Vector{P}` where `P` is either of the formats above. All polygons are treated as a single polygon.
+    If any of the polygons overlap, this is like passing a self-intersecting polygon and
+    some areas might be classified as holes according to the `fill_rule`.
 
 Using multiple arguments is more efficient than looping through the polygons and applying `intersect_geometry` sequentially.
+
+Keyword arguments:
+- `atol`, `rtol`: tolerances for point comparisons, orientations and intersections.
+- `fill_rule`: rule for which regions of self-intersecting polygons are filled. See `PolygonAlgorithms.FillRule`. Default is `EVEN_ODD`.
+- `face_selection`: how to convert the resultant segments back into polygons. See `PolygonAlgorithms.FaceSelectionStrategy`. Default is `SPLIT_FACES`.
+
+`fill_rule` and `face_selection` are only supported by `MartinezRuedaAlg`.
 
 Use `intersect_convex` for convex polygons for an `O(n+m)` algorithm.
 """
@@ -139,12 +151,16 @@ General case of polygon difference: points in `subject` that are not in `clip(s)
 The polygons can be of type:
 - `Vector{<:Tuple{T, T}} where T<:AbstractFloat`. Output will be `Vector{Vector{Tuple{T, T}}}`. Possibly returns holes but does not classify them as holes.
 - `Polygon{T<:AbstractFloat}`. Output will be `Vector{Polygon{T}}`. This will classify holes and match them to the smallest possible parent.
-- The subject can also be the same type as the output. This enables the output to be an input. 
-    Note that in this case the `subject` list is treated as a single polygon.
-    If any of the polygons overlap, this is equivalent to passing a self-intersecting polygon and
-    some areas might be classified as holes according to the even-odd rule.
+- (Subject only) `Vector{P}` where `P` is either of the formats above. All polygons are treated as a single polygon.
+    If any of the polygons overlap, this is like passing a self-intersecting polygon and
+    some areas might be classified as holes according to the `fill_rule`.
 
 Using multiple arguments is more efficient than looping through the polygons and applying `difference_geometry` sequentially.
+
+Keyword arguments:
+- `atol`, `rtol`: tolerances for point comparisons, orientations and intersections.
+- `fill_rule`: rule for which regions of self-intersecting polygons are filled. See `PolygonAlgorithms.FillRule`. Default is `EVEN_ODD`.
+- `face_selection`: how to convert the resultant segments back into polygons. See `PolygonAlgorithms.FaceSelectionStrategy`. Default is `SPLIT_FACES`.
 
 `alg` can only be `MartinezRuedaAlg()`.
 """
@@ -193,12 +209,16 @@ General case of polygon union: in any of the polygons.
 The polygons can be of type:
 - `Vector{<:Tuple{T, T}} where T<:AbstractFloat`. Output will be `Vector{Vector{Tuple{T, T}}}`. Possibly returns holes but does not classify them as holes.
 - `Polygon{T<:AbstractFloat}`. Output will be `Vector{Polygon{T}}`. This will classify holes and match them to the smallest possible parent.
-- The subject can also be the same type as the output. This enables the output to be an input. 
-    Note that in this case the `subject` list is treated as a single polygon.
-    If any of the polygons overlap, this is equivalent to passing a self-intersecting polygon and
-    some areas might be classified as holes according to the even-odd rule.
+- (Subject only) `Vector{P}` where `P` is either of the formats above. All polygons are treated as a single polygon.
+    If any of the polygons overlap, this is like passing a self-intersecting polygon and
+    some areas might be classified as holes according to the `fill_rule`.
 
 Using multiple arguments is more efficient than looping through the polygons and applying `union_geometry` sequentially.
+
+Keyword arguments:
+- `atol`, `rtol`: tolerances for point comparisons, orientations and intersections.
+- `fill_rule`: rule for which regions of self-intersecting polygons are filled. See `PolygonAlgorithms.FillRule`. Default is `EVEN_ODD`.
+- `face_selection`: how to convert the resultant segments back into polygons. See `PolygonAlgorithms.FaceSelectionStrategy`. Default is `SPLIT_FACES`.
 
 `alg` can only be `MartinezRuedaAlg()`.
 """
@@ -246,17 +266,20 @@ end
     xor_geometry([alg=MartinezRuedaAlg()], subject, others...; atol=default_atol, rtol=default_rtol)
 
 General case of polygon xor: in one polygon or the other but not both.
-Possibly returns holes but does not classify them as holes.
 
 The polygons can be of type:
 - `Vector{<:Tuple{T, T}} where T<:AbstractFloat`. Output will be `Vector{Vector{Tuple{T, T}}}`. Possibly returns holes but does not classify them as holes.
 - `Polygon{T<:AbstractFloat}`. Output will be `Vector{Polygon{T}}`. This will classify holes and match them to the smallest possible parent.
-- The subject can also be the same type as the output. This enables the output to be an input.
-    Note that in this case the `subject` list is treated as a single polygon.
-    If any of the polygons overlap, this is equivalent to passing a self-intersecting polygon and
-    some areas might be classified as holes according to the even-odd rule.
+- (Subject only) `Vector{P}` where `P` is either of the formats above. All polygons are treated as a single polygon.
+    If any of the polygons overlap, this is like passing a self-intersecting polygon and
+    some areas might be classified as holes according to the `fill_rule`.
 
 Using multiple arguments is more efficient than looping through the polygons and applying `xor_geometry` sequentially.
+
+Keyword arguments:
+- `atol`, `rtol`: tolerances for point comparisons, orientations and intersections.
+- `fill_rule`: rule for which regions of self-intersecting polygons are filled. See `PolygonAlgorithms.FillRule`. Default is `EVEN_ODD`.
+- `face_selection`: how to convert the resultant segments back into polygons. See `PolygonAlgorithms.FaceSelectionStrategy`. Default is `SPLIT_FACES`.
 
 `alg` can only be `MartinezRuedaAlg()`.
 """
@@ -311,7 +334,7 @@ The polygons can only be `Vector{<:Tuple{T, T}} where T<:AbstractFloat`. Holes a
 
 A major assumption is that convex polygons only have one area of intersection.
 This fails in the general case with non-convex polygons. 
-See `intersect_geometry` for a more general `O(nm)` algorithm.
+See `intersect_geometry` for a more general algorithm.
 
 `alg` can either be `ChasingEdgesAlg()`, `MartinezRuedaAlg()`, `PointSearchAlg()` or `WeilerAthertonAlg()`.
 The two general algorithms `MartinezRuedaAlg` and `WeilerAthertonAlg` will throw an error if more

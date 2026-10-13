@@ -1,3 +1,13 @@
+"""
+    AnnotationFill
+
+Outcome for a segment in a selection criteria table. See `apply_selection_criteria`.
+- `BLANK`: the segment is not part of the output.
+- `ABOVE`: the segment is part of the output and the output is filled above it.
+- `BELOW`: the segment is part of the output and the output is filled below it.
+- `EMPTY`: the segment is part of the output but neither side is filled e.g. a shared edge
+    between two polygons that only touch or an extended edge.
+"""
 @enum AnnotationFill BLANK=0 ABOVE=1 BELOW=2 EMPTY=3
 
 """
@@ -18,10 +28,18 @@ The input polygons can be:
 - A list of points: `Vector{Tuple{Float64, Float64}}`.
 - Polygons: `Vector{Polygon{T}}`.
 - A Segment event queue: `Vector{<:SegmentEvent{Float64}}`. The core algorithm uses this representation.
-- The `subject` can also be a list of polygons. This enables the output to be an input. 
-    Note that in this case the `subject` list is treated as a single polygon.
-    If any of the polygons overlap, this is equivalent to passing a self-intersecting polygon and
-    some areas might be classified as holes according to the even-odd rule
+- The `subject` can also be a list of polygons. In this case, all polygons are treated as a single polygon.
+    If any of the polygons overlap, this is like passing a self-intersecting polygon and
+    some areas might be classified as holes according to the `fill_rule`..
+
+Keyword arguments:
+- `atol`, `rtol`: tolerances for point comparisons, orientations and intersections.
+- `fill_rule`: rule for which regions of self-intersecting polygons are filled. See `FillRule`.
+- `face_selection`: how to convert the resultant segments back into polygons. See `FaceSelectionStrategy`.
+    Not used for `SegmentEvent` inputs.
+
+`selection_criteria` determines the boolean operation. It is one of `INTERSECTION_CRITERIA`, `UNION_CRITERIA`,
+`DIFFERENCE_CRITERIA` or `XOR_CRITERIA`. See `apply_selection_criteria`.
 
 Description:
 - Operates at a segment level and is an extension of the Bentley-Ottmann line intersection algorithm.
@@ -221,6 +239,13 @@ function martinez_rueda_algorithm(
     selected_segments
 end
 
+"""
+    add_annotated_segment!(queue, ev; atol=default_atol, rtol=default_rtol)
+
+Add a new pair of start and end events to `queue` for the segment in `ev`,
+keeping its `primary` flag and sharing its annotations.
+Zero length segments are skipped.
+"""
 function add_annotated_segment!(
     queue::Vector{<:SegmentEvent}, ev::SegmentEvent
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
@@ -245,6 +270,24 @@ end
 ##                    Event Loop                           ##
 #############################################################
 
+"""
+    event_loop!(queue; self_intersection, atol=default_atol, rtol=default_rtol, fill_rule=EVEN_ODD)
+
+The core line sweep of the Martinez-Rueda algorithm.
+Consumes `queue` and returns a list of annotated segments (copies of the start events).
+
+Events are processed in order from left to right.
+For each start event, the segments immediately above and below it in the sweep status are checked for intersections.
+If one is found, the segments are divided and the event is processed again later.
+Otherwise the event's annotations are calculated from the segment below it and it is inserted into the sweep status.
+For each end event, the segment is removed from the sweep status and the two newly adjacent segments
+are checked for intersections.
+
+The loop is used in two phases:
+1. `self_intersection=true`: process segments from a single polygon.
+    Calculates `self_annotations` based on the `fill_rule`.
+2. `self_intersection=false`: process segments from two polygons, which have already been through phase 1.
+"""
 function event_loop!(
     queue::Vector{SegmentEvent{T}}
     ; self_intersection::Bool,
@@ -318,6 +361,19 @@ function check_and_divide_intersection!(
     queue
 end
 
+"""
+    check_and_divide_intersection!(
+        queue, ev1, ev2, self_intersection
+        ; atol=default_atol, rtol=default_rtol, fill_rule=EVEN_ODD
+    )
+
+Check if the segments of start events `ev1` and `ev2` intersect.
+If they intersect at a single point, divide them at that point with `divide_intersection!`.
+If they are colinear and overlap, divide and merge them with `divide_coincident_intersection!`.
+If `ev2` is `nothing`, do nothing.
+
+Returns `queue`, which is modified in place.
+"""
 function check_and_divide_intersection!(
     queue::Vector{<:SegmentEvent},
     ev1::SegmentEvent,
@@ -351,6 +407,16 @@ function divide_intersection!(
     queue
 end
 
+"""
+    divide_intersection!(queue, ev1, ev2, pt, [self_intersection=false]; atol=default_atol, rtol=default_rtol)
+
+Divide the segments of `ev1` and `ev2` at their intersection point `pt` with `divide_event!`.
+
+A segment is only divided if `pt` lies strictly between its end points.
+If `pt` is near an end point of the other segment, that end point is used instead of `pt`
+so that the divided segments share exactly the same vertex.
+Nothing is done if `pt` is `nothing`.
+"""
 function divide_intersection!(
     queue::Vector{<:SegmentEvent},
     ev1::SegmentEvent,
@@ -384,6 +450,22 @@ function divide_intersection!(
     queue
 end
 
+"""
+    divide_coincident_intersection!(
+        queue, ev1, ev2, self_intersection
+        ; fill_rule=EVEN_ODD, atol=default_atol, rtol=default_rtol
+    )
+
+Handle two colinear segments that overlap.
+The segments are divided so that the overlapping part is represented by two identical segments,
+which are then merged into one with `merge_same_segments!`.
+
+Assumes:
+- `ev1` is on top of or to the right of `ev2`, because events are processed left to right.
+- Both points of `ev2` are colinear with `ev1`.
+
+If the segments only touch at an end point, nothing is done.
+"""
 function divide_coincident_intersection!(
     queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::SegmentEvent, self_intersection::Bool
     ; fill_rule::FillRule=EVEN_ODD, atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
@@ -446,12 +528,22 @@ function divide_coincident_intersection!(
 end
 
 """
-    divide_event!(queue, ev, pt; [atol, rtol])
+    divide_event!(queue, ev, pt, [self_intersection=false]; atol=default_atol, rtol=default_rtol)
 
-Divide an event `ev` and `ev.other` in `queue` into 4:
+Divide a start event `ev` and its end event `ev.other` in `queue` into 4 events at the point `pt`:
 ```
 --x-->  to  --> x-->
 ```
+
+The first segment keeps `ev` with its end moved to `pt` (see `update_end!`) and its end event is re-sorted in the queue.
+A new pair of events is added for the second segment from `pt` to the original end.
+
+The new segment's `other_annotations` are reset.
+If `self_intersection` is true, its fill annotations are also reset because they will be recalculated,
+but its windings are kept because `ev` may represent multiple merged coincident edges.
+Otherwise it shares `ev`'s `self_annotations`.
+
+Assumes `pt` lies on `ev.segment`.
 """
 function divide_event!(
     queue::Vector{<:SegmentEvent}, ev::SegmentEvent, pt::Point2D,
@@ -486,9 +578,12 @@ function divide_event!(
 end
 
 """
-    update_end!(queue, ev, pt)
+    update_end!(ev, end_point)
 
-Slides an end backwards.
+Slides the end of the segment of start event `ev` backwards to `end_point`,
+updating both `ev` and `ev.other`. Returns `(ev, ev.other)`.
+
+The position of `ev.other` in the event queue is not updated.
 ```
     (start)------------(end)    to:
     (start)---(end)
@@ -505,6 +600,20 @@ function update_end!(ev::SegmentEvent, end_point::Point2D)
     ev, other
 end
 
+"""
+    merge_same_segments!(queue, discard, survive, self_intersection; fill_rule=EVEN_ODD)
+
+Merge two identical segments by removing `discard` (and `discard.other`) from the queue
+and combining its annotations into `survive`.
+Assumes `discard` is on top of `survive`.
+
+There are three cases:
+1. `self_intersection`: the segments belong to the same polygon. The windings of `discard` are added
+    to `survive` and `survive.fill_above` is recalculated, so that `survive` represents all the coincident edges.
+2. The segments belong to different polygons: `discard`'s self annotations become `survive`'s other annotations.
+3. The segments belong to the same polygon in the combining phase: `survive` takes `discard`'s other annotations
+    if it does not have any.
+"""
 function merge_same_segments!(
     queue::Vector{<:SegmentEvent}, discard::SegmentEvent, survive::SegmentEvent, self_intersection::Bool
     ; fill_rule::FillRule=EVEN_ODD
@@ -542,6 +651,18 @@ function merge_same_segments!(
     queue
 end
 
+"""
+    calculate_self_annotations!(ev, below; fill_rule)
+
+Calculate `fill_above` and `fill_below` of `ev.self_annotations` from the segment immediately `below` it
+in the sweep status, or from empty space if `below` is `nothing`.
+
+- `EVEN_ODD`: `fill_below` is the `fill_above` of the segment below.
+    `fill_above` is toggled if `ev` represents an odd number of edges.
+- Winding rules (`NON_ZERO`, `POSITIVE`, `NEGATIVE`): the winding number below is the winding number above the segment below.
+    The winding number above is that plus the change in winding across `ev`.
+    Both are converted to fills with `is_filled`.
+"""
 function calculate_self_annotations!(
     ev::SegmentEvent,
     below::Union{Nothing, SegmentEvent}
@@ -577,6 +698,19 @@ function calculate_self_annotations!(
     ev.self_annotations
 end
 
+"""
+    calculate_other_annotations!(ev, below)
+
+Calculate whether `ev` is inside the other polygon, based on the segment immediately `below` it.
+Because segments have already been divided, the other polygon is on both sides of `ev` or neither,
+so `fill_above == fill_below`.
+
+If `below` is `nothing`, `ev` is outside the other polygon.
+If `below` is from the same polygon, copy its `other_annotations.fill_above`;
+otherwise copy its `self_annotations.fill_above`.
+
+Existing annotations (e.g. from merging coincident segments) are not overwritten.
+"""
 function calculate_other_annotations!(ev::SegmentEvent, below::Nothing)
     @debug("[calculate_other_annotations!] ev=$ev")
     @debug("[calculate_other_annotations!] below=$below")
@@ -631,6 +765,11 @@ Table
 
 # For the 16 rows, indicate if (1) in the output shape (non-blank) and (2) which side is filled in that output shape
 
+"""
+    INTERSECTION_CRITERIA
+
+Selection criteria for the intersection: regions filled by both polygons.
+"""
 INTERSECTION_CRITERIA = [
     BLANK, BLANK, BLANK, BLANK,
     BLANK, BELOW, EMPTY, BELOW,
@@ -638,13 +777,24 @@ INTERSECTION_CRITERIA = [
     BLANK, BELOW, ABOVE, BLANK,
 ] # both below, both above, but not all 4
 
+"""
+    INTERSECTION_SEGMENT_CRITERIA
+
+Selection criteria for only the zero-area parts of the intersection..
+The polygons may still overlap elsewhere.
+"""
 INTERSECTION_SEGMENT_CRITERIA = [
     BLANK, BLANK, BLANK, BLANK,
     BLANK, BLANK, EMPTY, BLANK,
     BLANK, EMPTY, BLANK, BLANK,
     BLANK, BLANK, BLANK, BLANK,
-] # empty above and below different segments
+]
 
+"""
+    UNION_CRITERIA
+
+Selection criteria for the union: regions filled by either polygon.
+"""
 UNION_CRITERIA = [
     BLANK, BELOW, ABOVE, BLANK,
     BELOW, BELOW, BLANK, BLANK,
@@ -652,6 +802,11 @@ UNION_CRITERIA = [
     BLANK, BLANK, BLANK, BLANK,
 ] # filled only above/only below. (above1 | above2) ⊻ (below1 | below2)
 
+"""
+    DIFFERENCE_CRITERIA
+
+Selection criteria for the difference: regions filled by the primary polygon but not the secondary polygon.
+"""
 DIFFERENCE_CRITERIA = [
     BLANK, BLANK, BLANK, BLANK,
     BELOW, BLANK, BELOW, BLANK,
@@ -659,6 +814,11 @@ DIFFERENCE_CRITERIA = [
     BLANK, ABOVE, BELOW, BLANK,
 ] # primary - secondary. (above1 && !above2) ⊻  (below1 && !below2)
 
+"""
+    XOR_CRITERIA
+
+Selection criteria for the exclusive or: regions filled by exactly one of the polygons.
+"""
 XOR_CRITERIA = [
     BLANK, BELOW, ABOVE, BLANK,
     BELOW, BLANK, BLANK, ABOVE,

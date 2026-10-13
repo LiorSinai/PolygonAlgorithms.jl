@@ -2,9 +2,17 @@ import Base: ==
 
 """
     Polygon(exterior, holes)
-    Polygon(exterior; holes=holes)
+    Polygon(exterior; holes=[], validate=false, atol=default_atol, rtol=default_rtol)
 
 A representation of a Polygon with holes.
+
+Fields:
+- `exterior`: the outer boundary as a list of points (`Path2D`).
+- `holes`: a list of inner boundaries, each a list of points.
+
+If `validate=true`, the polygon is checked with `validate_polygon` on construction.
+This costs `O((n+m)log(n+m) + H*n)` for an exterior with `n` vertices and `H` holes with `m` vertices in total.
+Construction without validation is `O(1)`.
 """
 struct Polygon{T<:AbstractFloat}
     exterior::Path2D{T}
@@ -214,7 +222,7 @@ end
 """
     translate(polygon::Polygon, t::Point2D)
 
-Translate a set of polygon by delta `t`.
+Translate a polygon, including its holes, by delta `t`.
 """
 function translate(polygon::Polygon, t::Point2D)
     # no type inference if holes is empty
@@ -228,7 +236,7 @@ end
 """
     rotate(polygon::Polygon, θ, p0=(0, 0))
 
-Rotate a polygon by `θ` radians about `p0`.
+Rotate a polygon, including its holes, by `θ` radians about `p0`.
 """
 function rotate(polygon::Polygon, θ::AbstractFloat)
     # no type inference if holes is empty

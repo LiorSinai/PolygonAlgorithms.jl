@@ -21,6 +21,14 @@ References:
 """
 @enum FillRule EVEN_ODD NON_ZERO POSITIVE NEGATIVE
 
+"""
+    calc_winding_top_to_bottom(start, tail)
+
+Change in winding number when a ray crosses the directed edge `start → tail` from top to bottom.
+
+Returns `1` if the edge goes left to right, `-1` if it goes right to left
+and `0` if it is vertical (within `eps(T)`).
+"""
 function calc_winding_top_to_bottom(start::Point2D{T}, tail::Point2D{T}) where T
     # going from top to bottom, we cross right to left from the ray's perspective
     # when the ray goes left to right
@@ -31,6 +39,14 @@ function calc_winding_top_to_bottom(start::Point2D{T}, tail::Point2D{T}) where T
     dx > Int8(0) ? Int8(1) : Int8(-1)
 end
 
+"""
+    calc_winding_left_to_right(start, tail)
+
+Change in winding number when a ray crosses the directed edge `start → tail` from left to right.
+
+Returns `1` if the edge goes bottom to top, `-1` if it goes top to bottom
+and `0` if it is horizontal (within `eps(T)`).
+"""
 function calc_winding_left_to_right(start::Point2D{T}, tail::Point2D{T}) where T
     dy = tail[2] - start[2]
     if abs(dy) <= eps(T)
@@ -39,6 +55,14 @@ function calc_winding_left_to_right(start::Point2D{T}, tail::Point2D{T}) where T
     dy > Int8(0) ? Int8(1) : Int8(-1)
 end
 
+"""
+    get_winding_top_to_bottom!(ev)
+
+Return `ev.self_annotations.winding_top_to_bottom`, calculating it with `calc_winding_top_to_bottom`
+if it is `nothing`.
+The original direction of the edge is recovered from the `forward` annotation.
+The calculated value is cached on both `ev` and `ev.other`.
+"""
 function get_winding_top_to_bottom!(ev::SegmentEvent)
     annotations = ev.self_annotations
     if isnothing(annotations.winding_top_to_bottom)
@@ -52,6 +76,14 @@ function get_winding_top_to_bottom!(ev::SegmentEvent)
     annotations.winding_top_to_bottom
 end
 
+"""
+    get_winding_left_to_right!(ev)
+
+Return `ev.self_annotations.winding_left_to_right`, calculating it with `calc_winding_left_to_right`
+if it is `nothing`.
+The original direction of the edge is recovered from the `forward` annotation.
+The calculated value is cached on both `ev` and `ev.other`.
+"""
 function get_winding_left_to_right!(ev::SegmentEvent)
     annotations = ev.self_annotations
     if isnothing(annotations.winding_left_to_right)
