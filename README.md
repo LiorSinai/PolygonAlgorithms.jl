@@ -79,7 +79,12 @@ For all of the the following `n` and `m` are the number of vertices of the polyg
         - Reference: [Wikipedia](https://en.wikipedia.org/wiki/Gift_wrapping_algorithm).
     - Graham Scan algorithm:
         - Time complexity: `O(n*log(n))`.
-5. `intersect_convex`
+5. `any_intersect`
+    - Operation: find if there any intersections of segments in a plane. Optionally, ignore vertex intersections, which is useful for polygon self-intersections.
+    - Algorithm: Shamos-Hoey algorithm which does a line sweep.
+    - Time complexity: `O(n*log(n))` where `n` is the number of segments.
+    - Reference: [ "17th Annual Symposium on Foundations of Computer Science (sfcs 1976)"](https://euro.ecom.cmu.edu/people/faculty/mshamos/1976GeometricIntersection.pdf).
+6. `intersect_convex`
     - Operation: intersection of convex polygons (polygon clipping). 
     - Chasing edges algorithm (default):
         - Convex only.
@@ -92,18 +97,18 @@ For all of the the following `n` and `m` are the number of vertices of the polyg
         - Time complexity: `O(nm)`.
         - For general non-self-intersecting polygons, the intersection points are valid but the order is not.
     - Martinez-Rueda algorithm (default):
-        - See point 7.
+        - See point 8.
     - Weiler-Atherton algorithm:
-        - See point 6.
-6. `intersect_geometry`
+        - See point 7.
+7. `intersect_geometry`
     - Operation: Intersection of polygons (polygon clipping).
     - Martinez-Rueda algorithm (default).
-        - See point 7.
+        - See point 8.
     - Weiler-Atherton algorithm:
         - Concave and convex but not self-intersecting.
         - Time complexity: `O(nm)`. 
         - For a full explanation, see my [blog post](https://liorsinai.github.io/mathematics/2023/09/30/polygon-clipping.html).
-7. `difference_geometry`, `intersect_geometry`, `union_geometry`, `xor_geometry`
+8. `difference_geometry`, `intersect_geometry`, `union_geometry`, `xor_geometry`
     - Operation: boolean operations on polygons.
     - Algorithm: Martinez-Rueda.
     - Concave, convex and self-intersecting with holes. Can operate on multiple polygons at once.

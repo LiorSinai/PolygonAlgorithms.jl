@@ -1,6 +1,6 @@
 module PolygonAlgorithms
 
-import Base: contains, eltype, getindex, insert!, isless, iterate, merge!, push!, reverse, ==
+import Base: contains, eltype, getindex, insert!, isless, iterate, push!, reverse, ==
 import Base: length, show
 
 include("definitions.jl")
@@ -36,6 +36,7 @@ export bounds
 export area_polygon, first_moment, centroid_polygon, is_counter_clockwise, is_clockwise
 export do_intersect, intersect_geometry, intersect_edges
 export convex_hull
+export any_intersect
 export difference_geometry, union_geometry, xor_geometry, intersect_convex
 
 end
