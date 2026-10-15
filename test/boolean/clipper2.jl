@@ -132,7 +132,7 @@ function execute(test::PolygonTest, polygon1::Vector, polygon2::Union{Vector, No
     end
 end
 
-tests = load_tests(joinpath(@__DIR__, "Polygons.txt"))
+tests = load_tests(joinpath(@__DIR__, "clipper.txt"))
 
 area_ratios = fill(1.0, length(tests))
 count_diffs = fill(Inf, length(tests))
