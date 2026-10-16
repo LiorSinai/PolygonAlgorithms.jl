@@ -8,4 +8,5 @@ using PolygonAlgorithms
     include("boolean/pairs.jl")
     include("boolean/multi.jl")
     include("boolean/polygon_holes.jl")
+    include("boolean/clipper2.jl")
 end

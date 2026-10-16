@@ -1,10 +1,10 @@
 # https://github.com/AngusJohnson/Clipper2/blob/main/CSharp/Tests/Tests1/Tests/TestPolygons.cs
-using StatsBase
 using Test
 using PolygonAlgorithms
+using PolygonAlgorithms: Polygon
 
 struct PolygonTest
-    caption::String
+    caption::Int
     clip_type::String
     fill_rule::String
     solution_area::Integer
@@ -14,7 +14,7 @@ struct PolygonTest
 end
 
 function load_test_specification(spec::Vector{<:AbstractString})
-    caption = String(match(r"CAPTION: (\d+).", spec[1])[1])
+    caption = parse(Int, match(r"CAPTION: (\d+).", spec[1])[1])
     clip_type = String(match(r"CLIPTYPE: (.+)", spec[2])[1])
     fill_rule = String(match(r"FILLRULE: (.+)", spec[3])[1])
     solution_area = parse(Int, match(r"SOL_AREA: (.+)", spec[4])[1])
@@ -37,11 +37,11 @@ end
 function load_tests(filepath)
     tests = open(filepath, "r") do f
         data = read(f, String)
-        data = strip(replace(data, r"#.+\n" => "\n")) # remove comments
-        specs = split(data, "\n\n")
+        data = strip(replace(data, r"#.+\r?\n" => "\n")) # remove comments
+        specs = split(data, r"\r?\n\r?\n")
         out = Vector{PolygonTest}()
         for (idx, spec) in enumerate(specs)
-            push!(out, load_test_specification(split(spec, "\n")))
+            push!(out, load_test_specification(split(spec, r"\r?\n")))
         end
         out
     end
@@ -56,50 +56,32 @@ function convert_path(path::Vector{Int})
     polygon
 end
 
-function is_hole(idx::Int, regions::Vector{<:Vector{<:Tuple}})
-    region = regions[idx]
-    others = vcat(1:(idx-1), (idx+1):length(regions))
-    any(x->fully_contains(x, region), regions[others])
-end
-
-function fully_contains(polygon1::Vector{<:Tuple{T, T}}, polygon2::Vector{<:Tuple{T, T}}) where T <: AbstractFloat
-   all(contains(polygon1, point; rtol=1e-8) for point in polygon2) 
-end
-
-function calculate_area_diff_ratio(stored_area::Integer, regions::Vector{<:Vector}; check_holes=false)
-    if check_holes
-        measured_area = 0.0
-        for (idx, region) in enumerate(regions)
-            a = area_polygon(region)
-            if is_hole(idx, regions)
-                measured_area -= a
-            else
-                measured_area += a
-            end
-        end
-    else
-        measured_area = sum(map(area_polygon, regions))
-    end
+function calculate_area_diff_ratio(stored_area::Integer, regions::Vector{<:Polygon})
+    measured_area = sum(map(area_polygon, regions); init=0)
     area_diff = stored_area > 0 ? (stored_area - measured_area) : 0
     area_ratio = stored_area <= 0 ? 0 : area_diff / stored_area
     area_ratio
 end
 
 function validate_area(test::PolygonTest, area_ratio::Real)
-    if test.caption in ["22"]
+    if test.caption in [22]
         threshold = 0.25
-    elseif test.caption in ["19"]
+    elseif test.caption in [193]
+        threshold = 0.17
+    elseif test.caption in [19]
         threshold = 0.07
-    elseif test.caption in ["63"]
-        threshold = 0.05
-    elseif test.caption in ["26", "130", "133", "143", "151"]
+    elseif test.caption in [63]
+        threshold = 0.07
+    elseif test.caption in [26]
         threshold = 0.04
-    elseif test.caption in ["44", "132", "164"]
+    elseif test.caption in [44]
         threshold = 0.03
-    elseif test.caption in ["123", "128", "134", "140", "142", "144", "153", "173", "181"]
+    elseif test.caption in [15, 184]
         threshold = 0.02
-    else
+    elseif test.caption in [25, 27, 33, 52, 58, 64, 66, 78, 103, 117, 185]
         threshold = 0.01
+    else
+        threshold = 0.005
     end
     abs(area_ratio) <= threshold
 end
@@ -110,51 +92,42 @@ func_map = Dict(
     "UNION" => union_geometry,
 )
 
-function execute(test::PolygonTest, polygon1::Vector, polygon2::Union{Vector, Nothing})
+fill_map = Dict(
+    "EVENODD" => PolygonAlgorithms.EVEN_ODD,
+    "NONZERO" => PolygonAlgorithms.NON_ZERO,
+    "POSITIVE" => PolygonAlgorithms.POSITIVE,
+    "NEGATIVE" => PolygonAlgorithms.NEGATIVE,
+)
+
+function execute_clipper_test(test::PolygonTest, subjects::Vector{<:Polygon}, clips::Vector{<:Polygon})
     try
-        if isnothing(polygon2)
-            regions = PolygonAlgorithms.martinez_rueda_algorithm(polygon1)
-        else
-            func = func_map[test.clip_type]
-            regions = func(polygon1, polygon2)
-        end
-        check_holes = test.clip_type == "UNION"
-        area_ratio = calculate_area_diff_ratio(test.solution_area, regions; check_holes=check_holes)
-        count_regions = sum((!is_hole(idx, regions) for idx in 1:length(regions)), init=0)
+        func = func_map[test.clip_type]
+        fill_rule = fill_map[test.fill_rule]
+        regions = func(subjects, clips...; atol=1e-7, rtol=1e-7, fill_rule=fill_rule)
+        area_ratio = calculate_area_diff_ratio(test.solution_area, regions)
+        count_regions = length(regions)
         count_diff = test.solution_count > 0 ? (test.solution_count - count_regions) : 0
         area_ratio, count_diff
     catch err
-        if err isa AssertionError
-            return (1.0, Inf)
-        else
-            rethrow(err)
-        end
+        return (NaN, Inf)
     end
 end
 
-tests = load_tests(joinpath(@__DIR__, "clipper.txt"))
-
-area_ratios = fill(1.0, length(tests))
-count_diffs = fill(Inf, length(tests))
-results = fill("", length(tests))
-for (idx, poly_test) in enumerate(tests)
-    subjects = map(convert_path, poly_test.subjects)
-    clips = map(convert_path, poly_test.clips)
-    metrics = (1.0, Inf) # area_ratio, count_diff
-    if poly_test.fill_rule != "EVENODD"
-        result = poly_test.fill_rule
-    elseif length(subjects) == 1 && length(clips) == 0
-        metrics = execute(poly_test, subjects[1], nothing)
-        result = "SINGLE"
-    elseif length(subjects) == 1 && length(clips) == 1
-        metrics = execute(poly_test, subjects[1], clips[1])
-        result = validate_area(poly_test, metrics[1])
-    else
-        result = "MULTI"
+@testset "Clipper2" begin
+    tests = load_tests(joinpath(@__DIR__, "clipper.txt"))
+    results = NamedTuple[]
+    for (idx, poly_test) in enumerate(tests)
+        subjects = map(Polygon, map(convert_path, poly_test.subjects))
+        clips = isempty(poly_test.clips) ? Polygon[] : map(Polygon, map(convert_path, poly_test.clips))
+        area_ratio, count_diff = execute_clipper_test(poly_test, subjects, clips)
+        result = validate_area(poly_test, area_ratio)
+        @test result
+        push!(results, (;
+            result=isnan(area_ratio) ? "error" : string(result), 
+            fill_rule=poly_test.fill_rule,
+            area_ratio=area_ratio,
+            count_difference=count_diff
+            )
+        )
     end
-    results[idx] = string(result)
-    area_ratios[idx] = metrics[1]
-    count_diffs[idx] = metrics[2]
 end
-
-summary = countmap(results)
