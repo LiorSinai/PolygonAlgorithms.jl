@@ -43,9 +43,9 @@ function weiler_atherton_algorithm(
     if isempty(regions)
         p1 = get_first_non_intersection_point(list1)
         p2 = get_first_non_intersection_point(list2)
-        if contains(polygon2, p1)
+        if contains(polygon2, p1; atol=atol, rtol=rtol)
             return [polygon1]
-        elseif contains(polygon1, p2)
+        elseif contains(polygon1, p2; atol=atol, rtol=rtol)
             return [polygon2]
         end
     end
@@ -54,8 +54,25 @@ function weiler_atherton_algorithm(
     regions
 end
 
+"""
+    IntersectionType
+
+Classification of a point in the Weiler-Atherton algorithm, from the perspective of `polygon2`:
+- `NONE`: not an intersection.
+- `ENTRY`: `polygon2` enters `polygon1` here.
+- `EXIT`: `polygon2` exits `polygon1` here.
+- `VERTEX`: the polygons touch at this point but `polygon2` does not cross into or out of `polygon1`.
+"""
 @enum IntersectionType NONE ENTRY EXIT VERTEX
 
+"""
+    PointEvent(point, intersection, link, type)
+
+The data for a node in the Weiler-Atherton linked lists.
+`intersection` is true if the point is an intersection between the polygons.
+`link` is the corresponding node on the other polygon's linked list, which is followed when walking a region.
+`type` is an `IntersectionType`.
+"""
 mutable struct PointEvent{T}
     point::Point2D{T}
     intersection::Bool
@@ -63,6 +80,11 @@ mutable struct PointEvent{T}
     type::IntersectionType
 end
 
+"""
+    convert_to_linked_list(polygon)
+
+Convert a polygon to a circular `DoublyLinkedList` of `PointEvent`s with no intersections.
+"""
 function convert_to_linked_list(polygon::Path2D{T}) where T
     data = PointEvent{T}(polygon[1], false, nothing, NONE)
     head = Node(data)
@@ -74,6 +96,12 @@ function convert_to_linked_list(polygon::Path2D{T}) where T
     list
 end
 
+"""
+    get_first_non_intersection_point(polygon::DoublyLinkedList)
+
+The first point in the linked list which is not an intersection.
+If all points are intersections, the last point is returned.
+"""
 function get_first_non_intersection_point(polygon::DoublyLinkedList{<:PointEvent})
     start = polygon.head
     node = start
@@ -83,6 +111,12 @@ function get_first_non_intersection_point(polygon::DoublyLinkedList{<:PointEvent
     node.data.point
 end
 
+"""
+    find_and_insert_intersections!(polygon1, polygon2; atol=default_atol, rtol=default_rtol)
+
+Intersect every edge of `polygon1` with every edge of `polygon2` in `O(nm)` time.
+Each intersection point is inserted into both linked lists in order along the edge
+"""
 function find_and_insert_intersections!(
         polygon1::DoublyLinkedList{PointEvent{T}}, 
         polygon2::DoublyLinkedList{PointEvent{T}};
@@ -106,6 +140,16 @@ function find_and_insert_intersections!(
     end
 end
 
+"""
+    insert_intersection_in_order!(point, tail, head; atol=default_atol)
+
+Insert an intersection `point` between the nodes `tail` and `head`, which were originally adjacent
+but may now have other intersections between them.
+The point is inserted in order of distance from `tail`.
+
+If the point is within `atol` of an existing node, that node is marked as an intersection and returned
+instead of inserting a new node.
+"""
 function insert_intersection_in_order!(
     point::Point2D, tail::Node{<:PointEvent}, head::Node{<:PointEvent}
     ; atol::AbstractFloat=default_atol
@@ -129,6 +173,21 @@ function insert_intersection_in_order!(
     insert!(node, info)
 end
 
+"""
+    link_intersections!(inter1, inter2, edge1, edge2; atol=default_atol)
+
+Link the intersection nodes `inter1` (on `polygon1`) and `inter2` (on `polygon2`)
+and classify the intersection as an `ENTRY`, `EXIT` or `VERTEX`.
+
+Cases:
+1. The intersection is at a vertex of both polygons. Use the angles of the adjacent edges to determine if
+    `polygon2` crosses `polygon1` or only touches it.
+2. `edge2` ends on `edge1`.
+3. `edge2` starts on `edge1`.
+4. The edges cross, or `edge1` starts or ends on `edge2`.
+
+Assumes both polygons are clockwise.
+"""
 function link_intersections!(
         inter1::Node{<:PointEvent}, 
         inter2::Node{<:PointEvent}, 
@@ -174,7 +233,7 @@ function link_intersections!(
 end
 
 function set_link!(inter1::Node{<:PointEvent}, inter2::Node{<:PointEvent}, entering_1_from_2::Bool)
-    if entering_1_from_2 # edge of polygon 2 is entering poylgon 1 
+    if entering_1_from_2 # edge of polygon 2 is entering polygon 1
         inter1.data.link = inter2
         inter2.data.type = ENTRY
     else 
@@ -190,10 +249,17 @@ function set_vertex_intercept!(inter1::Node{<:PointEvent}, inter2::Node{<:PointE
     inter1.data.type = VERTEX
 end
 
+"""
+    walk_linked_lists(polygon2)
+
+Walk along `polygon2` and record a region with `walk_loop` from each unvisited `ENTRY` point.
+
+Returns the regions and a `PointSet` of all visited points.
+"""
 function walk_linked_lists(polygon::DoublyLinkedList{PointEvent{T}}) where T
     regions = Vector{Point2D{T}}[]
     node = polygon.head
-    visited = PointSet()
+    visited = PointSet(Dict{Point2D{T}, Nothing}(), 6)
     while !isnothing(node)
         if !(node.data.point in visited) && node.data.type == ENTRY
             loop, visited_in_loop = walk_loop(node)
@@ -208,6 +274,15 @@ function walk_linked_lists(polygon::DoublyLinkedList{PointEvent{T}}) where T
     regions, visited
 end
 
+"""
+    walk_loop(start)
+
+Record a single region of intersection, starting from the `ENTRY` node `start`.
+At each linked intersection (excluding `VERTEX`s), jump to the other polygon's list.
+Stops when it returns to `start`.
+
+Returns the points of the region and the set of visited nodes.
+"""
 function walk_loop(start::Node{PointEvent{T}}) where T
     loop = Point2D{T}[]
     visited = Set{Node{PointEvent{T}}}()
@@ -243,6 +318,12 @@ function is_vertex_intercept(node::Node{<:PointEvent})
     !isnothing(node2) && !isnothing(node2.data.link) && node2.data.link == node
 end
 
+"""
+    get_unvisited_intercepts(polygon, visited)
+
+Return each intersection point on `polygon` that was not visited while walking the regions, as a single point region.
+These are points where the polygons touch but do not overlap.
+"""
 function get_unvisited_intercepts(polygon::DoublyLinkedList{PointEvent{T}}, visited::PointSet{T}) where T
     regions = Vector{Point2D{T}}[]
     node = polygon.head
@@ -255,6 +336,14 @@ function get_unvisited_intercepts(polygon::DoublyLinkedList{PointEvent{T}}, visi
     regions
 end
 
+"""
+    has_edge_overlap(vertex, prev1, next1, prev2, next2)
+
+At a common `vertex`, check if the edges of `polygon2` to `next2` and from `prev2` overlap with
+either edge of `polygon1`. Midpoints are used to compare edges of different lengths.
+
+Returns `(next2_on_edge1, prev2_on_edge1)`.
+"""
 function has_edge_overlap(vertex::Point2D, prev1::Point2D, next1::Point2D, prev2::Point2D, next2::Point2D)
     tail_edge1 = (prev1, vertex)
     head_edge1 = (vertex, next1)
@@ -281,6 +370,16 @@ function segment_midpoint(segment::Segment2D)
     (x, y)
 end
 
+"""
+    in_plane(edge, point1, point2)
+
+For the two edges `edge[1] → edge[2] → edge[3]` meeting at the vertex `edge[2]`, check if `point1` and `point2`
+lie in the interior angle between the edges. Assumes the interior is clockwise from the edges.
+
+Angles are compared instead of half-planes because a point can be in one half-plane but outside the polygon.
+
+Returns `(point1_inside, point2_inside)`.
+"""
 function in_plane(edge::NTuple{3, Point2D}, point1::Point2D, point2::Point2D)
     # assume half-plane is clockwise of the edge
     # if in half-planes of edge[1:2] && edge[2:3] then definitely in the plane.
@@ -301,6 +400,11 @@ function in_plane(edge::NTuple{3, Point2D}, point1::Point2D, point2::Point2D)
     tail2_in_1, head2_in_1
 end
 
+"""
+    atan_pos(y, x)
+
+`atan(y, x)` mapped to the positive range `[0, 2π)`.
+"""
 function atan_pos(y::Real, x::Real)
     angle = atan(y, x)
     angle < 0 ? angle + 2π : angle

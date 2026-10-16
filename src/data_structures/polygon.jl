@@ -2,9 +2,17 @@ import Base: ==
 
 """
     Polygon(exterior, holes)
-    Polygon(exterior; holes=holes)
+    Polygon(exterior; holes=[], validate=false, atol=default_atol, rtol=default_rtol)
 
 A representation of a Polygon with holes.
+
+Fields:
+- `exterior`: the outer boundary as a list of points (`Path2D`).
+- `holes`: a list of inner boundaries, each a list of points.
+
+If `validate=true`, the polygon is checked with `validate_polygon` on construction.
+This costs `O((n+m)log(n+m) + H*n)` for an exterior with `n` vertices and `H` holes with `m` vertices in total.
+Construction without validation is `O(1)`.
 """
 struct Polygon{T<:AbstractFloat}
     exterior::Path2D{T}
@@ -14,9 +22,46 @@ end
 ==(polygon1::Polygon, polygon2::Polygon) = 
     (polygon1.exterior == polygon2.exterior) && (polygon1.holes == polygon2.holes)
 
+function isless(poly1::Polygon, poly2::Polygon)
+    # used for sorting. See cyclic_set_equality
+    isless((poly1.exterior, poly1.holes), (poly2.exterior, poly2.holes))
+end
+
+function cyclic_equality(polygon1::Polygon, polygon2::Polygon)
+    if !cyclic_equality(polygon1.exterior, polygon2.exterior)
+        return false
+    elseif !cyclic_set_equality(polygon1.holes, polygon2.holes)
+        return false
+    end
+    true
+end
+
+function _normalise_polygon(p::Polygon; digits::Int=6)
+    Polygon(
+        _normalise_points(p.exterior; digits=digits),
+        holes=map(h->_normalise_points(h; digits=digits), p.holes)
+    )
+end
+
+function are_equivalent_polygons(
+    a::AbstractVector{<:Polygon}, b::AbstractVector{<:Polygon};
+    digits::Int=6
+    )
+    a = map(p->_normalise_polygon(p; digits=digits), a)
+    b = map(p->_normalise_polygon(p; digits=digits), b)
+    cyclic_set_equality(a, b; match_reverse=false)
+end
+
+function minimal_rotation(p::Polygon)
+    Polygon(
+        minimal_rotation(p.exterior),
+        sort!(minimal_rotation.(p.holes))
+    )
+end
+
 """
     validate_polygon(polygon::Polygon)
-    validate_polygon(exterior::Path2D; holes=Path2D{T}[]; atol=default_atol)
+    validate_polygon(exterior::Path2D; holes=Path2D{T}[], atol=default_atol, rtol=default_rtol)
     
 The following checks are done:
 1. The exterior and each hole has 3 or more points.
@@ -27,23 +72,30 @@ The following additional checks are not done:
 1. Holes should not intersect each other.
 2. No nested holes: holes should not be inside other holes.
 """
-function validate_polygon(exterior::Path2D{T}; holes::Vector{<:Path2D}=Vector{Point2D{T}}[], atol::AbstractFloat=default_atol) where T
+function validate_polygon(
+    exterior::Path2D{T}
+    ; holes::Vector{<:Path2D}=Vector{Point2D{T}}[]
+    , atol::AbstractFloat=default_atol
+    , rtol::AbstractFloat=default_rtol
+    ) where T
     @assert length(exterior) > 2 "exterior requires at least 3 points."
-    queue = convert_to_event_queue(exterior)
-    @assert !any_intersect(queue; atol=atol, include_vertices=false) "Invalid exterior: edges self-intersect."
+    queue = convert_to_event_queue(exterior; atol=atol, rtol=rtol)
+    @assert !any_intersect(queue; atol=atol, rtol=rtol, include_vertices=false) "Invalid exterior: edges self-intersect."
     for (idx, hole) in enumerate(holes)
         @assert length(hole) > 2 "Invalid hole $(idx): requires at least 3 points."
-        queue_h = convert_to_event_queue(hole)
-        @assert !any_intersect(queue_h; atol=atol, include_vertices=false) "Invalid hole $(idx): edges self-intersect."
+        queue_h = convert_to_event_queue(hole; atol=atol, rtol=rtol)
+        @assert !any_intersect(queue_h; atol=atol, rtol=rtol, include_vertices=false) "Invalid hole $(idx): edges self-intersect."
         for event in queue
-            insert_in_order!(queue_h, event; lt=compare_events)
+            insert_in_order!(queue_h, event; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
         end
-        @assert !any_intersect(queue_h; atol=atol, include_vertices=false) "Hole $(idx) intersects with the exterior."
+        @assert !any_intersect(queue_h; atol=atol, rtol=rtol, include_vertices=false) "Hole $(idx) intersects with the exterior."
         j = 1
-        while (j < length(hole)) && on_border(exterior, hole[j])
+        while (j < length(hole)) && on_border(exterior, hole[j]; atol=atol, rtol=rtol)
             j += 1
         end
-        @assert contains(exterior, hole[j]; atol=atol, on_border_is_inside=false) "Hole $(idx) is outside the polygon."
+        @assert contains(
+            exterior, hole[j]; atol=atol, rtol=rtol, on_border_is_inside=false
+        ) "Hole $(idx) is outside the polygon."
     end
     true
 end
@@ -54,16 +106,17 @@ function Polygon(
     exterior::Path2D{T}
     ; holes::Vector{<:Path2D}=Vector{Point2D{T}}[],
     validate::Bool=false,
-    atol::AbstractFloat=default_atol) where T
+    atol::AbstractFloat=default_atol,
+    rtol::AbstractFloat=default_rtol) where T
     if validate
-        validate_polygon(exterior; holes=holes, atol=atol)
+        validate_polygon(exterior; holes=holes, atol=atol, rtol=rtol)
     end
     Polygon{T}(exterior, holes)
 end
 
 
 """
-    fully_contains(polygon1::Path2D, polygon2::Path2D)
+    fully_contains(polygon1::Path2D, polygon2::Path2D; [atol, rtol])
 
 A `polygon1` fully contains another `polygon2` if:
     1. None of their segments intersect. However, they can touch.
@@ -74,20 +127,23 @@ The polygons are assumed to not self-intersect.
 The algorithm runs in `O((n+m+k)log(n+m))` time where `n` and `m` are the number of vertices of `polygon1` 
 and `polygon2` respectively and `k` is the total number of intersections 
 """
-function fully_contains(polygon1::Path2D, polygon2::Path2D; atol::AbstractFloat=default_atol)
-    queue = convert_to_event_queue(polygon1; atol=atol)
-    events2 = convert_to_event_queue(polygon2; primary=false, atol=atol)
+function fully_contains(
+    polygon1::Path2D, polygon2::Path2D
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    )
+    queue = convert_to_event_queue(polygon1; atol=atol, rtol=rtol)
+    events2 = convert_to_event_queue(polygon2; primary=false, atol=atol, rtol=rtol)
     for event in events2
-        insert_in_order!(queue, event; lt=compare_events)
+        insert_in_order!(queue, event; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
     end
-    if any_intersect(queue; include_vertices=false)
+    if any_intersect(queue; include_vertices=false, atol=atol, rtol=rtol)
         return false
     end
     j = 1
-    while (j < length(polygon2)) && on_border(polygon1, polygon2[j])
+    while (j < length(polygon2)) && on_border(polygon1, polygon2[j]; atol=atol, rtol=rtol)
         j += 1
     end
-    contains(polygon1, polygon2[j]; atol=atol, on_border_is_inside=false)
+    contains(polygon1, polygon2[j]; atol=atol, rtol=rtol, on_border_is_inside=false)
 end
 
 """
@@ -98,11 +154,11 @@ A rectangle which bounds the polygon, given as `(xmin, ymin, xmax, ymax)`.
 bounds(polygon::Polygon) = bounds(polygon.exterior)
 
 """
-    bounds(polygons::Polygon)
+    bounds(polygons::Vector{<:Polygon})
 
 A rectangle which bounds all the polygons, given as `(xmin, ymin, xmax, ymax)`.
 """
-bounds(polygons::Vector{<:Polygon}) = bounds(map(p -> p.exterior), polygons)
+bounds(polygons::Vector{<:Polygon}) = bounds(map(p -> p.exterior, polygons))
 
 first_moment(polygon) = first_moment(polygon.exterior) + sum(first_moment, polygon.holes, init=0.0)
 
@@ -166,7 +222,7 @@ end
 """
     translate(polygon::Polygon, t::Point2D)
 
-Translate a set of polygon by delta `t`.
+Translate a polygon, including its holes, by delta `t`.
 """
 function translate(polygon::Polygon, t::Point2D)
     # no type inference if holes is empty
@@ -180,7 +236,7 @@ end
 """
     rotate(polygon::Polygon, θ, p0=(0, 0))
 
-Rotate a polygon by `θ` radians about `p0`.
+Rotate a polygon, including its holes, by `θ` radians about `p0`.
 """
 function rotate(polygon::Polygon, θ::AbstractFloat)
     # no type inference if holes is empty

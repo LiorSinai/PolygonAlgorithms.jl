@@ -39,6 +39,12 @@ function bounds(polygons::Vector{<:Path2D})
    (xmin, ymin, xmax, ymax)
 end
 
+"""
+    box(xmin, ymin, xmax, ymax)
+
+A clockwise rectangle with the given bounds, starting at the bottom left corner.
+Can be used with `bounds` as `box(bounds(polygon)...)`.
+"""
 function box(xmin::T, ymin::T, xmax::T, ymax::T) where T
     [(xmin, ymin), (xmin, ymax), (xmax, ymax), (xmax, ymin)]
 end

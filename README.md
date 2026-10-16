@@ -1,5 +1,15 @@
 # Polygon Algorithms
 
+1. [Description](#description)
+    1. [Example](#example)
+    1. [Representation](#representation)
+1. [Polygon Functions](#polygon-functions)
+1. [Segments to Paths](#segments-to-paths)
+1. [Fill rules](#fill-rules)
+1. [Robustness](#Robustness)
+1. [Installation](#installation)
+1. [Related](#related)
+
 Implementations of Polygon algorithms.
 
 <p align="center">
@@ -8,22 +18,6 @@ Implementations of Polygon algorithms.
 </p>
 
 ## Description
-### Representation
-
-There are several ways to represent polygons:
-- As a list of points (tuples). The last point is assumed to share an edge with the first: `n + 1 = 1`.
-- With the internal `PolygonAlgorithms.Polygon` struct. This struct consists of an `exterior` and `holes`. Each sub-object must be a list of points (tuples). The holes should be properly contained in the polygon.
-Validation is not performed by default. Pass `validate=true` to the constructor to enable it.
-- As a list of segments. This representation naturally allows multi-polygons and holes. 
-It is used internally for some algorithms including the `martinez_rueda_algorithm`.
-
-For indexing use `x_coords` and `y_coords`. 
-Common broadcasting operations are supplied such as `translate` and `rotate`.
-
-An alternative representation for polygons is as 2&times;N matrices. 
-This is not used here, but can be more efficient for indexing and broadcasting operations such as translation and rotation.
-To convert to this representation and back, use `matrix_to_points` or `points_to_matrix`.
-
 ### Example
 
 ```julia
@@ -47,7 +41,20 @@ idxs = vcat(1:length(poly), 1)
 plot(x_coords(poly, idxs), y_coords(poly, idxs))
 ```
 
+### Representation
+
+There are several ways to represent polygons:
+- As a path given as a vector of points (tuples). The last point is assumed to share an edge with the first: `n + 1 = 1`.
+    - For indexing use `x_coords` and `y_coords`. 
+- With the internal `PolygonAlgorithms.Polygon` struct. This struct consists of an `exterior` and `holes`. Each sub-object must be a list of points (tuples). The holes should be properly contained in the polygon.
+Validation is not performed by default. Pass `validate=true` to the constructor to enable it.
+- As a list of segments. This representation naturally allows multi-polygons and holes. 
+It is used internally for algorithms including the `martinez_rueda_algorithm`. Graph face computation is used to link segments back to a path. See the [Segments to paths](#segments-to-paths) section for more detail.
+- As a 2&times;N matrix for `N` points. This is not used here, but can be more efficient for indexing and broadcasting operations such as translation and rotation. To convert to this representation and back, use `matrix_to_points` or `points_to_matrix`.
+
 ## Polygon Functions
+
+Common broadcasting operations are supplied such as `translate` and `rotate`.
 
 For all of the the following `n` and `m` are the number of vertices of the polygons.
 
@@ -58,7 +65,7 @@ For all of the the following `n` and `m` are the number of vertices of the polyg
     - Reference: [Wikipedia](https://en.wikipedia.org/wiki/Polygon#Area).
 2. `bounds`
     - Operation: bounding rectangle of a polygon.
-    - Algorithm: linear serach.
+    - Algorithm: linear search.
     - Time complexity: `O(n)`.
 3. `contains`
     - Operation: point in polygon.
@@ -72,7 +79,12 @@ For all of the the following `n` and `m` are the number of vertices of the polyg
         - Reference: [Wikipedia](https://en.wikipedia.org/wiki/Gift_wrapping_algorithm).
     - Graham Scan algorithm:
         - Time complexity: `O(n*log(n))`.
-5. `intersect_convex`
+5. `any_intersect`
+    - Operation: find if there any intersections of segments in a plane. Optionally, ignore vertex intersections, which is useful for polygon self-intersections.
+    - Algorithm: Shamos-Hoey algorithm which does a line sweep.
+    - Time complexity: `O(n*log(n))` where `n` is the number of segments.
+    - Reference: [ "17th Annual Symposium on Foundations of Computer Science (sfcs 1976)"](https://euro.ecom.cmu.edu/people/faculty/mshamos/1976GeometricIntersection.pdf).
+6. `intersect_convex`
     - Operation: intersection of convex polygons (polygon clipping). 
     - Chasing edges algorithm (default):
         - Convex only.
@@ -85,28 +97,69 @@ For all of the the following `n` and `m` are the number of vertices of the polyg
         - Time complexity: `O(nm)`.
         - For general non-self-intersecting polygons, the intersection points are valid but the order is not.
     - Martinez-Rueda algorithm (default):
-        - See point 7.
+        - See point 8.
     - Weiler-Atherton algorithm:
-        - See point 6.
-6. `intersect_geometry`
+        - See point 7.
+7. `intersect_geometry`
     - Operation: Intersection of polygons (polygon clipping).
     - Martinez-Rueda algorithm (default).
-        - See point 7.
+        - See point 8.
     - Weiler-Atherton algorithm:
         - Concave and convex but not self-intersecting.
         - Time complexity: `O(nm)`. 
         - For a full explanation, see my [blog post](https://liorsinai.github.io/mathematics/2023/09/30/polygon-clipping.html).
-7. `difference_geometry`, `intersect_geometry`, `union_geometry`, `xor_geometry`
+8. `difference_geometry`, `intersect_geometry`, `union_geometry`, `xor_geometry`
     - Operation: boolean operations on polygons.
     - Algorithm: Martinez-Rueda.
     - Concave, convex and self-intersecting with holes. Can operate on multiple polygons at once.
-    - Annotates each segments with 4 fill criteria: filled by itself above and/or below, and filled by the other polygon above and/or below. Once this has been accomplished, it is trivial to select segments which match the given operation. These segments are then combined to form the final polygon.
+    - Annotates each segments with 4 fill criteria: filled by itself above and/or below, and filled by the other polygon above and/or below. Once this has been accomplished, it is trivial to select segments which match the given operation. These segments are then combined to form the final polygon(s). See the section [Segments to paths](#segments-to-paths) for more detail. 
     - Time complexity: `O((n+m+k)log(n+m))`. 
     - Reference: https://www.researchgate.net/publication/220163820_A_new_algorithm_for_computing_Boolean_operations_on_polygons
     - Blog post: https://sean.fun/a/polygon-clipping-pt2/
     <p align="center">
     <img src="images/martinez_reuda.png" width="80%" style="padding:5px"/>
    </p>
+
+## Segments to paths
+
+Segments are converted back to paths and polygons by computing the faces of a graph. This has several implications.
+- It requires casting to a grid to match starting and end points of segments. This is achieved by rounding any decimal places, by default to the 6th decimal place.
+- Every zero area polygon (lines) will return a single face. 
+- For every non-zero area polygon, the graph will always have one counter-clockwise exterior and one or more clockwise interiors. Every area in the graph is therefore counted twice. There are two methods to reduce the faces in half:
+    - `MERGE_FACES`: all exterior faces that are not holes and holes are interior faces that are holes.
+    - `SPLIT_FACES`: all interior faces that are not holes that are on the exterior and interior faces that are holes that are not on the exterior.
+
+The following is a comparison of the two while running `difference(subject, clip; face_selection=method)`:
+<p align="center">
+  <img src="images/face_selection.png" width="80%" style="padding:5px"/>
+</p>
+
+The functions which implement this are `PolygonAlgorithms.segments_to_paths` and `PolygonAlgorithms.segments_to_polygons`.
+
+## Fill Rules
+
+There are different rules to determine whether or not the interior of a self-intersecting polygon is considered inside the polygon or a hole.
+The Martinez-Rueda algorithm here implements the common even-odd and non-zero fill rules, as will as the less used positive and negative fill rules.
+
+These rules are based on the winding number for each interior which is calculated as follows:
+1. Construct a ray heading out from a given point `P` in any direction towards infinity.
+1. Find all the intersections of the contour `C` with this ray. 
+1. Score up the winding number as follows:
+    - for every clockwise intersection (line heading left to right through the ray) subtract 1.
+    - for every counter-clockwise intersection (line heading right to left through the ray) add 1.
+1. Use the winding number to determine if filled or not.
+    - `EVEN_ODD`: alternative between filled and not filled.
+    - `NON_ZERO`: non-zero windings are filled.
+    - `POSITIVE`: only positive windings are filled (top to bottom ray).
+    - `NEGATIVE`: only negative winding are filled (top to bottom ray).
+
+Here is are examples of the even-odd and non-zero rules combined with the different face selection strategies:
+<p align="center">
+  <img src="images/fill_rule_9.png" width="45%" style="padding:5px"/>
+  <img src="images/fill_rule_star.png" width="45%"  style="padding:5px"/> 
+</p>
+
+See https://www.angusj.com/clipper2/Docs/Units/Clipper/Types/FillRule.htm and https://en.wikipedia.org/wiki/Nonzero-rule.
 
 ## Robustness
 
@@ -118,11 +171,16 @@ They take the default values of `PolygonAlgorithms.default_atol` and `PolygonAlg
 
 Several core functions make use of `atol` including:
 - `PolygonAlgorithms.is_same_point`: two points are the same if the straight line distance separating them is less than `atol`.
-- `PolygonAlgorithms.get_orientation`: three points are colinear if the [cross product](https://mathworld.wolfram.com/CrossProduct.html) is less than `atol`.
 - `PolygonAlgorithms.intersect_geometry`: for the line method, two lines are considered parallel if the absolute value of the determinant of the intersection matrix is less than `atol`.
 
 Some functions make use of `rtol` including:
-- `PolygonAlgorithms.intersect_geometry`: for the segment method, an intersection is considered valid even if the segments intersect a proportion `rtol` outside of the line length.
+- `PolygonAlgorithms.get_orientation`: three points are colinear if the absolute value of the [cross product](https://mathworld.wolfram.com/CrossProduct.html) is less than `atol + rtol * scale`, where `scale` is the sum of the absolute values of the two terms of the cross product.
+- `PolygonAlgorithms.intersect_geometry`: for the segment method, two segments are considered parallel if the absolute value of the determinant is less than `atol + rtol * scale`.
+An intersection is considered valid even if the segments intersect a proportion `rtol` outside of the segment length.
+
+Other uses of tolerances:
+- Vertical segments are detected with machine precision, `eps(T)`, not `atol`.
+- `atol` sets the number of decimal places that output points are rounded to. See [Segments to paths](#segments-to-paths).
 
 ### Case studies
 
@@ -138,15 +196,16 @@ polygon1 = [
     (0.0, 18.0), (3.0, 5.0), (15.0, 5.0), (5.0, 0.0), (10.0, -12.0), 
     (0.0, -2.0), (-10.0, -12.0), (-5.0, 0.0), (-15.0, 5.0), (-3.0, 5.0)
 ]
-polygon2 = PolygonAlgorithms.rotate(poly1, π/1.0, (0.0, 0.0));
+polygon2 = PolygonAlgorithms.rotate(polygon1, π/1.0, (0.0, 0.0));
 ```
 
 Note that the second polygon is computationally rotated. 
-This is numerically accurate up to approximately `eps(Float64)=2.2e-16`.
+This is numerically accurate up to approximately `eps(Float64)=2.2e-16` times the size of the coordinates, which is about `2e-15` here.
 Therefore, the points will not exactly align below this tolerance.
 Because of this, running `intersect_geometry(polygon1, polygon2; atol=atol)` will only succeed for `atol>=1e-14`. 
 
-In the next example, the tolerances are the cause of the failure:
+In the next example, the tolerances are the cause of the failure.
+This example is from [Clipper2: test 141](https://github.com/AngusJohnson/Clipper2/blob/main/Tests/Polygons.txt):
 
 <p align="center">
   <img src="images/robustness_segments.png" width="45%" style="padding:5px"/>
@@ -162,11 +221,12 @@ segment3 = ((1180.0, 170.0), (1260.0, 1040.0))
 These segments look like they intersect at a single point. 
 However, upon magnification by a factor of 1.5 million, it is evident that they intersect at 3 different points.
 The two black segments - the top half of `segment3` (green) and a middle section of `segment1` (blue) - at this magnification do not intersect.
-However, because the first segment is much larger than the first, they are considered to intersect for `rtol<=1e-6`.
-Yet if we do use `rtol<=1e-6`, this will cause the Martinez-Rueda algorithm to fail.
+However, the top half of `segment3` (length ~209) is much longer than the middle section of `segment1` (length ~5e-5).
+Because `rtol` is relative to the segment length, it allows an intersection about `1e-6 * 209 = 2e-4` beyond either end of the longer segment, which is larger than the gap between them.
+Therefore they are considered to intersect for `rtol>=1e-6`.
+Yet if we do use `rtol>=1e-6`, including the default, this will cause the Martinez-Rueda algorithm to fail.
 This is because it maintains a precise order of segments and their intersections, and will fail if these are classified incorrectly.
 
-This example is from [Clipper2: test 141](https://github.com/AngusJohnson/Clipper2/blob/main/Tests/Polygons.txt).
 [Clipper2](https://www.angusj.com/clipper2/Docs/Robustness.htm) has a different approach to robustness: it casts all numbers to integers.
 Hence for this example the intersections will be collapsed to a single point, and the segments adjusted slightly.
 This means that the two halves of each segment will no longer lie perfectly on a straight line.
@@ -185,7 +245,7 @@ Optionally, tests can be run with:
 (@v1.x) pkg> test PolygonAlgorithms
 ```
 
-For locally development: download the GitHub repository. Then in the Julia REPL:
+For local development: download the GitHub repository. Then in the Julia REPL:
 ```
 julia> ] #enter package mode
 (@v1.x) pkg> dev path\\to\\PolygonAlgorithms

@@ -1,7 +1,8 @@
 """
     contains(vertices, point;
         on_border_is_inside=true,
-        atol=default_atol
+        atol=default_atol,
+        rtol=default_rtol,
     )
 
 Runs in `O(n)` time where `n=length(vertices)`.
@@ -14,7 +15,10 @@ intersection can be found for a skipped vertex if needed.
 """
 function contains(
     vertices::Path2D, point::Point2D{T}
-    ; on_border_is_inside::Bool=true, rtol::AbstractFloat=default_rtol, atol::AbstractFloat=default_atol
+    ; 
+    on_border_is_inside::Bool=true,
+    rtol::AbstractFloat=default_rtol,
+    atol::AbstractFloat=default_atol,
     ) where T
     n = length(vertices)
     num_intersections = 0
@@ -24,12 +28,8 @@ function contains(
     extreme_right = (maximum(x) + one(T), point[2])
 
     # step 1: point intersects a vertex or edge
-    for i in 1:n
-        next_i = (i % n) + 1
-        segment = (vertices[i], vertices[next_i])
-        if (point == segment[1]) || on_segment(point, segment; atol=atol)
-            return on_border_is_inside
-        end
+    if on_border(vertices, point; atol=atol, rtol=rtol)
+        return on_border_is_inside
     end
 
     # step 3: check intersections with vertices
@@ -61,9 +61,9 @@ function contains(
         edge = (vertices[s], vertices[next_s])
         intersect = false
         if skipped_right # 3b.ii
-            intersect = do_intersect(edge, (extreme_left, extreme_right); atol=atol)
+            intersect = do_intersect(edge, (extreme_left, extreme_right); atol=atol, rtol=rtol)
         elseif (next_s - s) == 1 || (s == n && next_s == 1) # 3b.i
-            intersect = do_intersect(edge, (point, extreme_right); atol=atol)
+            intersect = do_intersect(edge, (point, extreme_right); atol=atol, rtol=rtol)
         end
         num_intersections += intersect
         if next_s <= s  # gone in a full loop
@@ -75,7 +75,7 @@ function contains(
 end
 
 """
-    on_border(vertices, point; atol=default_atol)
+    on_border(vertices, point; atol=default_atol, rtol=default_rtol)
 
 Return true if `point` lies on any segment between the `vertices`.
 
@@ -83,14 +83,13 @@ Runs in `O(n)` time where `n=length(vertices)`.
 """
 function on_border(
     vertices::Path2D, point::Point2D{T}
-    ; atol::AbstractFloat=default_atol
+    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) where T
     n = length(vertices)
-    # step 1: point intersects a vertex or edge
     for i in 1:n
         next_i = (i % n) + 1
         segment = (vertices[i], vertices[next_i])
-        if on_segment(point, segment; atol=atol)
+        if on_segment(point, segment; atol=atol, rtol=rtol)
             return true
         end
     end

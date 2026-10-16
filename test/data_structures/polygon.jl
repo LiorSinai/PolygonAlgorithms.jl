@@ -2,7 +2,7 @@
 using PolygonAlgorithms: Polygon, fully_contains, validate_polygon
 using PolygonAlgorithms: x_coords, y_coords, translate, rotate
 
-@testset "Polygon data structure" begin
+@testset "Polygon" begin
 
 @testset "area-centroid holes" begin
     polygon = Polygon(

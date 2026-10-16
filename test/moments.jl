@@ -1,4 +1,4 @@
-@testset "area-centroids" begin
+@testset "moments" begin
 
 @testset "area rectangle" begin
     h, w = 2.0, 3.0
