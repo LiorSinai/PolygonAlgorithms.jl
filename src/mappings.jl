@@ -94,11 +94,11 @@ This usually takes a few passes, but in the worst case it is `O(f*n)` where `f` 
 if each pass only adds one face.
 """
 function segments_to_paths(
-    segments::Union{AbstractVector{<:SegmentEvent}, AbstractVector{<:AnnotatedSegment}}
+    segments::Union{AbstractVector{<:SegmentEvent{T}}, AbstractVector{<:AnnotatedSegment{T}}}
     ;
     atol::AbstractFloat=default_atol,
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
-    )
+    ) where T
     # event → segments
     graph = directed_graph_from_segments(segments; digits=decimal_tolerance(atol))
     # faces → paths
@@ -127,7 +127,10 @@ function segments_to_paths(
             holes = interiors[are_holes]
             # for exterior faces, choose only inner faces on the exterior
             # as well as any connected exterior faces that are possibly inside the exteriors in holes
-            exterior_points = Set(vcat(polygons[are_exteriors][not_holes]...))
+            exterior_points = Set{Point2D{T}}()
+            for points in polygons[are_exteriors][not_holes]
+                union!(exterior_points, points)
+            end
             exteriors = empty(inner_faces)
             expand_frontier = true
             while expand_frontier
@@ -137,7 +140,7 @@ function segments_to_paths(
                     if any(pt -> (pt in exterior_points), candidate)
                         exterior = popat!(inner_faces, idx)
                         push!(exteriors, reverse!(exterior))
-                        push!(exterior_points, exterior...)
+                        union!(exterior_points, exterior)
                         expand_frontier = true
                     end
                 end
