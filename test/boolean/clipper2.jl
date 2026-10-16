@@ -57,7 +57,7 @@ function convert_path(path::Vector{Int})
 end
 
 function calculate_area_diff_ratio(stored_area::Integer, regions::Vector)
-    measured_area = sum(map(area_polygon, regions); init=0)
+    measured_area = sum(map(first_moment, regions); init=0.0) # first moment is signed
     area_diff = stored_area > 0 ? (stored_area - measured_area) : 0
     area_ratio = stored_area <= 0 ? 0 : area_diff / stored_area
     area_ratio
