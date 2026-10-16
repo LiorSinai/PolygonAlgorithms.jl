@@ -23,9 +23,9 @@ function contains(
     n = length(vertices)
     num_intersections = 0
 
-    x = x_coords(vertices)
-    extreme_left =  (minimum(x) - one(T), point[2])
-    extreme_right = (maximum(x) + one(T), point[2])
+    min_max = extrema(first, vertices)
+    extreme_left =  (min_max[1] - one(T), point[2])
+    extreme_right = (min_max[2] + one(T), point[2])
 
     # step 1: point intersects a vertex or edge
     if on_border(vertices, point; atol=atol, rtol=rtol)
