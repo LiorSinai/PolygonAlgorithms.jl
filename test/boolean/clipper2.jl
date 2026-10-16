@@ -56,14 +56,14 @@ function convert_path(path::Vector{Int})
     polygon
 end
 
-function calculate_area_diff_ratio(stored_area::Integer, regions::Vector{<:Polygon})
+function calculate_area_diff_ratio(stored_area::Integer, regions::Vector)
     measured_area = sum(map(area_polygon, regions); init=0)
     area_diff = stored_area > 0 ? (stored_area - measured_area) : 0
     area_ratio = stored_area <= 0 ? 0 : area_diff / stored_area
     area_ratio
 end
 
-function validate_area(test::PolygonTest, area_ratio::Real)
+function area_threshold(test::PolygonTest)
     if test.caption in [22]
         threshold = 0.25
     elseif test.caption in [193]
@@ -83,7 +83,7 @@ function validate_area(test::PolygonTest, area_ratio::Real)
     else
         threshold = 0.005
     end
-    abs(area_ratio) <= threshold
+    threshold
 end
 
 func_map = Dict(
@@ -99,35 +99,39 @@ fill_map = Dict(
     "NEGATIVE" => PolygonAlgorithms.NEGATIVE,
 )
 
-function execute_clipper_test(test::PolygonTest, subjects::Vector{<:Polygon}, clips::Vector{<:Polygon})
-    try
-        func = func_map[test.clip_type]
-        fill_rule = fill_map[test.fill_rule]
-        regions = func(subjects, clips...; atol=1e-7, rtol=1e-7, fill_rule=fill_rule)
-        area_ratio = calculate_area_diff_ratio(test.solution_area, regions)
-        count_regions = length(regions)
-        count_diff = test.solution_count > 0 ? (test.solution_count - count_regions) : 0
-        area_ratio, count_diff
-    catch err
-        return (NaN, Inf)
-    end
+Base.@kwdef mutable struct ClipperResult
+    caption::Int
+    fill_rule::String
+    result::String = "error"
+    area_ratio::Float64 = NaN
+    count_difference::Float64 = Inf
+end
+
+function execute_clipper_test(test::PolygonTest, subjects::Vector, clips::Vector)
+    func = func_map[test.clip_type]
+    fill_rule = fill_map[test.fill_rule]
+    regions = func(subjects, clips...; atol=1e-7, rtol=1e-7, fill_rule=fill_rule)
+    area_ratio = calculate_area_diff_ratio(test.solution_area, regions)
+    count_regions = length(regions)
+    count_diff = test.solution_count > 0 ? (test.solution_count - count_regions) : 0
+    area_ratio, count_diff
 end
 
 @testset "Clipper2" begin
     tests = load_tests(joinpath(@__DIR__, "clipper.txt"))
-    results = NamedTuple[]
+    results = ClipperResult[]
     for (idx, poly_test) in enumerate(tests)
-        subjects = map(Polygon, map(convert_path, poly_test.subjects))
-        clips = isempty(poly_test.clips) ? Polygon[] : map(Polygon, map(convert_path, poly_test.clips))
-        area_ratio, count_diff = execute_clipper_test(poly_test, subjects, clips)
-        result = validate_area(poly_test, area_ratio)
-        @test result
-        push!(results, (;
-            result=isnan(area_ratio) ? "error" : string(result), 
-            fill_rule=poly_test.fill_rule,
-            area_ratio=area_ratio,
-            count_difference=count_diff
-            )
-        )
+        @testset "caption $(poly_test.caption)" begin
+            record = ClipperResult(caption=poly_test.caption, fill_rule=poly_test.fill_rule)
+            push!(results, record)
+            subjects = map(Polygon, map(convert_path, poly_test.subjects))
+            clips = isempty(poly_test.clips) ? empty(subjects) : map(Polygon, map(convert_path, poly_test.clips))
+            area_ratio, count_diff = execute_clipper_test(poly_test, subjects, clips)
+            threshold = area_threshold(poly_test)
+            @test abs(area_ratio) <= threshold
+            record.result = string(abs(area_ratio) <= threshold)
+            record.area_ratio = area_ratio
+            record.count_difference = count_diff
+        end
     end
 end
