@@ -44,21 +44,24 @@ function on_segment(
     q::Point2D, segment::NTuple{2, Point2D}
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
-    on_line = get_orientation(q, segment[1], segment[2]; atol=atol, rtol=rtol) == COLINEAR
-    on_segment(q, segment, on_line; atol=atol, rtol=rtol)
+    # the bounding box check is cheaper than the orientation, so do it first
+    _in_expanded_bounds(q, segment, atol) &&
+        get_orientation(q, segment[1], segment[2]; atol=atol, rtol=rtol) == COLINEAR
 end
 
 function on_segment(
     q::Point2D, segment::NTuple{2, Point2D}, on_line::Bool
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
+    on_line && _in_expanded_bounds(q, segment, atol)
+end
+
+function _in_expanded_bounds(q::Point2D, segment::NTuple{2, Point2D}, atol::AbstractFloat)
     p, r = segment
-    return on_line && (
-        (q[1] <= max(p[1] + atol, r[1] + atol)) &&
-        (q[1] >= min(p[1] - atol, r[1] - atol)) &&
-        (q[2] <= max(p[2] + atol, r[2] + atol)) &&
-        (q[2] >= min(p[2] - atol, r[2] - atol))
-        )
+    (q[1] <= max(p[1], r[1]) + atol) &&
+    (q[1] >= min(p[1], r[1]) - atol) &&
+    (q[2] <= max(p[2], r[2]) + atol) &&
+    (q[2] >= min(p[2], r[2]) - atol)
 end
 
 """
