@@ -63,14 +63,18 @@ end
     validate_polygon(polygon::Polygon)
     validate_polygon(exterior::Path2D; holes=Path2D{T}[], atol=default_atol, rtol=default_rtol)
     
-The following checks are done:
+The following checks are done, where the exterior has `n` vertices and there are `H` holes with `m` vertices on average per hole:
 1. The exterior and each hole has 3 or more points.
-2. The exterior and none of its holes self-intersect.
-3. All the holes are contained within the exterior. They can touch at the vertex.
+2. The exterior does not self-intersect. This uses `any_intersect` and runs in `O(n*log(n))` time.
+3. The exterior does not intersect its holes, or none of the holes self-intersect, or none of the hole intersect.
+    This combines all segments and so runs in `O((n+H*m)log(n+H*m))` time.
+4. All the holes are contained within the exterior. They can touch at the vertex.
+    This is `O(n)` per hole for the ray casting point-in-polygon test, so `O(H*n)` in total.
+
+The total time complexity is therefore `O((n+H*m)log(n+H*m) + H*n)`.
 
 The following additional checks are not done:
-1. Holes should not intersect each other.
-2. No nested holes: holes should not be inside other holes.
+1. No nested holes: holes should not be inside other holes.
 """
 function validate_polygon(
     exterior::Path2D{T}
@@ -79,16 +83,12 @@ function validate_polygon(
     , rtol::AbstractFloat=default_rtol
     ) where T
     @assert length(exterior) > 2 "exterior requires at least 3 points."
-    queue = convert_to_events(exterior; atol=atol)
-    @assert !any_intersect(queue; atol=atol, rtol=rtol, include_vertices=false) "Invalid exterior: edges self-intersect."
+    events = convert_to_events(exterior; atol=atol)
+    @assert !any_intersect(events; atol=atol, rtol=rtol, include_vertices=false) "Invalid exterior: edges self-intersect."
+    events = vcat(events, map(convert_to_events, holes)...)
+    @assert !any_intersect(events; atol=atol, rtol=rtol, include_vertices=false) "Invalid holes: holes intersect with the exterior or themselves."
     for (idx, hole) in enumerate(holes)
         @assert length(hole) > 2 "Invalid hole $(idx): requires at least 3 points."
-        queue_h = convert_to_events(hole; atol=atol)
-        @assert !any_intersect(queue_h; atol=atol, rtol=rtol, include_vertices=false) "Invalid hole $(idx): edges self-intersect."
-        for event in queue
-            insert_in_order!(queue_h, event; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
-        end
-        @assert !any_intersect(queue_h; atol=atol, rtol=rtol, include_vertices=false) "Hole $(idx) intersects with the exterior."
         j = 1
         while (j < length(hole)) && on_border(exterior, hole[j]; atol=atol, rtol=rtol)
             j += 1

@@ -172,7 +172,7 @@ end
     @test validate_polygon(exterior, holes=holes)
     @test_throws "Invalid hole 1: requires at least 3 points." validate_polygon(exterior, holes=[[(1.0, 2.0)]])
     polygon2 = translate(holes[1], (-2.0, 0.0))
-    @test_throws "Hole 1 intersects with the exterior." validate_polygon(exterior; holes=[polygon2])
+    @test_throws "Invalid holes: holes intersect with the exterior or themselves." validate_polygon(exterior; holes=[polygon2])
     polygon2 = translate(holes[1], (-10.0, 0.0))
     @test_throws "Hole 1 is outside the polygon." validate_polygon(exterior; holes=[polygon2])
     # worst case: no segments intersect and all points on polygon
@@ -182,7 +182,7 @@ end
         (2.0, 3.0), (4.0, 5.0), (8.0, 1.0), (13.0, 5.0), (13.0, 3.0)
     ]
     @test_throws "Invalid exterior: edges self-intersect." validate_polygon(self_intersect; holes=holes)
-    @test_throws "Invalid hole 1: edges self-intersect." validate_polygon(exterior; holes=[self_intersect])
+    @test_throws "Invalid holes: holes intersect with the exterior or themselves." validate_polygon(exterior; holes=[self_intersect])
 end
 
 end
