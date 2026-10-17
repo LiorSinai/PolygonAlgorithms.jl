@@ -1,6 +1,6 @@
 using Test
 using PolygonAlgorithms: SegmentEvent, SegmentAnnotations
-using PolygonAlgorithms: add_annotated_segment!, compare_events, convert_to_event_queue
+using PolygonAlgorithms: compare_events, convert_to_events, create_segment_pair
 using PolygonAlgorithms: check_and_divide_intersection!, event_loop!
 using PolygonAlgorithms: is_hole, match_holes_polygons, Polygon
 using PolygonAlgorithms: BLANK
@@ -167,8 +167,8 @@ using PolygonAlgorithms: are_equivalent_polygons
             rectangle = [
                 (3.0, 3.0), (7.0, -1.0), (4.0, -4.0), (0.0, 0.0)
             ];
-            event_queue = convert_to_event_queue(rectangle)
-            annotated_segments = event_loop!(event_queue; self_intersection=true)
+            events = convert_to_events(rectangle)
+            annotated_segments = event_loop!(events; self_intersection=true)
             expected = [
                 SegmentEvent(((0.0, 0.0), (3.0, 3.0)), true, true, SegmentAnnotations(false, true)),
                 SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true, true, SegmentAnnotations(true, false)),
@@ -182,8 +182,8 @@ using PolygonAlgorithms: are_equivalent_polygons
             rectangle_horiz = [
                 (-1.0, 0.0), (-1.0, 3.0), (12.0, 3.0), (12.0, 0.0)
             ];
-            event_queue = convert_to_event_queue(rectangle_horiz)
-            annotated_segments = event_loop!(event_queue; self_intersection=true)
+            events = convert_to_events(rectangle_horiz)
+            annotated_segments = event_loop!(events; self_intersection=true)
             expected = [
                 SegmentEvent(((-1.0, 0.0), (-1.0, 3.0)), true, true, SegmentAnnotations(false, true)),
                 SegmentEvent(((-1.0, 0.0), (12.0, 0.0)), true, true, SegmentAnnotations(true, false)),
@@ -198,8 +198,8 @@ using PolygonAlgorithms: are_equivalent_polygons
             self_intersect = [
                 (0.0, 0.0), (2.0, 2.0), (6.0, -2.0), (11.0, 2.0), (11.0, 0.0)
             ]
-            event_queue = convert_to_event_queue(self_intersect)
-            annotated_segments = event_loop!(event_queue; self_intersection=true)
+            events = convert_to_events(self_intersect)
+            annotated_segments = event_loop!(events; self_intersection=true)
             expected = [
                 SegmentEvent(((0.0, 0.0), (2.0, 2.0)), true, true, SegmentAnnotations(false, true)),
                 SegmentEvent(((0.0, 0.0), (4.0, 0.0)), true, true, SegmentAnnotations(true, false)),
@@ -219,8 +219,8 @@ using PolygonAlgorithms: are_equivalent_polygons
                 (-0.8, 0.0), (0.0, 0.6), (0.8, 0.0), (0.5, -1.0), (-0.5, -1.0)
             ]
             pentagram = pentagon[[1, 3, 5, 2, 4]]
-            event_queue = convert_to_event_queue(pentagram)
-            annotated_segments = event_loop!(event_queue; self_intersection=true)
+            events = convert_to_events(pentagram)
+            annotated_segments = event_loop!(events; self_intersection=true)
             expected = [
                 SegmentEvent(((-0.5, -1.0), (-0.3062015503875969, -0.3798449612403101)), true, true, SegmentAnnotations(false, true)),
                 SegmentEvent(((-0.8, 0.0), (-0.3062015503875969, -0.3798449612403101)), true, true, SegmentAnnotations(true, false)),
@@ -256,7 +256,7 @@ using PolygonAlgorithms: are_equivalent_polygons
             ]
             queue = SegmentEvent{Float64}[]
             for ev in vcat(rectangle, rectangle_horiz)
-                add_annotated_segment!(queue, ev)
+                 push!(queue, create_segment_pair(ev)...)
             end
             annotated_segments = event_loop!(queue; self_intersection=false)
             expected = [
@@ -296,7 +296,7 @@ using PolygonAlgorithms: are_equivalent_polygons
             ]
             queue = SegmentEvent{Float64}[]
             for ev in vcat(self_intersect, rectangle_horiz)
-                add_annotated_segment!(queue, ev)
+                push!(queue, create_segment_pair(ev)...)
             end
             annotated_segments = event_loop!(queue; self_intersection=false)
             expected = [

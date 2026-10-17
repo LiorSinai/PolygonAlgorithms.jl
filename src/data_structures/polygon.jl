@@ -15,8 +15,8 @@ This costs `O((n+m)log(n+m) + H*n)` for an exterior with `n` vertices and `H` ho
 Construction without validation is `O(1)`.
 """
 struct Polygon{T<:AbstractFloat}
-    exterior::Path2D{T}
-    holes::Vector{<:Path2D{T}}
+    exterior::Vector{Point2D{T}}
+    holes::Vector{Vector{Point2D{T}}}
 end
 
 ==(polygon1::Polygon, polygon2::Polygon) = 
@@ -60,17 +60,21 @@ function minimal_rotation(p::Polygon)
 end
 
 """
-    validate_polygon(polygon::Polygon)
+    validate_polygon(polygon::Polygon; atol=default_atol, rtol=default_rtol)
     validate_polygon(exterior::Path2D; holes=Path2D{T}[], atol=default_atol, rtol=default_rtol)
     
-The following checks are done:
+The following checks are done, where the exterior has `n` vertices and there are `H` holes with `m` vertices on average per hole:
 1. The exterior and each hole has 3 or more points.
-2. The exterior and none of its holes self-intersect.
-3. All the holes are contained within the exterior. They can touch at the vertex.
+2. The exterior does not self-intersect. This uses `any_intersect` and runs in `O(n*log(n))` time.
+3. The exterior does not intersect its holes, or none of the holes self-intersect, or none of the hole intersect.
+    This combines all segments and so runs in `O((n+H*m)log(n+H*m))` time.
+4. All the holes are contained within the exterior. They can touch at the vertex.
+    This is `O(n)` per hole for the ray casting point-in-polygon test, so `O(H*n)` in total.
+
+The total time complexity is therefore `O((n+H*m)log(n+H*m) + H*n)`.
 
 The following additional checks are not done:
-1. Holes should not intersect each other.
-2. No nested holes: holes should not be inside other holes.
+1. No nested holes: holes should not be inside other holes.
 """
 function validate_polygon(
     exterior::Path2D{T}
@@ -79,28 +83,26 @@ function validate_polygon(
     , rtol::AbstractFloat=default_rtol
     ) where T
     @assert length(exterior) > 2 "exterior requires at least 3 points."
-    queue = convert_to_event_queue(exterior; atol=atol, rtol=rtol)
-    @assert !any_intersect(queue; atol=atol, rtol=rtol, include_vertices=false) "Invalid exterior: edges self-intersect."
-    for (idx, hole) in enumerate(holes)
-        @assert length(hole) > 2 "Invalid hole $(idx): requires at least 3 points."
-        queue_h = convert_to_event_queue(hole; atol=atol, rtol=rtol)
-        @assert !any_intersect(queue_h; atol=atol, rtol=rtol, include_vertices=false) "Invalid hole $(idx): edges self-intersect."
-        for event in queue
-            insert_in_order!(queue_h, event; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
+    events = convert_to_events(exterior; atol=atol)
+    @assert !any_intersect(events; atol=atol, rtol=rtol, include_vertices=false) "Invalid exterior: edges self-intersect."
+    if !isempty(holes)
+        events = vcat(events, map(h -> convert_to_events(h; atol=atol), holes)...)
+        @assert !any_intersect(events; atol=atol, rtol=rtol, include_vertices=false) "Invalid holes: holes intersect with the exterior or themselves."
+        for (idx, hole) in enumerate(holes)
+            @assert length(hole) > 2 "Invalid hole $(idx): requires at least 3 points."
+            j = 1
+            while (j < length(hole)) && on_border(exterior, hole[j]; atol=atol, rtol=rtol)
+                j += 1
+            end
+            @assert contains(
+                exterior, hole[j]; atol=atol, rtol=rtol, on_border_is_inside=false
+            ) "Hole $(idx) is outside the polygon."
         end
-        @assert !any_intersect(queue_h; atol=atol, rtol=rtol, include_vertices=false) "Hole $(idx) intersects with the exterior."
-        j = 1
-        while (j < length(hole)) && on_border(exterior, hole[j]; atol=atol, rtol=rtol)
-            j += 1
-        end
-        @assert contains(
-            exterior, hole[j]; atol=atol, rtol=rtol, on_border_is_inside=false
-        ) "Hole $(idx) is outside the polygon."
     end
     true
 end
 
-validate_polygon(polygon::Polygon) = validate_polygon(polygon.exterior; holes=polygon.holes)
+validate_polygon(polygon::Polygon; options...) = validate_polygon(polygon.exterior; holes=polygon.holes, options...)
 
 function Polygon(
     exterior::Path2D{T}
@@ -131,10 +133,10 @@ function fully_contains(
     polygon1::Path2D, polygon2::Path2D
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
-    queue = convert_to_event_queue(polygon1; atol=atol, rtol=rtol)
-    events2 = convert_to_event_queue(polygon2; primary=false, atol=atol, rtol=rtol)
+    queue = convert_to_events(polygon1; atol=atol)
+    events2 = convert_to_events(polygon2; primary=false, atol=atol)
     for event in events2
-        insert_in_order!(queue, event; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
+        push!(queue, event)
     end
     if any_intersect(queue; include_vertices=false, atol=atol, rtol=rtol)
         return false
@@ -170,7 +172,7 @@ Uses the shoelace formula: Σ(xᵢyᵢ₊₁ - yᵢxᵢ₊₁).
 Holes are counted as negative area.
 """
 function area_polygon(polygon::Polygon)
-    area_polygon(polygon.exterior) - sum(map(area_polygon, polygon.holes), init=0.0)
+    area_polygon(polygon.exterior) - sum(area_polygon, polygon.holes, init=0.0)
 end
 
 is_clockwise(polygon::Polygon) = is_clockwise(polygon.exterior)
@@ -225,12 +227,9 @@ end
 Translate a polygon, including its holes, by delta `t`.
 """
 function translate(polygon::Polygon, t::Point2D)
-    # no type inference if holes is empty
-    holes = isempty(polygon.holes) ? polygon.holes : map(p->translate(p, t), polygon.holes)
-    Polygon(
-        translate(polygon.exterior, t),
-        holes,
-    )
+    exterior = translate(polygon.exterior, t)
+    holes = Vector{eltype(exterior)}[translate(h, t) for h in polygon.holes]
+    Polygon(exterior, holes)
 end
 
 """
@@ -239,20 +238,15 @@ end
 Rotate a polygon, including its holes, by `θ` radians about `p0`.
 """
 function rotate(polygon::Polygon, θ::AbstractFloat)
-    # no type inference if holes is empty
-    holes = isempty(polygon.holes) ? polygon.holes : map(p->rotate(p, θ), polygon.holes)
-    Polygon(
-        rotate(polygon.exterior, θ),
-        holes
-    )
+    exterior = rotate(polygon.exterior, θ)
+    holes = Vector{eltype(exterior)}[rotate(h, θ) for h in polygon.holes]
+    Polygon(exterior, holes)
 end
 
 function rotate(polygon::Polygon, θ::AbstractFloat, p0::Point2D)
-    holes = isempty(polygon.holes) ? polygon.holes : map(p->rotate(p, θ, p0), polygon.holes)
-    Polygon(
-        rotate(polygon.exterior, θ, p0),
-        holes
-    )
+    exterior = rotate(polygon.exterior, θ, p0)
+    holes = Vector{eltype(exterior)}[rotate(h, θ, p0) for h in polygon.holes]
+    Polygon(exterior, holes)
 end
 
 x_coords(polygon::Polygon) = 

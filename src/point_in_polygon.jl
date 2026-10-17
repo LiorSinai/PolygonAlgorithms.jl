@@ -23,9 +23,12 @@ function contains(
     n = length(vertices)
     num_intersections = 0
 
-    x = x_coords(vertices)
-    extreme_left =  (minimum(x) - one(T), point[2])
-    extreme_right = (maximum(x) + one(T), point[2])
+    xmin, ymin, xmax, ymax = bounds(vertices)
+    if point[1] < xmin - atol || point[1] > xmax + atol || point[2] < ymin - atol || point[2] > ymax + atol
+        return false # outside the bounding box
+    end
+    extreme_left =  (xmin - one(T), point[2])
+    extreme_right = (xmax + one(T), point[2])
 
     # step 1: point intersects a vertex or edge
     if on_border(vertices, point; atol=atol, rtol=rtol)
@@ -36,7 +39,7 @@ function contains(
     s = 1
     while s <= n
         # step 2: find a vertex not on the same horizontal ray as the point
-        while (s <= n) && (vertices[s][2] == point[2])
+        while (s <= n) && (abs(vertices[s][2] - point[2]) <= atol)
             s += 1
         end
         if s > n

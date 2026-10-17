@@ -2,7 +2,7 @@ using Plots
 using PolygonAlgorithms
 using PolygonAlgorithms: x_coords, y_coords
 using PolygonAlgorithms: SegmentEvent, Segment2D
-using PolygonAlgorithms: event_loop!, convert_to_event_queue, add_annotated_segment!
+using PolygonAlgorithms: event_loop!, convert_to_events, create_segment_pair
 using PolygonAlgorithms: apply_selection_criteria
 
 function plot_segment_event!(
@@ -58,13 +58,13 @@ polygon1 = self_intersect
 polygon2 = rectangle_horiz
 
 # martinez_rueda_algorithm
-event_queue1 = convert_to_event_queue(polygon1; primary=true)
+event_queue1 = convert_to_events(polygon1; primary=true)
 annotated_segments1 = event_loop!(event_queue1, self_intersection=true)
-event_queue2 = convert_to_event_queue(polygon2; primary=false)
+event_queue2 = convert_to_events(polygon2; primary=false)
 annotated_segments2 = event_loop!(event_queue2, self_intersection=true)
 queue = SegmentEvent{Float64}[]
 for ev in vcat(annotated_segments1, annotated_segments2)
-    add_annotated_segment!(queue, ev)
+    push!(queue, create_segment_pair(ev)...)
 end
 annotated_segments3 = event_loop!(deepcopy(queue), self_intersection=false)
 # for consistent reporting, swap annotations so that self annotations are always the primary
