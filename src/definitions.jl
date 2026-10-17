@@ -68,7 +68,7 @@ norm(p::Point2D, q::Point2D) = sqrt(norm2(p, q))
 
 Return `true` if the Euclidean distance between `p` and `q` is at most `atol`.
 """
-is_same_point(p::Point2D, q::Point2D; atol::AbstractFloat=default_atol) = norm(p, q) <= atol
+is_same_point(p::Point2D, q::Point2D; atol::AbstractFloat=default_atol) = norm2(p, q) <= atol * atol
 
 """
     translate(points::Vector{<:Point2D}, t::Point2D)
