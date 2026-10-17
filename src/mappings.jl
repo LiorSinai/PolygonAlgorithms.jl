@@ -234,10 +234,10 @@ function match_holes_polygons(
     idxs = sortperm(areas)
     parents = zeros(Int, length(holes))
     for (idx_h, candidate) in enumerate(holes)
-        for (idx_p, parent) in zip(idxs, polygons[idxs])
+        for idx_p in idxs
             # Assume that no segments intersect.
             # Then only need to check a point.
-            found = contains(parent, candidate[1]; atol=atol, rtol=rtol, on_border_is_inside=true)
+            found = contains(polygons[idx_p], candidate[1]; atol=atol, rtol=rtol, on_border_is_inside=true)
             if found
                 parents[idx_h] = idx_p
                 break
