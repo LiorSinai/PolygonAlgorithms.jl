@@ -83,3 +83,25 @@ end
 function random_self_intersecting(rng, n::Int=100, origin=(0.0, 0.0))
      [(origin[1] + rand(rng), origin[2] + rand(rng)) for i in 1:n]
 end
+
+"""
+    star_polygon(p, q)
+
+Star polygon `{p/q}`: the `p` vertices of a regular polygon on the unit circle, joined by
+connecting every `q`th vertex. For `q > 1` the paths are self-intersecting.
+
+Returns a vector of paths. If `d = gcd(p, q) > 1` the star is a compound of `d` separate
+polygons, each rotated by `2π/p` from the last; otherwise the vector has a single path.
+"""
+function star_polygon(p::Int, q::Int)
+    d = gcd(p, q)
+    n = p ÷ d # vertices per polygon
+    if p < 3 || !(1 <= q < p) || n < 3
+        throw(ArgumentError("star_polygon requires p >= 3, 1 <= q < p and p/gcd(p, q) >= 3; got p=$p, q=$q"))
+    end
+    # start at the top (offset by j for each polygon), step q vertices at a time
+    [
+        [sincospi(1/2 + 2 * mod(j + k * q, p) / p) |> reverse for k in 0:(n - 1)]
+        for j in 0:(d - 1)
+    ]
+end

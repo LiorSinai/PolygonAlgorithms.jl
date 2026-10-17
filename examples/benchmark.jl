@@ -95,6 +95,12 @@ cases = [
         0.276855,
     ),
     (
+        # self-intersection
+        "star polygon",
+        star_polygon(50, 17)[1], [(-0.5, -0.5), (-0.5, 0.5), (0.5, 0.5), (0.5, -0.5)],
+        1.9242,
+    ),
+    (
         # random shape with spiked points
         "random", random_spiked_balls(rng, 300), random_spiked_balls(rng, 300, (0.3, 0.0)),
         0.175942,
