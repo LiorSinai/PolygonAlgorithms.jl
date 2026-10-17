@@ -6,24 +6,7 @@ using Plots
 using Printf
 
 include("polygons.jl")
-
-function plot_regions!(canvas, regions; options...)
-    for idx in 1:length(regions)
-        region = regions[idx]
-        isempty(region) && continue
-        if length(region) == 1
-            scatter!(canvas, x_coords(region), y_coords(region), color=:black, marker=:xcross, label="")
-        else 
-            plot_region!(canvas, region; options...)
-        end
-    end
-    canvas
-end
-
-function plot_region!(canvas, region; options...)
-    idxs = vcat(1:length(region), 1)
-    plot!(canvas, x_coords(region[idxs]), y_coords(region[idxs]); options...)
-end
+include("plot_polygon.jl")
 
 function intersection_area_circles(r1::AbstractFloat, origin1::Tuple, r2::AbstractFloat, origin2::Tuple)
     # rotate and translate x-axis to x' so that origin is on origin1 and passes through origin2
@@ -38,6 +21,8 @@ function intersection_area_circles(r1::AbstractFloat, origin1::Tuple, r2::Abstra
     a2 = r2^2 * acos((d-x)/r2) - (d-x) * y
     a1 + a2
 end
+
+mirror(points::Vector{<:Tuple}) = [(y, x) for (x, y) in points]
 
 function calculate_metrics(alg, fn, polygon1, polygon2, expected_area
         ; ntrials::Int=5)
@@ -64,7 +49,6 @@ function calculate_metrics(alg, fn, polygon1, polygon2, expected_area
 end
 
 rng = MersenneTwister(42)
-fork = make_forks(50; step_size=5.0, height=500.0, base=5.0)
 cases = [
     (   
         # worst case convex algorithm
@@ -81,7 +65,8 @@ cases = [
     (
         # worst case concave polygon
         "forks",
-        fork, [(y, x) for (x, y) in fork],
+        make_forks(50; step_size=5.0, height=500.0, base=5.0),
+        mirror(make_forks(50; step_size=5.0, height=500.0, base=5.0)),
         64950.0, # = (n-1)^2*step_size^2 + (2(height-step_size)*step_size - step_size^2)
     ),
     (
@@ -144,16 +129,16 @@ for (case, polygon1, polygon2) in cases
     idxs1 = vcat(1:length(polygon1), 1)
     canvas_base = plot(
         x_coords(polygon1[idxs1]), y_coords(polygon1[idxs1]), 
-        ; aspectratio=:equal, fill=true, alpha=0.5, legend=:none,
+        ; aspectratio=:equal, fill=true, alpha=0.5, legend=:none, label="",
         )
     idxs2 = vcat(1:length(polygon2), 1)
     plot!(canvas_base, x_coords(polygon2[idxs2]), y_coords(polygon2[idxs2]), fill=true, alpha=0.5)
     regions = metrics[case]["value"]
-    canvas_algo = plot_regions!(
+    canvas_algo = plot_polygons!(
         deepcopy(canvas_base),
         #plot(),
         regions,
-        ; fill=(0, 0.4, :green), color=:black, legend=:none,
+        ; fill=(0, 0.4, :green), color=:black, legend=:none, label="",
         aspectratio=:equal, xlims=xlims(canvas_base), ylims=ylims(canvas_base),
     )
     canvases[case] = [canvas_base, canvas_algo]
