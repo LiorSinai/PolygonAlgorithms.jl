@@ -1,6 +1,6 @@
 using Test
 using PolygonAlgorithms: SegmentEvent, SegmentAnnotations
-using PolygonAlgorithms: compare_events, convert_to_event_queue
+using PolygonAlgorithms: compare_events, convert_to_events, sort_event_queue!
 using PolygonAlgorithms: find_transition, is_above, any_intersect
 
 @testset "line sweep" verbose=false begin
@@ -9,7 +9,7 @@ using PolygonAlgorithms: find_transition, is_above, any_intersect
             rectangle = [
                 (3.0, 3.0), (7.0, -1.0), (4.0, -4.0), (0.0, 0.0)
             ]
-            event_queue = convert_to_event_queue(rectangle)
+            event_queue = sort_event_queue!(convert_to_events(rectangle))
             expected = [
                 SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
                 SegmentEvent(((0.0, 0.0), (3.0, 3.0)), true),
@@ -27,7 +27,7 @@ using PolygonAlgorithms: find_transition, is_above, any_intersect
             triangle = [
                 (3.0, 3.0), (3.0, -4.0), (0.0, 0.0)
             ]
-            event_queue = convert_to_event_queue(triangle)
+            event_queue = sort_event_queue!(convert_to_events(triangle))
             expected = [
                 SegmentEvent(((0.0, 0.0), (3.0, -4.0)), true),
                 SegmentEvent(((0.0, 0.0), (3.0, 3.0)), true),
@@ -41,7 +41,7 @@ using PolygonAlgorithms: find_transition, is_above, any_intersect
             lowered_triangle = [
                 (3.0, 3.0), (3.0, -4.0), (0.0, -5.0)
             ]
-            event_queue = convert_to_event_queue(lowered_triangle)
+            event_queue = sort_event_queue!(convert_to_events(lowered_triangle))
             expected = [
                 SegmentEvent(((0.0, -5.0), (3.0, -4.0)), true),
                 SegmentEvent(((0.0, -5.0), (3.0, 3.0)), true),
@@ -55,7 +55,7 @@ using PolygonAlgorithms: find_transition, is_above, any_intersect
             mirror_triangle = [
                 (0.0, -4.0), (0.0, 3.0), (3.0, -5.0)
             ]
-            event_queue = convert_to_event_queue(mirror_triangle)
+            event_queue = sort_event_queue!(convert_to_events(mirror_triangle))
             expected = [
                 SegmentEvent(((0.0, -4.0), (3.0, -5.0)), true),   
                 SegmentEvent(((0.0, -4.0), (0.0, 3.0)), true),    

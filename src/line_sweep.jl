@@ -3,35 +3,32 @@
 #############################################################
 
 """
-    convert_to_event_queue(polygon; primary=true, atol=default_atol, rtol=default_rtol)
+    convert_to_events(polygon; primary=true, atol=default_atol, rtol=default_rtol)
 
-Convert each edge of `polygon` into a start and end `SegmentEvent` and insert them in sorted order
-into a new queue. See `convert_to_event_queue!` to add to an existing queue.
+Convert each edge of `polygon` into a start and end `SegmentEvent` and insert them into a list.
+See `convert_to_events!` to add to an existing list.
 
 Segments are oriented so that they always go left to right, or bottom to top if vertical.
 Zero length edges are skipped.
 
-The queue is sorted by `compare_events`: left to right, bottom to top, with end events before start events.
-
 `primary` marks whether the segments belong to the subject (`true`) or the clip (`false`) polygon.
 """
-function convert_to_event_queue(
+function convert_to_events(
     polygon::Path2D{T}; options...
     ) where T
     # The event list reads all segments from left to right, end to start, bottom to top
-    convert_to_event_queue!(SegmentEvent{T}[], polygon; options...)
+    convert_to_events!(SegmentEvent{T}[], polygon; options...)
 end
 
 """
-    convert_to_event_queue!(queue, polygon; primary=true, atol=default_atol, rtol=default_rtol)
+    convert_to_events(queue, polygon; primary=true, atol=default_atol, rtol=default_rtol)
 
-In-place version of `convert_to_event_queue` which inserts the events into an existing sorted `queue`.
+In-place version of `convert_to_events` which inserts the events into an existing `queue`.
 """
-function convert_to_event_queue!(
-    queue::Vector{<:SegmentEvent}, polygon::Path2D
+function convert_to_events!(
+    events::Vector{<:SegmentEvent}, polygon::Path2D
     ; primary::Bool=true,
     atol::AbstractFloat=default_atol,
-    rtol::AbstractFloat=default_rtol
     )
     pt2 = polygon[end]
     for i in eachindex(polygon)
@@ -44,41 +41,49 @@ function convert_to_event_queue!(
         start = forward < Int8(0) ? pt1 : pt2
         tail = forward < Int8(0) ? pt2 : pt1
         segment = (start, tail)
-        add_segment_event!(
-            queue, segment, primary, SegmentAnnotations(forward=forward), SegmentAnnotations()
-            ; atol=atol, rtol=rtol
+        push!(events,
+            create_segment_pair(
+                segment, primary, SegmentAnnotations(forward=forward), SegmentAnnotations()
+            )...
         )
     end
-    queue
+    events
+end
+
+function sort_event_queue!(events::Vector{<:SegmentEvent}; atol=default_atol, rtol=default_rtol)
+    sort!(events; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
 end
 
 """
-    add_segment_event!(
-        queue, segment, primary,
+    create_segment_pair(
+        segment, primary,
         [shared_self_annotations, shared_other_annotations]
         ; atol=default_atol, rtol=default_rtol
     )
 
-Create a linked pair of start and end `SegmentEvent`s for `segment` and insert both in order into `queue`.
+Create a linked pair of start and end `SegmentEvent`s for `segment`.
 
 The segment should already be ordered left to right (see `_compare_points`).
 The two events share the same annotation objects, so updating the annotations on one updates the other.
 """
-function add_segment_event!(
-    queue::Vector{<:SegmentEvent},
+function create_segment_pair(
     segment::Segment2D,
     primary::Bool,
     shared_self_annotations::SegmentAnnotations=SegmentAnnotations(),
     shared_other_annotations::SegmentAnnotations=SegmentAnnotations(),
-    ; atol::AbstractFloat=default_atol,
-    rtol::AbstractFloat=default_rtol
     )
     start_event = SegmentEvent(segment, true, primary, shared_self_annotations, shared_other_annotations)
     end_event = SegmentEvent(segment, false, primary, shared_self_annotations, shared_other_annotations)
     start_event.other = end_event
-    end_event.other = start_event   
-    insert_in_order!(queue, start_event; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
-    insert_in_order!(queue, end_event; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
+    end_event.other = start_event
+    start_event, end_event
+end
+
+function create_segment_pair(ev::SegmentEvent)
+    create_segment_pair(
+        ev.segment, ev.primary,
+        ev.self_annotations, ev.other_annotations
+    )
 end
 
 """
@@ -233,6 +238,7 @@ function any_intersect(
     rtol::AbstractFloat=default_rtol,
     include_vertices::Bool=true
     ) where T
+    sort_event_queue!(queue; atol=atol, rtol=rtol)
     sweep_status = SegmentEvent{T}[] # current events in a vertical line, top to bottom.
     for head in queue
         queue_length = length(queue)
@@ -284,11 +290,11 @@ function any_intersect(
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
     options...
     ) where T
-    queue = SegmentEvent{T}[]
+    events = SegmentEvent{T}[]
     for segment in segments
         forward = _compare_points(segment[1], segment[2]; atol=atol)
         segment_ = forward < Int8(0) ? (segment[1], segment[2]) : (segment[2], segment[1])
-        add_segment_event!(queue, segment_, true; atol=atol, rtol=rtol)
+        push!(events, create_segment_pair(segment_, true)...)
     end
-    any_intersect(queue; atol=atol, rtol=rtol, options...)
+    any_intersect(events; atol=atol, rtol=rtol, options...)
 end

@@ -79,11 +79,11 @@ function validate_polygon(
     , rtol::AbstractFloat=default_rtol
     ) where T
     @assert length(exterior) > 2 "exterior requires at least 3 points."
-    queue = convert_to_event_queue(exterior; atol=atol, rtol=rtol)
+    queue = convert_to_events(exterior; atol=atol)
     @assert !any_intersect(queue; atol=atol, rtol=rtol, include_vertices=false) "Invalid exterior: edges self-intersect."
     for (idx, hole) in enumerate(holes)
         @assert length(hole) > 2 "Invalid hole $(idx): requires at least 3 points."
-        queue_h = convert_to_event_queue(hole; atol=atol, rtol=rtol)
+        queue_h = convert_to_events(hole; atol=atol)
         @assert !any_intersect(queue_h; atol=atol, rtol=rtol, include_vertices=false) "Invalid hole $(idx): edges self-intersect."
         for event in queue
             insert_in_order!(queue_h, event; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
@@ -131,8 +131,8 @@ function fully_contains(
     polygon1::Path2D, polygon2::Path2D
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
-    queue = convert_to_event_queue(polygon1; atol=atol, rtol=rtol)
-    events2 = convert_to_event_queue(polygon2; primary=false, atol=atol, rtol=rtol)
+    queue = convert_to_events(polygon1; atol=atol)
+    events2 = convert_to_events(polygon2; primary=false, atol=atol)
     for event in events2
         insert_in_order!(queue, event; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
     end
