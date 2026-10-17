@@ -97,20 +97,26 @@ function SegmentEvent(
     )
 end
 
-"""
-    copy_segment(event, is_primary)
+copy(ann::SegmentAnnotations) = SegmentAnnotations(
+    ann.fill_above, ann.fill_below,
+    ann.forward,
+    ann.winding_top_to_bottom, ann.winding_left_to_right, ann.winding_below,
+)
 
-Make a deep copy of `event` that is independent of the original, with `primary=is_primary`.
+"""
+    copy(event::SegmentEvent)
+
+Make a copy of `event` that is independent of the original.
 The copy is not linked to an `other` event.
 """
-function copy_segment(event::SegmentEvent, is_primary::Bool)
+function copy(event::SegmentEvent)
     # make a copy independent of the original event.
     SegmentEvent(
-        deepcopy(event.segment),
+        event.segment, # immutable
         event.is_start,
-        is_primary,
-        deepcopy(event.self_annotations),
-        deepcopy(event.other_annotations),
+        event.primary,
+        copy(event.self_annotations),
+        copy(event.other_annotations),
     )
 end
 

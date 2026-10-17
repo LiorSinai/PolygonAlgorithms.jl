@@ -1,6 +1,6 @@
 module PolygonAlgorithms
 
-import Base: contains, eltype, getindex, insert!, isless, iterate, push!, reverse, ==
+import Base: contains, copy, eltype, getindex, insert!, isless, iterate, push!, reverse, ==
 import Base: length, show
 
 include("definitions.jl")

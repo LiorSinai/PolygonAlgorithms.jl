@@ -346,7 +346,7 @@ function event_loop!(
                     ; atol=atol, rtol=rtol, fill_rule=fill_rule
                 )
             end
-            push!(annotated_segments, copy_segment(head.other, head.other.primary))
+            push!(annotated_segments, copy(head.other))
             popat!(sweep_status, idx)
         end
         popfirst!(queue)
@@ -834,11 +834,16 @@ function apply_selection_criteria(annotated_segments::Vector{<:SegmentEvent{T}},
                 (ev.other_annotations.fill_above ? 2 : 0) + 
                 (ev.other_annotations.fill_below ? 1 : 0)
         if criteria[index] != BLANK
-            new_segment = copy_segment(ev, true)
-            new_segment.self_annotations.fill_above = criteria[index] == ABOVE
-            new_segment.self_annotations.fill_below = criteria[index] == BELOW
-            new_segment.other_annotations.fill_above = nothing
-            new_segment.other_annotations.fill_below = nothing
+            new_segment = SegmentEvent(
+                ev.segment,
+                ev.is_start,
+                true,
+                SegmentAnnotations(
+                    criteria[index] == ABOVE,
+                    criteria[index] == BELOW,
+                ),
+                SegmentAnnotations(),
+            )
             push!(result, new_segment)
         end
     end
