@@ -22,9 +22,22 @@ function intersection_area_circles(r1::AbstractFloat, origin1::Tuple, r2::Abstra
     a1 + a2
 end
 
+function get_expected_area(fn, polygon1, polygon2, intersection_area::Float64)
+    # for non-self-intersecting polygons, get the expected area
+    expected_area = if fn == difference_geometry
+        area_polygon(polygon1) - intersection_area
+    elseif fn == union_geometry
+        area_polygon(polygon1) + area_polygon(polygon2) - intersection_area
+    elseif fn == xor_geometry
+        area_polygon(polygon1) + area_polygon(polygon2) - 2 * intersection_area
+    else
+        intersection_area
+    end
+end
+
 mirror(points::Vector{<:Tuple}) = [(y, x) for (x, y) in points]
 
-function calculate_metrics(alg, fn, polygon1, polygon2, expected_area
+function calculate_metrics(alg, fn, polygon1, polygon2, expected_area::Float64
         ; ntrials::Int=5)
     stats = @timed fn(alg, polygon1, polygon2; atol=1e-12, rtol=1e-12)
     t = stats.time
@@ -35,7 +48,7 @@ function calculate_metrics(alg, fn, polygon1, polygon2, expected_area
         bytes += si.bytes
     end
     value = fn == intersect_convex ? [stats.value] : stats.value
-    area = sum(area_polygon, value; init=0.0)
+    area = sum(first_moment, value; init=0.0)
     Dict(
         "time" => t/ntrials,
         "bytes" => bytes/ntrials,
@@ -103,8 +116,9 @@ region = fn(alg, [(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)], [(0.0, 0.0), (4.0, 1.0), 
 
 println("Start benchmarking for $alg_name")
 metrics = Dict{String, Dict}()
-for (case, polygon1, polygon2, area) in cases
-    metrics[case] = calculate_metrics(alg, fn, polygon1, polygon2, area)
+for (case, polygon1, polygon2, intersection_area) in cases
+    expected_area = get_expected_area(fn, polygon1, polygon2, intersection_area)
+    metrics[case] = calculate_metrics(alg, fn, polygon1, polygon2, expected_area)
 end
 println("Done benchmarking")
 println("$alg_name | $fn")
