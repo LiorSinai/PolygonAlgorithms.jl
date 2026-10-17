@@ -131,7 +131,7 @@ function martinez_rueda_algorithm(
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
     options...
     ) where T
-    subject_events = convert_to_events(subject.exterior)
+    subject_events = convert_to_events(subject.exterior; atol=atol)
     for p in subject.holes
         push!(
             subject_events,
@@ -143,7 +143,7 @@ function martinez_rueda_algorithm(
         others
     )
     for (other_event, other) in zip(other_events, others)
-        for p in vcat(other.holes)
+        for p in other.holes
             push!(other_event, convert_to_events(p; primary=false, atol=atol)...)
         end
     end
@@ -179,7 +179,7 @@ function martinez_rueda_algorithm(
         others
     )
     for (other_event, other) in zip(other_events, others)
-        for p in vcat(other.holes)
+        for p in other.holes
             push!(other_event, convert_to_events(p; primary=false, atol=atol)...)
         end
     end
@@ -287,14 +287,14 @@ function event_loop!(
                 queue, head, above, self_intersection
                 ; atol=atol, rtol=rtol, fill_rule=fill_rule
             )
-            if queue[1] != head
+            if queue[1] !== head
                 continue # either head was removed or something was inserted ahead of it
             end
             check_and_divide_intersection!(
                 queue, head, below, self_intersection
                 ; atol=atol, rtol=rtol, fill_rule=fill_rule
             )
-            if queue[1] != head
+            if queue[1] !== head
                 continue # either head was removed or something was inserted ahead of it
             end
             if self_intersection
