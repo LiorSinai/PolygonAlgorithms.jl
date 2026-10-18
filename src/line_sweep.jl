@@ -275,7 +275,7 @@ function any_intersect(
                 above = sweep_status[idx - 1]
                 below = sweep_status[idx + 1]
                 if do_intersect(above.segment, below.segment; atol=atol, rtol=rtol) && 
-                    (include_vertices || !is_vertex_intersection(above.segment, below.segment; atol=atol))
+                    (include_vertices || !is_vertex_intersection(above.segment, below.segment; atol=atol, rtol=rtol))
                     return true
                 end
             end
