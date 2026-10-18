@@ -39,4 +39,7 @@ export convex_hull
 export any_intersect
 export difference_geometry, union_geometry, xor_geometry, intersect_convex
 
+export GrahamScanAlg, GiftWrappingAlg
+export ChasingEdgesAlg, MartinezRuedaAlg, PointSearchAlg, WeilerAthertonAlg 
+
 end
