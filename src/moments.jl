@@ -23,10 +23,10 @@ The result is positive if the vertices are ordered counter-clockwise and negativ
 For a `Polygon`, the first moments of the holes are added to that of the exterior.
 If the holes have the opposite orientation to the exterior, they will reduce the area.
 """
-function first_moment(vertices::Path2D)
+function first_moment(vertices::Path2D{T}) where T
     # first moment of a simple polygon
     n = length(vertices)
-    moment = 0.0
+    moment = zero(T)
     for i in 1:n
         pt1 = vertices[i]
         pt2 = vertices[(i % n) + 1]
@@ -72,9 +72,9 @@ function centroid_polygon(vertices::Path2D)
     centroid
 end
 
-function _centroid_loop(vertices::Path2D)
-    Cx = 0.0
-    Cy = 0.0
+function _centroid_loop(vertices::Path2D{T}) where T
+    Cx = zero(T)
+    Cy = zero(T)
     n = length(vertices)
     for i in 1:n
         pt1 = vertices[i]
