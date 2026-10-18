@@ -10,7 +10,10 @@ function do_intersect(segment1::Segment2D, segment2::Segment2D; atol::AbstractFl
     o4 = get_orientation(segment2[1], segment2[2], segment1[2]; atol=atol, rtol=rtol)
 
     # general case
-    if (o1 != o2) && (o3 != o4)
+    # Colinear points within tolerance are excluded
+    # They are handled by the special cases instead.
+    if (o1 != o2) && (o3 != o4) &&
+        (o1 != COLINEAR) && (o2 != COLINEAR) && (o3 != COLINEAR) && (o4 != COLINEAR)
         return true
     end
 
