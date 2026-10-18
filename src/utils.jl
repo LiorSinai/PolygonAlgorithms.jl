@@ -54,18 +54,28 @@ function insert_in_order!(vec::Vector{T}, data::T; lt=isless, rev=false) where T
 end
 
 """
-    pop_key!(vec, key)
+    pop_key!(vec, key; lt=isless)
 
 Remove and return the element of `vec` which is identical (`===`) to `key`.
 Throws a `KeyError` if it is not found.
 
 Identity is used instead of equality so that a specific mutable object can be removed
 even if `vec` contains other objects that are equal (`==`) to it.
+
+`vec` is assumed to be sorted by `lt`, so a binary search is used to find the range of elements
+that compare equal to `key`. If `key` is not in that range, e.g. because `lt` is not a strict weak order
+or `key` was mutated after it was inserted, this falls back to an `O(n)` linear search.
 """
-function pop_key!(vec::Vector{T}, key::T) where T
-    idx = findfirst(x->x===key, vec)
-    if isnothing(idx)
-        throw(KeyError(key))
+function pop_key!(vec::Vector{T}, key::T; lt=isless) where T
+    idx = searchsortedfirst(vec, key; lt=lt)
+    while idx <= length(vec) && vec[idx] !== key && !lt(key, vec[idx])
+        idx += 1
+    end
+    if idx > length(vec) || vec[idx] !== key
+        idx = findfirst(x->x===key, vec)
+        if isnothing(idx)
+            throw(KeyError(key))
+        end
     end
     popat!(vec, idx)
 end

@@ -461,7 +461,7 @@ function divide_coincident_intersection!(
     @debug("[divide_coincident_intersection!] ends_equal=$ends_equal")
     if starts_equal && ends_equal
         # segments are equal. Keep the second one
-        return merge_same_segments!(queue, ev1, ev2, self_intersection; fill_rule=fill_rule)
+        return merge_same_segments!(queue, ev1, ev2, self_intersection; fill_rule=fill_rule, atol=atol, rtol=rtol)
     end
     start1_between = !starts_equal && on_segment(ev1.segment[1], ev2.segment; atol=atol)
     end1_between = !ends_equal && on_segment(ev1.segment[2], ev2.segment; atol=atol, rtol=rtol)
@@ -479,7 +479,7 @@ function divide_coincident_intersection!(
             return queue
         end
         # duplicate a1->x, so remove ev1
-        return merge_same_segments!(queue, ev1, ev2, self_intersection; fill_rule=fill_rule)
+        return merge_same_segments!(queue, ev1, ev2, self_intersection; fill_rule=fill_rule, atol=atol, rtol=rtol)
     elseif start1_between
         if !ends_equal # then make a2 equal to b2
             if end1_between
@@ -529,9 +529,9 @@ function divide_event!(
     lt(a, b) = compare_events(a,b; atol=atol, rtol=rtol)
     new_segment = (pt, ev.segment[2])
     @debug("[divide_event!] new_segment=$(new_segment)")
+    # fix position of end in queue. Remove other before update_end! so that it can be found with a binary search.
+    pop_key!(queue, ev.other; lt=lt)
     e1, e2 = update_end!(ev, pt)
-    # fix position of end in queue
-    pop_key!(queue, e2)
     insert_in_order!(queue, e2; lt=lt)
     # add new segment at the end. Reset other_annotations. Reset self-annotations if self-intersection.
     if self_intersection
@@ -578,7 +578,7 @@ function update_end!(ev::SegmentEvent, end_point::Point2D)
 end
 
 """
-    merge_same_segments!(queue, discard, survive, self_intersection; fill_rule=EVEN_ODD)
+    merge_same_segments!(queue, discard, survive, self_intersection; fill_rule=EVEN_ODD, atol=default_atol, rtol=default_rtol)
 
 Merge two identical segments by removing `discard` (and `discard.other`) from the queue
 and combining its annotations into `survive`.
@@ -593,13 +593,14 @@ There are three cases:
 """
 function merge_same_segments!(
     queue::Vector{<:SegmentEvent}, discard::SegmentEvent, survive::SegmentEvent, self_intersection::Bool
-    ; fill_rule::FillRule=EVEN_ODD
+    ; fill_rule::FillRule=EVEN_ODD, atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
     # discard is assumed to be on top of survive
     @debug("[merge_same_segments!] discard=$discard")
     @debug("[merge_same_segments!] survive=$survive")
-    pop_key!(queue, discard)
-    pop_key!(queue, discard.other)
+    lt(a, b) = compare_events(a, b; atol=atol, rtol=rtol)
+    pop_key!(queue, discard; lt=lt)
+    pop_key!(queue, discard.other; lt=lt)
     if self_intersection
         # fill status is calculated bottom to top, so survive's winding_below and fill_below are already correct.
         # Add discard's windings to survive's, so that survive's winding change accounts for all its coincident edges.
