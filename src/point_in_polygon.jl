@@ -20,23 +20,26 @@ function contains(
     rtol::AbstractFloat=default_rtol,
     atol::AbstractFloat=default_atol,
     ) where T
-    n = length(vertices)
-    num_intersections = 0
-
-    x = x_coords(vertices)
-    extreme_left =  (minimum(x) - one(T), point[2])
-    extreme_right = (maximum(x) + one(T), point[2])
+    # First do a bounding box check: is it near the polygon?
+    xmin, ymin, xmax, ymax = bounds(vertices)
+    if point[1] < xmin - atol || point[1] > xmax + atol || point[2] < ymin - atol || point[2] > ymax + atol
+        return false
+    end
 
     # step 1: point intersects a vertex or edge
     if on_border(vertices, point; atol=atol, rtol=rtol)
         return on_border_is_inside
     end
-
+    
     # step 3: check intersections with vertices
     s = 1
+    n = length(vertices)
+    num_intersections = 0
+    extreme_left = (xmin - one(T), point[2])
+    extreme_right = (xmax + one(T), point[2])
     while s <= n
         # step 2: find a vertex not on the same horizontal ray as the point
-        while (s <= n) && (vertices[s][2] == point[2])
+        while (s <= n) && (abs(vertices[s][2] - point[2]) <= atol)
             s += 1
         end
         if s > n

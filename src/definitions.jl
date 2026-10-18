@@ -68,7 +68,7 @@ norm(p::Point2D, q::Point2D) = sqrt(norm2(p, q))
 
 Return `true` if the Euclidean distance between `p` and `q` is at most `atol`.
 """
-is_same_point(p::Point2D, q::Point2D; atol::AbstractFloat=default_atol) = norm(p, q) <= atol
+is_same_point(p::Point2D, q::Point2D; atol::AbstractFloat=default_atol) = norm2(p, q) <= atol * atol
 
 """
     translate(points::Vector{<:Point2D}, t::Point2D)
@@ -91,6 +91,8 @@ end
 rotate(points::Vector{<:Point2D}, θ::AbstractFloat, p0::Point2D) = 
     translate(rotate(translate(points, (-p0[1], -p0[2])), θ), p0)
 
+_coords_matrix(points::Path2D) = reinterpret(reshape, eltype(eltype(points)), points)
+
 """
     x_coords(points, [idxs])
     x_coords(polygon::Polygon)
@@ -99,8 +101,8 @@ The x co-ordinates of `points`, optionally only at the indices `idxs`.
 
 For a `Polygon`, returns a vector of x co-ordinates for the exterior followed by each hole.
 """
-x_coords(points::Path2D) = [p[1] for p in points]
-x_coords(points::Path2D, idxs::AbstractVector{Int}) = [p[1] for p in points[idxs]]
+x_coords(points::Path2D) = view(_coords_matrix(points), 1, :)
+x_coords(points::Path2D, idxs::AbstractVector{Int}) = view(_coords_matrix(points), 1, idxs)
 """
     y_coords(points, [idxs])
     y_coords(polygon::Polygon)
@@ -109,5 +111,5 @@ The y co-ordinates of `points`, optionally only at the indices `idxs`.
 
 For a `Polygon`, returns a vector of y co-ordinates for the exterior followed by each hole.
 """
-y_coords(points::Path2D) = [p[2] for p in points]
-y_coords(points::Path2D, idxs::AbstractVector{Int}) = [p[2] for p in points[idxs]]
+y_coords(points::Path2D) = view(_coords_matrix(points), 2, :)
+y_coords(points::Path2D, idxs::AbstractVector{Int}) = view(_coords_matrix(points), 2, idxs)

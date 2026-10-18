@@ -71,13 +71,13 @@ function martinez_rueda_algorithm(
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
     options...
     ) where T
-    event_queue_base = convert_to_event_queue(subject; primary=true, atol=atol, rtol=rtol)
-    event_queue_others = map(
-        p -> convert_to_event_queue(p; primary=false, atol=atol, rtol=rtol)
+    subject_events = convert_to_events(subject; primary=true, atol=atol)
+    other_events = map(
+        p -> convert_to_events(p; primary=false, atol=atol)
         , others
     )
     segments = martinez_rueda_algorithm(
-        selection_criteria, event_queue_base, event_queue_others...
+        selection_criteria, subject_events, other_events...
         ; atol=atol, rtol=rtol, options...
     )
     exteriors, holes = segments_to_paths(
@@ -98,17 +98,19 @@ function martinez_rueda_algorithm(
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
     options...
     ) where T
-    subject_queue = SegmentEvent{T}[]
-    map(
-        p -> convert_to_event_queue!(subject_queue, p; primary=true, atol=atol, rtol=rtol),
-        subjects
-    )
-    event_queue_others = map(
-        p -> convert_to_event_queue(p; primary=false, atol=atol, rtol=rtol),
+    subject_events = SegmentEvent{T}[]
+    for p in subjects
+        push!(
+            subject_events,
+            convert_to_events(p; primary=true, atol=atol)...
+        )
+    end
+    other_events = map(
+        p -> convert_to_events(p; primary=false, atol=atol),
         others
     )
     segments = martinez_rueda_algorithm(
-        selection_criteria, subject_queue, event_queue_others...
+        selection_criteria, subject_events, other_events...
         ; atol=atol, rtol=rtol, options...
     )
     exteriors, holes = segments_to_paths(
@@ -129,21 +131,24 @@ function martinez_rueda_algorithm(
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
     options...
     ) where T
-    event_queue_base = convert_to_event_queue(subject.exterior; primary=true, atol=atol, rtol=rtol)
-    for hole in subject.holes
-        convert_to_event_queue!(event_queue_base, hole; primary=true, atol=atol, rtol=rtol)
+    subject_events = convert_to_events(subject.exterior; atol=atol)
+    for p in subject.holes
+        push!(
+            subject_events,
+            convert_to_events(p; primary=true, atol=atol)...
+        )
     end
-    event_queue_others = map(
-        p -> convert_to_event_queue(p.exterior; primary=false, atol=atol, rtol=rtol),
+    other_events = map(
+        p -> convert_to_events(p.exterior; primary=false, atol=atol),
         others
     )
-    for (queue, other) in zip(event_queue_others, others)
-        for hole in other.holes
-            convert_to_event_queue!(queue, hole; primary=false, atol=atol, rtol=rtol)
+    for (other_event, other) in zip(other_events, others)
+        for p in other.holes
+            push!(other_event, convert_to_events(p; primary=false, atol=atol)...)
         end
     end
     segments = martinez_rueda_algorithm(
-        selection_criteria, event_queue_base, event_queue_others...
+        selection_criteria, subject_events, other_events...
         ; atol=atol, rtol=rtol, options...
     )
     segments_to_polygons(
@@ -157,33 +162,29 @@ end
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subjects::AbstractVector{<:Polygon{T}},
-    clips::Vararg{Polygon{T}},
+    others::Vararg{Polygon{T}},
     ;
     atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
     options...
     ) where T
-    subject_queue = SegmentEvent{T}[]
-    map(
-        p -> convert_to_event_queue!(subject_queue, p.exterior; primary=true, atol=atol, rtol=rtol),
-        subjects
-    )
+    subject_events = SegmentEvent{T}[]
     for subject in subjects
-        for hole in subject.holes
-            convert_to_event_queue!(subject_queue, hole; primary=true, atol=atol, rtol=rtol)
+        for p in vcat([subject.exterior], subject.holes)
+            push!(subject_events, convert_to_events(p; primary=true, atol=atol)...)
         end
     end
-    event_queue_clips = map(
-        p -> convert_to_event_queue(p.exterior; primary=false, atol=atol, rtol=rtol),
-        clips
+    other_events = map(
+        p -> convert_to_events(p.exterior; primary=false, atol=atol),
+        others
     )
-    for (queue, other) in zip(event_queue_clips, clips)
-        for hole in other.holes
-            convert_to_event_queue!(queue, hole; primary=false, atol=atol, rtol=rtol)
+    for (other_event, other) in zip(other_events, others)
+        for p in other.holes
+            push!(other_event, convert_to_events(p; primary=false, atol=atol)...)
         end
     end
     segments = martinez_rueda_algorithm(
-        selection_criteria, subject_queue, event_queue_clips...
+        selection_criteria, subject_events, other_events...
         ; atol=atol, rtol=rtol, options...
     )
     segments_to_polygons(
@@ -206,7 +207,7 @@ function martinez_rueda_algorithm(
         annotated_segments = event_loop!(polygon; self_intersection=true, atol=atol, rtol=rtol, fill_rule=fill_rule)
         queue = SegmentEvent{T}[]
         for ev in vcat(base_annotated_segments, annotated_segments)
-            add_annotated_segment!(queue, ev; atol=atol, rtol=rtol)
+            push!(queue, create_segment_pair(ev)...)
         end
         combined_annotated_segments = event_loop!(queue; self_intersection=false, atol=atol, rtol=rtol)
         # for consistent reporting, swap annotations so that self annotations are always the primary
@@ -239,33 +240,6 @@ function martinez_rueda_algorithm(
     selected_segments
 end
 
-"""
-    add_annotated_segment!(queue, ev; atol=default_atol, rtol=default_rtol)
-
-Add a new pair of start and end events to `queue` for the segment in `ev`,
-keeping its `primary` flag and sharing its annotations.
-Zero length segments are skipped.
-"""
-function add_annotated_segment!(
-    queue::Vector{<:SegmentEvent}, ev::SegmentEvent
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
-    )
-    pt1 = ev.segment[1]
-    pt2 = ev.segment[2]
-    forward = _compare_points(pt1, pt2; atol=atol)
-    if forward == Int8(0)
-        return queue # zero length segment
-    end
-    start = forward < Int8(0) ? pt1 : pt2
-    end_ = forward < Int8(0) ? pt2 : pt1
-    segment = (start, end_)
-    add_segment_event!(
-        queue, segment, ev.primary,
-        ev.self_annotations, ev.other_annotations
-        ; atol=atol, rtol=rtol
-    )
-end
-
 #############################################################
 ##                    Event Loop                           ##
 #############################################################
@@ -296,6 +270,7 @@ function event_loop!(
     ) where T # eventLoop
     annotated_segments = SegmentEvent{T}[]
     sweep_status = SegmentEvent{T}[] # current events in a vertical line, top to bottom.
+    sort_event_queue!(queue; atol=atol, rtol=rtol)
     while !(isempty(queue))
         head = queue[1]
         queue_length = length(queue)
@@ -312,14 +287,14 @@ function event_loop!(
                 queue, head, above, self_intersection
                 ; atol=atol, rtol=rtol, fill_rule=fill_rule
             )
-            if queue[1] != head
+            if queue[1] !== head
                 continue # either head was removed or something was inserted ahead of it
             end
             check_and_divide_intersection!(
                 queue, head, below, self_intersection
                 ; atol=atol, rtol=rtol, fill_rule=fill_rule
             )
-            if queue[1] != head
+            if queue[1] !== head
                 continue # either head was removed or something was inserted ahead of it
             end
             if self_intersection
@@ -346,7 +321,7 @@ function event_loop!(
                     ; atol=atol, rtol=rtol, fill_rule=fill_rule
                 )
             end
-            push!(annotated_segments, copy_segment(head.other, head.other.primary))
+            push!(annotated_segments, copy(head.other))
             popat!(sweep_status, idx)
         end
         popfirst!(queue)
@@ -486,7 +461,7 @@ function divide_coincident_intersection!(
     @debug("[divide_coincident_intersection!] ends_equal=$ends_equal")
     if starts_equal && ends_equal
         # segments are equal. Keep the second one
-        return merge_same_segments!(queue, ev1, ev2, self_intersection; fill_rule=fill_rule)
+        return merge_same_segments!(queue, ev1, ev2, self_intersection; fill_rule=fill_rule, atol=atol, rtol=rtol)
     end
     start1_between = !starts_equal && on_segment(ev1.segment[1], ev2.segment; atol=atol)
     end1_between = !ends_equal && on_segment(ev1.segment[2], ev2.segment; atol=atol, rtol=rtol)
@@ -504,7 +479,7 @@ function divide_coincident_intersection!(
             return queue
         end
         # duplicate a1->x, so remove ev1
-        return merge_same_segments!(queue, ev1, ev2, self_intersection; fill_rule=fill_rule)
+        return merge_same_segments!(queue, ev1, ev2, self_intersection; fill_rule=fill_rule, atol=atol, rtol=rtol)
     elseif start1_between
         if !ends_equal # then make a2 equal to b2
             if end1_between
@@ -551,12 +526,13 @@ function divide_event!(
     ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     ) # eventDivide
     # assumes pt lies on ev.segment
+    lt(a, b) = compare_events(a,b; atol=atol, rtol=rtol)
     new_segment = (pt, ev.segment[2])
     @debug("[divide_event!] new_segment=$(new_segment)")
+    # fix position of end in queue. Remove other before update_end! so that it can be found with a binary search.
+    pop_key!(queue, ev.other; lt=lt)
     e1, e2 = update_end!(ev, pt)
-    # fix position of end in queue
-    pop_key!(queue, e2)
-    insert_in_order!(queue, e2; lt=(a, b)->compare_events(a,b; atol=atol, rtol=rtol))
+    insert_in_order!(queue, e2; lt=lt)
     # add new segment at the end. Reset other_annotations. Reset self-annotations if self-intersection.
     if self_intersection
         # the fill can be recalculated, but the windings must be kept because ev might
@@ -569,12 +545,13 @@ function divide_event!(
     else
         self_annotations = ev.self_annotations
     end
-    add_segment_event!(
-        queue, new_segment, ev.primary,
+    start_event, end_event = create_segment_pair(
+        new_segment, ev.primary,
         self_annotations,
         SegmentAnnotations()
-        ; atol=atol, rtol=rtol
     )
+    insert_in_order!(queue, start_event; lt=lt)
+    insert_in_order!(queue, end_event; lt=lt)
 end
 
 """
@@ -601,7 +578,7 @@ function update_end!(ev::SegmentEvent, end_point::Point2D)
 end
 
 """
-    merge_same_segments!(queue, discard, survive, self_intersection; fill_rule=EVEN_ODD)
+    merge_same_segments!(queue, discard, survive, self_intersection; fill_rule=EVEN_ODD, atol=default_atol, rtol=default_rtol)
 
 Merge two identical segments by removing `discard` (and `discard.other`) from the queue
 and combining its annotations into `survive`.
@@ -616,13 +593,14 @@ There are three cases:
 """
 function merge_same_segments!(
     queue::Vector{<:SegmentEvent}, discard::SegmentEvent, survive::SegmentEvent, self_intersection::Bool
-    ; fill_rule::FillRule=EVEN_ODD
+    ; fill_rule::FillRule=EVEN_ODD, atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
     )
     # discard is assumed to be on top of survive
     @debug("[merge_same_segments!] discard=$discard")
     @debug("[merge_same_segments!] survive=$survive")
-    pop_key!(queue, discard)
-    pop_key!(queue, discard.other)
+    lt(a, b) = compare_events(a, b; atol=atol, rtol=rtol)
+    pop_key!(queue, discard; lt=lt)
+    pop_key!(queue, discard.other; lt=lt)
     if self_intersection
         # fill status is calculated bottom to top, so survive's winding_below and fill_below are already correct.
         # Add discard's windings to survive's, so that survive's winding change accounts for all its coincident edges.
@@ -834,11 +812,16 @@ function apply_selection_criteria(annotated_segments::Vector{<:SegmentEvent{T}},
                 (ev.other_annotations.fill_above ? 2 : 0) + 
                 (ev.other_annotations.fill_below ? 1 : 0)
         if criteria[index] != BLANK
-            new_segment = copy_segment(ev, true)
-            new_segment.self_annotations.fill_above = criteria[index] == ABOVE
-            new_segment.self_annotations.fill_below = criteria[index] == BELOW
-            new_segment.other_annotations.fill_above = nothing
-            new_segment.other_annotations.fill_below = nothing
+            new_segment = SegmentEvent(
+                ev.segment,
+                ev.is_start,
+                true,
+                SegmentAnnotations(
+                    criteria[index] == ABOVE,
+                    criteria[index] == BELOW,
+                ),
+                SegmentAnnotations(),
+            )
             push!(result, new_segment)
         end
     end

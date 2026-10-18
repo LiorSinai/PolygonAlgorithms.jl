@@ -31,10 +31,10 @@ function bounds(polygons::Vector{<:Path2D})
     ymax = start[2]
     for polygon in polygons
         x0, y0, x1, y1 = bounds(polygon)
-        xmin = min(xmin, x0, x1)
-        xmax = max(xmax, x0, x1)
-        ymin = min(ymin, y0, y1)
-        ymax = max(ymax, y0, y1)
+        xmin = min(xmin, x0)
+        xmax = max(xmax, x1)
+        ymin = min(ymin, y0)
+        ymax = max(ymax, y1)
     end
    (xmin, ymin, xmax, ymax)
 end
