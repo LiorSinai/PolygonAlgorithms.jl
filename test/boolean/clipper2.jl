@@ -110,7 +110,7 @@ end
 function execute_clipper_test(test::PolygonTest, subjects::Vector, clips::Vector)
     func = func_map[test.clip_type]
     fill_rule = fill_map[test.fill_rule]
-    regions = func(subjects, clips...; atol=1e-7, rtol=1e-7, fill_rule=fill_rule)
+    regions = func(subjects, clips...; fill_rule=fill_rule)
     area_ratio = calculate_area_diff_ratio(test.solution_area, regions)
     count_regions = length(regions)
     count_diff = test.solution_count > 0 ? (test.solution_count - count_regions) : 0

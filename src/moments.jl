@@ -43,9 +43,9 @@ end
 Return `true` if the vertices are ordered clockwise, determined by the sign of `first_moment`.
 For a `Polygon`, only the exterior is checked.
 
-A polygon with zero area is considered both clockwise and counter-clockwise.
+A polygon with zero area (less than `eps`) is not considered clockwise.
 """
-is_clockwise(vertices::Path2D) = first_moment(vertices) <= 0.0
+is_clockwise(vertices::Path2D{T}) where T = first_moment(vertices) < eps(T)
 
 """
     is_counter_clockwise(vertices::Vector{<:Point2D})
@@ -54,9 +54,9 @@ is_clockwise(vertices::Path2D) = first_moment(vertices) <= 0.0
 Return `true` if the vertices are ordered counter-clockwise, determined by the sign of `first_moment`.
 For a `Polygon`, only the exterior is checked.
 
-A polygon with zero area is considered both clockwise and counter-clockwise.
+A polygon with zero area (less than `eps`) is not considered counter-clockwise.
 """
-is_counter_clockwise(vertices::Path2D) = first_moment(vertices) >= 0.0
+is_counter_clockwise(vertices::Path2D{T}) where T  = first_moment(vertices) > eps(T)
 
 """
     centroid_polygon(vertices::Vector{<:Point2D})

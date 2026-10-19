@@ -13,7 +13,7 @@ Outcome for a segment in a selection criteria table. See `apply_selection_criter
 """
     martinez_rueda_algorithm(
     selection_criteria, subject, others...
-    ; atol=default_atol, rtol=default_rtol, face_selection=SPLIT_FACES, fill_rule=EVEN_ODD
+    ; atol=default_atol, face_selection=SPLIT_FACES, fill_rule=EVEN_ODD
     )
 
 The Martínez-Rueda-Feito polygon clipping algorithm.
@@ -33,7 +33,7 @@ The input polygons can be:
     some areas might be classified as holes according to the `fill_rule`..
 
 Keyword arguments:
-- `atol`, `rtol`: tolerances for point comparisons, orientations and intersections.
+- `atol`: tolerance for point comparisons, orientations and intersections.
 - `fill_rule`: rule for which regions of self-intersecting polygons are filled. See `FillRule`.
 - `face_selection`: how to convert the resultant segments back into polygons. See `FaceSelectionStrategy`.
     Not used for `SegmentEvent` inputs.
@@ -67,7 +67,7 @@ function martinez_rueda_algorithm(
     subject::Path2D{T},
     others::Vararg{Path2D{T}},
     ;
-    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    atol::AbstractFloat=default_atol,
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
     options...
     ) where T
@@ -78,7 +78,7 @@ function martinez_rueda_algorithm(
     )
     segments = martinez_rueda_algorithm(
         selection_criteria, subject_events, other_events...
-        ; atol=atol, rtol=rtol, options...
+        ; atol=atol, options...
     )
     exteriors, holes = segments_to_paths(
         segments;
@@ -94,7 +94,7 @@ function martinez_rueda_algorithm(
     subjects::AbstractVector{<:Path2D{T}},
     others::Vararg{Path2D{T}},
     ;
-    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    atol::AbstractFloat=default_atol,
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
     options...
     ) where T
@@ -111,7 +111,7 @@ function martinez_rueda_algorithm(
     )
     segments = martinez_rueda_algorithm(
         selection_criteria, subject_events, other_events...
-        ; atol=atol, rtol=rtol, options...
+        ; atol=atol, options...
     )
     exteriors, holes = segments_to_paths(
         segments;
@@ -127,7 +127,7 @@ function martinez_rueda_algorithm(
     subject::Polygon{T},
     others::Vararg{Polygon{T}},
     ;
-    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    atol::AbstractFloat=default_atol,
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
     options...
     ) where T
@@ -149,11 +149,11 @@ function martinez_rueda_algorithm(
     end
     segments = martinez_rueda_algorithm(
         selection_criteria, subject_events, other_events...
-        ; atol=atol, rtol=rtol, options...
+        ; atol=atol, options...
     )
     segments_to_polygons(
         segments
-        ; atol=atol, rtol=rtol,
+        ; atol=atol,
         face_selection=face_selection,
     )
 end
@@ -164,7 +164,7 @@ function martinez_rueda_algorithm(
     subjects::AbstractVector{<:Polygon{T}},
     others::Vararg{Polygon{T}},
     ;
-    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    atol::AbstractFloat=default_atol,
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
     options...
     ) where T
@@ -185,11 +185,11 @@ function martinez_rueda_algorithm(
     end
     segments = martinez_rueda_algorithm(
         selection_criteria, subject_events, other_events...
-        ; atol=atol, rtol=rtol, options...
+        ; atol=atol, options...
     )
     segments_to_polygons(
         segments
-        ; atol=atol, rtol=rtol,
+        ; atol=atol,
         face_selection=face_selection,
     )
 end
@@ -199,17 +199,17 @@ function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subject::Vector{<:SegmentEvent{T}},
     polygons::Vararg{Vector{<:SegmentEvent{T}}},
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    ; atol::AbstractFloat=default_atol,
     fill_rule::FillRule=EVEN_ODD
     ) where T
-    base_annotated_segments = event_loop!(subject; self_intersection=true, atol=atol, rtol=rtol, fill_rule=fill_rule)
+    base_annotated_segments = event_loop!(subject; self_intersection=true, atol=atol, fill_rule=fill_rule)
     for polygon in polygons
-        annotated_segments = event_loop!(polygon; self_intersection=true, atol=atol, rtol=rtol, fill_rule=fill_rule)
+        annotated_segments = event_loop!(polygon; self_intersection=true, atol=atol, fill_rule=fill_rule)
         queue = SegmentEvent{T}[]
         for ev in vcat(base_annotated_segments, annotated_segments)
             push!(queue, create_segment_pair(ev)...)
         end
-        combined_annotated_segments = event_loop!(queue; self_intersection=false, atol=atol, rtol=rtol)
+        combined_annotated_segments = event_loop!(queue; self_intersection=false, atol=atol)
         # for consistent reporting, swap annotations so that self annotations are always the primary
         for ev in combined_annotated_segments
             if !ev.primary
@@ -227,10 +227,10 @@ end
 function martinez_rueda_algorithm(
     selection_criteria::Vector{AnnotationFill},
     subject::Vector{<:SegmentEvent{T}},
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    ; atol::AbstractFloat=default_atol,
     fill_rule::FillRule=EVEN_ODD
     ) where T
-    base_annotated_segments = event_loop!(subject; self_intersection=true, atol=atol, rtol=rtol, fill_rule=fill_rule)
+    base_annotated_segments = event_loop!(subject; self_intersection=true, atol=atol, fill_rule=fill_rule)
     for seg in base_annotated_segments
         # apply_selection_criteria will fail (and should fail) if annotations are nothing
         seg.other_annotations.fill_above = false
@@ -245,7 +245,7 @@ end
 #############################################################
 
 """
-    event_loop!(queue; self_intersection, atol=default_atol, rtol=default_rtol, fill_rule=EVEN_ODD)
+    event_loop!(queue; self_intersection, atol=default_atol, fill_rule=EVEN_ODD)
 
 The core line sweep of the Martinez-Rueda algorithm.
 Consumes `queue` and returns a list of annotated segments (copies of the start events).
@@ -265,19 +265,19 @@ The loop is used in two phases:
 function event_loop!(
     queue::Vector{SegmentEvent{T}}
     ; self_intersection::Bool,
-    atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    atol::AbstractFloat=default_atol,
     fill_rule::FillRule=EVEN_ODD
     ) where T # eventLoop
     annotated_segments = SegmentEvent{T}[]
     sweep_status = SegmentEvent{T}[] # current events in a vertical line, top to bottom.
-    sort_event_queue!(queue; atol=atol, rtol=rtol)
+    sort_event_queue!(queue; atol=atol)
     while !(isempty(queue))
         head = queue[1]
         queue_length = length(queue)
         status_length = length(sweep_status)
         @debug("[event_loop!] ($(queue_length), $(status_length)): $(head)")
         if head.is_start # then check for intersections and add to sweep status
-            idx = find_transition(sweep_status, head; atol=atol, rtol=rtol)
+            idx = find_transition(sweep_status, head; atol=atol)
             above = idx == 1 ? nothing : sweep_status[idx - 1]
             below = (idx > length(sweep_status)) ? nothing : sweep_status[idx]
             @debug("[event_loop!] transition idx=$idx")
@@ -285,14 +285,14 @@ function event_loop!(
             @debug("[event_loop!] below=$below")
             check_and_divide_intersection!(
                 queue, head, above, self_intersection
-                ; atol=atol, rtol=rtol, fill_rule=fill_rule
+                ; atol=atol, fill_rule=fill_rule
             )
             if queue[1] !== head
                 continue # either head was removed or something was inserted ahead of it
             end
             check_and_divide_intersection!(
                 queue, head, below, self_intersection
-                ; atol=atol, rtol=rtol, fill_rule=fill_rule
+                ; atol=atol, fill_rule=fill_rule
             )
             if queue[1] !== head
                 continue # either head was removed or something was inserted ahead of it
@@ -304,7 +304,7 @@ function event_loop!(
             end
             insert!(sweep_status, idx, head)
         else # event is ending, so remove it from the status
-            idx = find_transition(sweep_status, head.other; atol=atol, rtol=rtol)
+            idx = find_transition(sweep_status, head.other; atol=atol)
             if !(0 < idx <= length(sweep_status) && sweep_status[idx] === head.other)
                 @warn "$(head.other) was not in the expected location in the sweep status. " * 
                     "Falling back to linear search."
@@ -318,7 +318,7 @@ function event_loop!(
                 # there will be 2 new adjacent edges, so check the intersection between them
                 check_and_divide_intersection!(
                     queue, sweep_status[idx - 1], sweep_status[idx + 1], self_intersection
-                    ; atol=atol, rtol=rtol, fill_rule=fill_rule
+                    ; atol=atol, fill_rule=fill_rule
                 )
             end
             push!(annotated_segments, copy(head.other))
@@ -331,7 +331,7 @@ end
 
 function check_and_divide_intersection!(
     queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::Nothing, self_intersection::Bool
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol, fill_rule::FillRule=EVEN_ODD
+    ; atol::AbstractFloat=default_atol, fill_rule::FillRule=EVEN_ODD
     )
     queue
 end
@@ -339,7 +339,7 @@ end
 """
     check_and_divide_intersection!(
         queue, ev1, ev2, self_intersection
-        ; atol=default_atol, rtol=default_rtol, fill_rule=EVEN_ODD
+        ; atol=default_atol, fill_rule=EVEN_ODD
     )
 
 Check if the segments of start events `ev1` and `ev2` intersect.
@@ -354,36 +354,40 @@ function check_and_divide_intersection!(
     ev1::SegmentEvent,
     ev2::SegmentEvent,
     self_intersection::Bool
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol,
+    ; atol::AbstractFloat=default_atol,
     fill_rule::FillRule=EVEN_ODD
     )
-    pt = intersect_geometry(ev1.segment, ev2.segment; atol=atol, rtol=rtol)
+    pt = intersect_geometry(ev1.segment, ev2.segment; atol=atol)
     if isnothing(pt)
         @debug("no intersection or parallel lines at $ev1 -- $ev2")
-        # Lines might be on top of each other 
-        ori2_start = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[1]; atol=atol, rtol=rtol)
-        ori2_end = get_orientation(ev1.segment[1], ev1.segment[2], ev2.segment[2]; atol=atol, rtol=rtol)
-        if (ori2_start == COLINEAR) && (ori2_end == COLINEAR)
+        # Lines might be on top of each other.
+        # Check the shorter segment against the longer one, because intersect_geometry
+        # treats them as parallel when the shorter one is within atol of the longer one's line.
+        long_seg, short_seg = norm2(ev1.segment...) >= norm2(ev2.segment...) ?
+            (ev1.segment, ev2.segment) : (ev2.segment, ev1.segment)
+        ori_start = get_orientation(long_seg[1], long_seg[2], short_seg[1]; atol=atol)
+        ori_end = get_orientation(long_seg[1], long_seg[2], short_seg[2]; atol=atol)
+        if (ori_start == COLINEAR) && (ori_end == COLINEAR)
             divide_coincident_intersection!(
                 queue, ev1, ev2, self_intersection
-                ; fill_rule=fill_rule, atol=atol, rtol=rtol
+                ; fill_rule=fill_rule, atol=atol
             )
         end
         return queue
     else
-        divide_intersection!(queue, ev1, ev2, pt, self_intersection; atol=atol, rtol=rtol)
+        divide_intersection!(queue, ev1, ev2, pt, self_intersection; atol=atol)
     end
 end
 
 function divide_intersection!(
     queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::SegmentEvent, pt, self_intersection::Bool=false
-    ; atol=default_atol, rtol=default_rtol
+    ; atol=default_atol
     )
     queue
 end
 
 """
-    divide_intersection!(queue, ev1, ev2, pt, [self_intersection=false]; atol=default_atol, rtol=default_rtol)
+    divide_intersection!(queue, ev1, ev2, pt, [self_intersection=false]; atol=default_atol)
 
 Divide the segments of `ev1` and `ev2` at their intersection point `pt` with `divide_event!`.
 
@@ -398,9 +402,9 @@ function divide_intersection!(
     ev2::SegmentEvent,
     pt::Point2D,
     self_intersection::Bool=false,
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     ) # checkIntersection
-    _divide_event!(args...) = divide_event!(args...; atol=atol, rtol=rtol)
+    _divide_event!(args...) = divide_event!(args...; atol=atol)
     @debug("[divide_intersection!] $(ev1.segment) -- $(ev2.segment) at $(pt)")
     at_start1, at_end1, along1 = classify_intersection(ev1.segment, pt; atol=atol)
     at_start2, at_end2, along2 = classify_intersection(ev2.segment, pt; atol=atol)
@@ -428,7 +432,7 @@ end
 """
     divide_coincident_intersection!(
         queue, ev1, ev2, self_intersection
-        ; fill_rule=EVEN_ODD, atol=default_atol, rtol=default_rtol
+        ; fill_rule=EVEN_ODD, atol=default_atol
     )
 
 Handle two colinear segments that overlap.
@@ -443,12 +447,12 @@ If the segments only touch at an end point, nothing is done.
 """
 function divide_coincident_intersection!(
     queue::Vector{<:SegmentEvent}, ev1::SegmentEvent, ev2::SegmentEvent, self_intersection::Bool
-    ; fill_rule::FillRule=EVEN_ODD, atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; fill_rule::FillRule=EVEN_ODD, atol::AbstractFloat=default_atol
     )
     # This assumes:
     # - ev1 is on top of or to the right of ev2, because events are processed left to right.
     # - both points of ev2 are colinear with ev1
-    _divide_event!(args...) = divide_event!(args...; atol=atol, rtol=rtol)
+    _divide_event!(args...) = divide_event!(args...; atol=atol)
     @debug("[divide_coincident_intersection!] $(ev1) -- $ev2")
     start1_on_end2 = is_same_point(ev1.segment[1], ev2.segment[2]; atol=atol)
     end1_on_start2 = is_same_point(ev1.segment[2], ev2.segment[1]; atol=atol)
@@ -461,11 +465,11 @@ function divide_coincident_intersection!(
     @debug("[divide_coincident_intersection!] ends_equal=$ends_equal")
     if starts_equal && ends_equal
         # segments are equal. Keep the second one
-        return merge_same_segments!(queue, ev1, ev2, self_intersection; fill_rule=fill_rule, atol=atol, rtol=rtol)
+        return merge_same_segments!(queue, ev1, ev2, self_intersection; fill_rule=fill_rule, atol=atol)
     end
     start1_between = !starts_equal && on_segment(ev1.segment[1], ev2.segment; atol=atol)
-    end1_between = !ends_equal && on_segment(ev1.segment[2], ev2.segment; atol=atol, rtol=rtol)
-    end2_between = !ends_equal && on_segment(ev2.segment[2], ev1.segment; atol=atol, rtol=rtol)
+    end1_between = !ends_equal && on_segment(ev1.segment[2], ev2.segment; atol=atol)
+    end2_between = !ends_equal && on_segment(ev2.segment[2], ev1.segment; atol=atol)
     if starts_equal
         if end1_between
             # (a1)---(a2)
@@ -479,7 +483,7 @@ function divide_coincident_intersection!(
             return queue
         end
         # duplicate a1->x, so remove ev1
-        return merge_same_segments!(queue, ev1, ev2, self_intersection; fill_rule=fill_rule, atol=atol, rtol=rtol)
+        return merge_same_segments!(queue, ev1, ev2, self_intersection; fill_rule=fill_rule, atol=atol)
     elseif start1_between
         if !ends_equal # then make a2 equal to b2
             if end1_between
@@ -503,7 +507,7 @@ function divide_coincident_intersection!(
 end
 
 """
-    divide_event!(queue, ev, pt, [self_intersection=false]; atol=default_atol, rtol=default_rtol)
+    divide_event!(queue, ev, pt, [self_intersection=false]; atol=default_atol)
 
 Divide a start event `ev` and its end event `ev.other` in `queue` into 4 events at the point `pt`:
 ```
@@ -523,10 +527,10 @@ Assumes `pt` lies on `ev.segment`.
 function divide_event!(
     queue::Vector{<:SegmentEvent}, ev::SegmentEvent, pt::Point2D,
     self_intersection::Bool=false
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     ) # eventDivide
     # assumes pt lies on ev.segment
-    lt(a, b) = compare_events(a,b; atol=atol, rtol=rtol)
+    lt(a, b) = compare_events(a,b; atol=atol)
     new_segment = (pt, ev.segment[2])
     @debug("[divide_event!] new_segment=$(new_segment)")
     # fix position of end in queue. Remove other before update_end! so that it can be found with a binary search.
@@ -578,7 +582,7 @@ function update_end!(ev::SegmentEvent, end_point::Point2D)
 end
 
 """
-    merge_same_segments!(queue, discard, survive, self_intersection; fill_rule=EVEN_ODD, atol=default_atol, rtol=default_rtol)
+    merge_same_segments!(queue, discard, survive, self_intersection; fill_rule=EVEN_ODD, atol=default_atol)
 
 Merge two identical segments by removing `discard` (and `discard.other`) from the queue
 and combining its annotations into `survive`.
@@ -593,12 +597,12 @@ There are three cases:
 """
 function merge_same_segments!(
     queue::Vector{<:SegmentEvent}, discard::SegmentEvent, survive::SegmentEvent, self_intersection::Bool
-    ; fill_rule::FillRule=EVEN_ODD, atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; fill_rule::FillRule=EVEN_ODD, atol::AbstractFloat=default_atol
     )
     # discard is assumed to be on top of survive
     @debug("[merge_same_segments!] discard=$discard")
     @debug("[merge_same_segments!] survive=$survive")
-    lt(a, b) = compare_events(a, b; atol=atol, rtol=rtol)
+    lt(a, b) = compare_events(a, b; atol=atol)
     pop_key!(queue, discard; lt=lt)
     pop_key!(queue, discard.other; lt=lt)
     if self_intersection

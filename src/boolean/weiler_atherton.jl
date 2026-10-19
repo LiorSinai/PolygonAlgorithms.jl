@@ -1,5 +1,5 @@
 """
-    weiler_atherton_algorithm(polygon1, polygon2; atol=default_atol, rtol=default_rtol)
+    weiler_atherton_algorithm(polygon1, polygon2; atol=default_atol)
 
 The Weiler-Atherton polygon clipping algorithm.
 Returns regions, edges and single points of intersection. 
@@ -21,7 +21,7 @@ For a more general algorithm see the Martinez-Rueda polygon clipping algorithm.
 """
 function weiler_atherton_algorithm(
     polygon1::Path2D{T}, polygon2::Path2D{T}
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     ) where T
     if polygon1 == polygon2
         return [polygon1]
@@ -37,15 +37,15 @@ function weiler_atherton_algorithm(
     end
     list1 = convert_to_linked_list(polygon1)
     list2 = convert_to_linked_list(polygon2)
-    find_and_insert_intersections!(list1, list2; atol=atol, rtol=rtol)
+    find_and_insert_intersections!(list1, list2; atol=atol)
     regions, visited = walk_linked_lists(list2)
     # special cases
     if isempty(regions)
         p1 = get_first_non_intersection_point(list1)
         p2 = get_first_non_intersection_point(list2)
-        if contains(polygon2, p1; atol=atol, rtol=rtol)
+        if contains(polygon2, p1; atol=atol)
             return [polygon1]
-        elseif contains(polygon1, p2; atol=atol, rtol=rtol)
+        elseif contains(polygon1, p2; atol=atol)
             return [polygon2]
         end
     end
@@ -112,7 +112,7 @@ function get_first_non_intersection_point(polygon::DoublyLinkedList{<:PointEvent
 end
 
 """
-    find_and_insert_intersections!(polygon1, polygon2; atol=default_atol, rtol=default_rtol)
+    find_and_insert_intersections!(polygon1, polygon2; atol=default_atol)
 
 Intersect every edge of `polygon1` with every edge of `polygon2` in `O(nm)` time.
 Each intersection point is inserted into both linked lists in order along the edge
@@ -120,7 +120,7 @@ Each intersection point is inserted into both linked lists in order along the ed
 function find_and_insert_intersections!(
         polygon1::DoublyLinkedList{PointEvent{T}}, 
         polygon2::DoublyLinkedList{PointEvent{T}};
-        atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+        atol::AbstractFloat=default_atol
         ) where T
     ## collect original nodes before mutating in place
     vec1 = collect_nodes(polygon1)
@@ -134,7 +134,7 @@ function find_and_insert_intersections!(
         for (i, node1) in enumerate(vec1)
             next1 = vec1[i % n1 + 1]
             edge1 = (node1.data.point, next1.data.point) 
-            p = intersect_geometry(edge1, edge2; atol=atol, rtol=rtol)
+            p = intersect_geometry(edge1, edge2; atol=atol)
             if !isnothing(p)
                 i1 = insert_intersection_in_order!(p, node1, next1; atol=atol)
                 i2 = insert_intersection_in_order!(p, node2, next2; atol=atol)

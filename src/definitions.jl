@@ -19,8 +19,8 @@ A polygon represented as a list of vertices.
 The last point implicitly connects back to the first point, so it should not be repeated.
 """
 const Path2D{T<:AbstractFloat} = Vector{<:Point2D{T}}
+# atol is a distance.
 const default_atol = 1e-6
-const default_rtol = 1e-6
 
 """
     decimal_tolerance(atol)

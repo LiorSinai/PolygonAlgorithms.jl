@@ -211,7 +211,6 @@ using PolygonAlgorithms: find_transition, is_above, any_intersect
                 SegmentEvent(((0.7456555133038324, 0.17560361123176102), (0.879152990839225, 0.03969376626137666)), true)
             ]
             ev = SegmentEvent(((0.7692174020749689, 0.1749860342238233), (0.8076322984621129, 0.25945610393589347)), true)
-            # with rtol=1e-3, this is linear
             idx = find_transition(sweep_status, ev)
             @test idx == 4
         end

@@ -1,5 +1,5 @@
 """
-    chasing_edges_algorithm(polygon1, polygon2; atol=default_atol, rtol=default_rtol)
+    chasing_edges_algorithm(polygon1, polygon2; atol=default_atol)
 
 A fast algorithm for finding the intersection, if it exists, between two
 convex polygons.
@@ -14,7 +14,7 @@ convex polygons.
 """
 function chasing_edges_algorithm(
     polygon1::Path2D{T}, polygon2::Path2D{T}
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     ) where T
     n = length(polygon1)
     m = length(polygon2)
@@ -34,7 +34,7 @@ function chasing_edges_algorithm(
         j_prev = j == 1 ? m : j - 1
         edge1 = (polygon1[i_prev], polygon1[i])
         edge2 = (polygon2[j_prev], polygon2[j])
-        inter = intersect_geometry(edge1, edge2; atol=atol, rtol=rtol)
+        inter = intersect_geometry(edge1, edge2; atol=atol)
         is_colinear = isapprox(cross_product(edge1, edge2), 0.0; atol=atol)
         if !isnothing(inter) && !is_colinear
             is_second_iter = k > (m + n)
@@ -66,9 +66,9 @@ function chasing_edges_algorithm(
         end
     end
     if isempty(points)
-        if contains(polygon2, polygon1[1]; atol=atol, rtol=rtol)
+        if contains(polygon2, polygon1[1]; atol=atol)
             return polygon1
-        elseif contains(polygon1, polygon2[1]; atol=atol, rtol=rtol)
+        elseif contains(polygon1, polygon2[1]; atol=atol)
             return polygon2
         end
     end
