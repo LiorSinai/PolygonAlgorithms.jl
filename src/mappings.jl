@@ -123,6 +123,9 @@ function segments_to_paths(
         exteriors = polygons[are_exteriors]
         holes = empty(exteriors)
     else
+        moments = first_moment.(polygons)
+        are_exteriors = moments .> eps(T) # counter-clockwise
+        are_interiors = moments .< -eps(T) # clockwise
         not_holes = .!is_hole.(faces[are_exteriors], true) # ignore exteriors of holes
         if face_selection == MERGE_FACES
             are_holes = is_hole.(faces[are_interiors], false) # ignore repeated interiors
