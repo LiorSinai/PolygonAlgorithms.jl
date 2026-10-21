@@ -13,10 +13,9 @@ The orientation of three ordered points `(p, q, r)`, as returned by `get_orienta
 
 Determine orientation of three points.
 
-Colinear if `r` is within `atol` of the line through `p` and `q`: `cross² ≤ atol² |pq|²`.
-Clockwise if `cross(pq, qr)` is positive, else counter-clockwise.
-
-The test is asymmetric: `p → q` is the base line and `r` is the point being tested.
+Colinear if any point is within `atol` of the line through the other two:
+`cross² ≤ atol² max(|pq|², |qr|², |rp|²)`.
+Otherwise counter-clockwise if `cross(pq, qr)` is positive (see `cross_product`), else clockwise.
 
 Tolerance derivation:
 ```
@@ -35,14 +34,19 @@ Therefore the following statements are all equivalent:
 |cross(pq, qr)| = |pq| * |qr| * sin(θ) = 2(0.5 * |pq| * |rs|)
 ⟹ |rs| = |cross(pq, qr)| / |pq|
 ```
-For colinear require `|rs| ≤ atol`.
+The cross product is the same for every choice of base, so the smallest height is the
+one opposite the longest side.
 """
 function get_orientation(p::Point2D, q::Point2D, r::Point2D; atol::AbstractFloat=default_atol)
     pq = (q[1] - p[1], q[2] - p[2])
     qr = (r[1] - q[1], r[2] - q[2])
+    rp = (p[1] - r[1], p[2] - r[2])
     cross_product = pq[2] * qr[1] - qr[2] * pq[1]
-    length_pq2 = (pq[1] * pq[1] + pq[2] * pq[2])
-    is_colinear = cross_product * cross_product <= atol * atol * length_pq2
+    length_pq2 = pq[1] * pq[1] + pq[2] * pq[2]
+    length_qr2 = qr[1] * qr[1] + qr[2] * qr[2]
+    length_rp2 = rp[1] * rp[1] + rp[2] * rp[2]
+    length_max = max(length_pq2, length_qr2, length_rp2)
+    is_colinear = cross_product * cross_product <= atol * atol * length_max
     orientation = is_colinear ? COLINEAR :
         cross_product >= 0 ?  CLOCKWISE :
         COUNTER_CLOCKWISE
@@ -65,7 +69,8 @@ function on_segment(
     ; atol::AbstractFloat=default_atol
     )
     # the bounding box check is cheaper than the orientation, so do it first
-    # the segment is the base line so that atol is the distance of q from it
+    # inside the bounds the segment is (up to atol) the longest side of the triangle,
+    # so atol is the distance of q from the segment's line
     _in_expanded_bounds(q, segment, atol) &&
         get_orientation(segment[1], segment[2], q; atol=atol) == COLINEAR
 end
@@ -83,9 +88,9 @@ function _in_expanded_bounds(q::Point2D, segment::NTuple{2, Point2D}, atol::Abst
     # more complex. The difference is small: points up to √2 * atol past the end may pass
     # compared to atol for the half-circles.
     # That solution would be:
-    # s = s0 + t * Δs    # s0 = segment[1]
-    # dot(q - s, Δs) = 0 # shortest at perpendicular 
-    # ⟹ t = dot(q - s0, Δs) / |Δs|², then clamp t to [0, 1]
+    # s = s1 + t * (s2 - s1)  # equation for the segment
+    # dot(q - s, s2 - s1) = 0 # shortest at perpendicular 
+    # ⟹ t = dot(q - s1, s2 - s1) / |s2 - s1|², then clamp t to [0, 1]
     # on segment if |q - s| ≤ atol
     p, r = segment
     (q[1] <= max(p[1], r[1]) + atol) &&

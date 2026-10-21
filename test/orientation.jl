@@ -20,26 +20,43 @@ using Test
 end
 
 @testset "get_orientation distance" begin
-    # colinear if the distance of r from the line through p and q is at most atol=1e-6
+    # colinear if the distance of a point from the line through the other two is at most atol=1e-6
+    # rp is the longest side so the smallest distance is of q from the line pr
     @test get_orientation((0.0, 0.0), (1.0, 1.0), (2.0, 2.0)) == COLINEAR
-    @test get_orientation((0.0, 0.0), (1.0, 1.0), (2.0, 2.0 + 1e-6)) == COLINEAR # distance is 7.1e-7
-    @test get_orientation((0.0, 0.0), (1.0, 1.0), (2.0, 2.0 + 2e-6)) == COUNTER_CLOCKWISE # distance is 1.4e-6
+    @test get_orientation((0.0, 0.0), (1.0, 1.0), (2.0, 2.0 + 2e-6)) == COLINEAR # distance is 7.1e-7
+    @test get_orientation((0.0, 0.0), (1.0, 1.0), (2.0, 2.0 + 4e-6)) == COUNTER_CLOCKWISE # distance is 1.4e-6
     @test get_orientation((0.0, 0.0), (500.0, 500.0), (1000.0, 1000.0)) == COLINEAR
     # the distance does not scale with the size of the coordinates
-    @test get_orientation((0.0, 0.0), (500.0, 500.0), (1000.0, 1000.001)) == COUNTER_CLOCKWISE # distance is 7.1e-4
+    @test get_orientation((0.0, 0.0), (500.0, 500.0), (1000.0, 1000.001)) == COUNTER_CLOCKWISE # distance is 3.5e-4
     @test get_orientation((0.0, 0.0), (500.0, 500.0), (1000.0, 1000.001); atol=1e-3) == COLINEAR
-    @test get_orientation((0.0, 0.0), (1e9, 1e9), (2e9, 2e9 + 10)) == COUNTER_CLOCKWISE # distance is 7.1
+    @test get_orientation((0.0, 0.0), (1e9, 1e9), (2e9, 2e9 + 10)) == COUNTER_CLOCKWISE # distance is 3.5
     @test get_orientation((0.0, 0.0), (1e9, 1e9), (2e9, 2e9 + 10); atol=10.0) == COLINEAR
-    # small coordinates: the cross product is tiny (1e-12) but the distance is 1e-6 * 100
-    @test get_orientation((0.0, 0.0), (1e-6, 0.0), (2e-6, 1e-4)) == COUNTER_CLOCKWISE
+    # small coordinates: the cross product is tiny (1e-10) but the distance of q from pr is 1e-6
+    @test get_orientation((0.0, 0.0), (1e-6, 0.0), (2e-6, 1e-4); atol=1e-7) == COUNTER_CLOCKWISE
+    # p and q are within atol so they are the same point: q is 1e-6 from the line pr
+    @test get_orientation((0.0, 0.0), (1e-6, 0.0), (2e-6, 1e-4)) == COLINEAR
 end
 
-@testset "get_orientation asymmetric" begin
-    # p → q is the base line. Cyclic permutations have the same cross product but a different base.
+@testset "get_orientation symmetric" begin
+    # the cross product is the same for every base, so colinearity uses the smallest height
     p, q, r = (0.0, 0.0), (10.0, 0.0), (10.5, 5e-7)
-    @test get_orientation(p, q, r) == COLINEAR # r is 5e-7 from the line pq of length 10
-    # same triangle, but p is 1e-5 from the line qr of length 0.5
-    @test get_orientation(q, r, p) == COUNTER_CLOCKWISE
+    # r is 5e-7 from the line pq, but p is 1e-5 from the line qr of length 0.5
+    for (a, b, c) in [(p, q, r), (q, r, p), (r, p, q), (q, p, r), (p, r, q), (r, q, p)]
+        @test get_orientation(a, b, c) == COLINEAR
+    end
+    # q is between p and r so rp is the longest side: q is 9e-7 from the line pr
+    p, q, r = (0.0, 0.0), (1.0, 9e-7), (2.0, 0.0)
+    @test get_orientation(p, q, r) == COLINEAR
+    @test get_orientation(q, r, p) == COLINEAR
+    @test get_orientation(p, r, q) == COLINEAR
+    # cyclic permutations keep the orientation and swaps flip it
+    p, q, r = (0.0, 0.0), (1.0, 0.0), (0.0, 1.0)
+    for (a, b, c) in [(p, q, r), (q, r, p), (r, p, q)]
+        @test get_orientation(a, b, c) == COUNTER_CLOCKWISE
+    end
+    for (a, b, c) in [(q, p, r), (p, r, q), (r, q, p)]
+        @test get_orientation(a, b, c) == CLOCKWISE
+    end
 end
 
 @testset "on_segment" begin
