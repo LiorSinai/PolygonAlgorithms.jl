@@ -19,10 +19,11 @@ function chasing_edges_algorithm(
     n = length(polygon1)
     m = length(polygon2)
     points = Point2D{T}[]
-    if is_clockwise(polygon1)
+    # only the direction is needed, so don't treat thin polygons as zero area
+    if is_clockwise(polygon1; atol=eps(T))
         polygon1 = reverse(polygon1)
     end
-    if is_clockwise(polygon2)
+    if is_clockwise(polygon2; atol=eps(T))
         polygon2 = reverse(polygon2)
     end
     poly1_in_2 = false

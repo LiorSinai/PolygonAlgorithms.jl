@@ -29,10 +29,11 @@ function weiler_atherton_algorithm(
     n = length(polygon1)
     m = length(polygon2)
     @assert n > 2 &&  m > 2 "require at least 3 points per polygons; lengths are $n and $m"
-    if is_counter_clockwise(polygon1)
+    # only the direction is needed, so don't treat thin polygons as zero area
+    if is_counter_clockwise(polygon1; atol=eps(T))
         polygon1 = reverse(polygon1)
     end
-    if is_counter_clockwise(polygon2)
+    if is_counter_clockwise(polygon2; atol=eps(T))
         polygon2 = reverse(polygon2)
     end
     list1 = convert_to_linked_list(polygon1)

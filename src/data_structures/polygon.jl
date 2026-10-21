@@ -175,8 +175,8 @@ function area_polygon(polygon::Polygon)
     area_polygon(polygon.exterior) - sum(area_polygon, polygon.holes, init=0.0)
 end
 
-is_clockwise(polygon::Polygon) = is_clockwise(polygon.exterior)
-is_counter_clockwise(polygon::Polygon) = is_counter_clockwise(polygon.exterior)
+is_clockwise(polygon::Polygon; options...) = is_clockwise(polygon.exterior; options...)
+is_counter_clockwise(polygon::Polygon; options...) = is_counter_clockwise(polygon.exterior; options...)
 
 """
     centroid_polygon(polygon::Polygon)

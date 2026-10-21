@@ -173,12 +173,6 @@ using PolygonAlgorithms: cyclic_set_equality, are_equivalent_polygons
             exteriors, holes = segments_to_paths(segments; face_selection=SPLIT_FACES)
             @test isempty(exteriors) && isempty(holes)
             exteriors, holes = segments_to_paths(segments; face_selection=MERGE_FACES)
-            expected = [
-                [
-                    (0.0, 0.0), (3.0, 3.0), (7.0, -1.0), (3.999, -3.999),
-                    (7.0, -1.0), (3.0, 3.0), (0.0, 0.0), (4.0, -4.0)
-                ]
-            ]
             @test isempty(exteriors) && isempty(holes)
             # gap closed
             exteriors, holes = segments_to_paths(segments; atol=1e-2)

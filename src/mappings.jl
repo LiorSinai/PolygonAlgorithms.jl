@@ -23,7 +23,8 @@ function is_hole(polygon::AbstractVector{<:AnnotatedSegment{T}}) where {T}
     n = length(polygon)
     @assert all(polygon[i][2] == polygon[(i % n) + 1][1] for i in 1:n)
     points = [segment[1] for segment in polygon]
-    counter_clockwise = is_counter_clockwise(points)
+    # only the direction is needed, so don't treat thin polygons as zero area
+    counter_clockwise = is_counter_clockwise(points; atol=eps(T))
     is_hole(polygon, counter_clockwise)
 end
 
@@ -79,6 +80,9 @@ Assumes there are no intersections between the segments.
 The segments are joined in a graph. 
 Each face with non-zero area will return two faces, a counter-clockwise face with positive area (exterior)
 and a clockwise face with negative area (interior).
+Faces thinner than `atol` are considered to have zero area and are not returned.
+This is estimated as `|area| ≤ atol * perimeter / 2`, using the Manhattan perimeter.
+
 The following selection strategies are used to return half the faces with no duplicates:
 - `MERGE_FACES`: selects all exterior faces that are not holes with interior faces that are holes, resulting in connected graphs being merged together. This returns fewer, larger polygons with holes.
 - `SPLIT_FACES`: As exteriors, select all interior faces that are not holes that are on the exterior and reverse to make them counter-clockwise. As holes, select interior faces that are holes that are not on the exterior. This splits connected graphs across multiple interiors and returns smaller polygons with fewer explicit holes.
@@ -104,17 +108,18 @@ function segments_to_paths(
     # faces → paths
     faces = compute_graph_faces(graph)
     polygons = map(segments -> map(event -> event[1], segments), faces)
+    # A face is zero area if it is thinner than atol. See _first_moment_with_error.
+    moments_errors = map(p -> _first_moment_with_error(p; atol=atol), polygons)
+    are_exteriors = map(((moment, error),) -> moment > error, moments_errors) # counter-clockwise
+    are_interiors = map(((moment, error),) -> moment < -error, moments_errors) # clockwise
     # paths → exteriors, holes
     if face_selection == CLOCKWISE_FACES
-        exteriors = filter(is_clockwise, polygons)
+        exteriors = polygons[are_interiors]
         holes = empty(exteriors)
     elseif face_selection == COUNTER_CLOCKWISE_FACES
-        exteriors = filter(is_counter_clockwise, polygons)
+        exteriors = polygons[are_exteriors]
         holes = empty(exteriors)
     else
-        moments = first_moment.(polygons)
-        are_exteriors = moments .> eps(T) # counter-clockwise
-        are_interiors = moments .< -eps(T) # clockwise
         not_holes = .!is_hole.(faces[are_exteriors], true) # ignore exteriors of holes
         if face_selection == MERGE_FACES
             are_holes = is_hole.(faces[are_interiors], false) # ignore repeated interiors
