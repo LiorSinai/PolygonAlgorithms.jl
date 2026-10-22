@@ -123,7 +123,7 @@ For all of the the following `n` and `m` are the number of vertices of the polyg
 ## Segments to paths
 
 Segments are converted back to paths and polygons by computing the faces of a graph. This has several implications.
-- It requires casting to a grid to match starting and end points of segments. This is achieved by rounding any decimal places, by default to the 6th decimal place.
+- It requires matching the starting and end points of segments, which may differ by floating point error. End points within half of `1e-6` of each other are matched to the same point. The output points are not rounded.
 - Every zero area polygon (lines) will return a single face. 
 - For every non-zero area polygon, the graph will always have one counter-clockwise exterior and one or more clockwise interiors. Every area in the graph is therefore counted twice. There are two methods to reduce the faces in half:
     - `MERGE_FACES`: all exterior faces that are not holes and holes are interior faces that are holes.
@@ -169,8 +169,8 @@ The philosophy of this package is that tolerances only absorb floating point err
 They are not a distance for snapping nearby points or edges together.
 
 There is a single relative tolerance `rtol` that is passed down as a keyword argument throughout the entire algorithm.
-Its default value depends on the float type: `PolygonAlgorithms.default_rtol(T) = 4eps(T)`.
-This is `8.9e-16` for `Float64` and `4.8e-7` for `Float32`.
+Its default value depends on the float type: `PolygonAlgorithms.default_rtol(T) = 64eps(T)`.
+This is `1.4e-14` for `Float64` and `7.6e-6` for `Float32`.
 A computed value `x` is treated as zero if `|x| ≤ rtol * Σ|terms|`, where the terms are the values that were added or subtracted to calculate `x`.
 
 Previous versions used an absolute tolerance `atol` as a distance, with a default of `1e-6`.
@@ -185,7 +185,7 @@ Here are the results of the 195 [Clipper2](https://github.com/AngusJohnson/Clipp
 
 | `rtol` | Pass | Fail or error |
 |---|---|---|
-| `4eps = 8.9e-16` (default) | 195 | 0 |
+| `64eps = 1.4e-14` (default) | 195 | 0 |
 | `1e-12` | 195 | 0 |
 | `1e-9` | 194 | 1 |
 | `1e-6` | 185 | 10 |
@@ -210,6 +210,11 @@ But intersection points are calculated, so their co-ordinates are rounded to wit
 So an intersection point does not lie exactly on either segment.
 This error is relative to the size of the co-ordinates, not the size of the segments.
 It is important for short segments far from the origin.
+The input points may also have been calculated, for example by rotation.
+Their error is relative to the size of the numbers in that calculation, which can be larger than the point itself.
+For example, rotating the Hilbert curve in `examples/hilbert.jl` about `(0.5, 0.5)` moves points near the origin by up to `5.6e-17`, which is `6eps` relative to a point at `0.04`.
+This is why the default `rtol` is `64eps` rather than a bound closer to Shewchuk's `1.5eps`.
+That example is only correct for `rtol ≥ 32eps`.
 
 ### Tolerance tests
 
@@ -223,7 +228,7 @@ Core functions that use `rtol` include:
 | `is_vertical(segment)` | `\|Δx\| ≤ rtol * max(\|x₁\|, \|x₂\|)` | |
 | `intersect_geometry(segment1, segment2)` | orientations of the end points, as in `do_intersect` | No intersection if both end points of one segment are on the same side of the other. Parallel if both end points of one segment are colinear with the other. If an end point is colinear with the other segment, it is returned exactly. Otherwise the intersection is calculated and clamped to `segment1`. |
 | `is_clockwise`, `is_counter_clockwise` | `\|area\| ≤ n * rtol * Σ(\|xᵢyᵢ₊₁\| + \|yᵢxᵢ₊₁\|) / 2` | Zero area within floating point error: neither direction, and dropped from boolean results. The error of a sum of `n` terms grows at most linearly with `n`. |
-| `segments_to_paths` | `digits = 6` | Output points are rounded to 6 decimal places so that segment end points match. This does not depend on `rtol`. |
+| `segments_to_paths` | `\|Δx\| ≤ 0.5e-6` and `\|Δy\| ≤ 0.5e-6` | End points of segments are matched to the first point within half of `1e-6`. This does not depend on `rtol`. The output points are not rounded. Rounding alone does not work: points which differ by floating point error can round in different directions, e.g. `0.0078125 ± 1e-17` to 6 decimal places. |
 
 Notes:
 - `intersect_geometry` uses the same orientations as `do_intersect` so that they always agree. Returning end points exactly avoids creating tiny segments from an intersection point which was calculated a few ulps away from a vertex.

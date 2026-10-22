@@ -49,8 +49,8 @@ Description:
 - The segment that is immediately below (or empty space) is used to determine the fill annotations for the current segment.
 - Once all annotations are done, the desired segments can be selected based on a given criteria.
 - These segments are then chained back to paths and polygons.
-    This requires casting to a grid to match starting and end points of segments.
-    This is achieved by rounding any decimal places, by default to the 6th decimal place.
+    This requires matching the starting and end points of segments, which may differ by floating point error.
+    End points within half of `1e-6` of each other are matched to the same point.
     See `PolygonAlgorithms.segments_to_paths` and `PolygonAlgorithms.segments_to_polygons` for more detail. 
 
 Limitations

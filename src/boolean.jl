@@ -62,7 +62,7 @@ struct WeilerAthertonAlg <: PolygonIntersectionAlgorithm end
     - The key assumption is that only the segments immediately above and below the current segment need to be inspected for intersections. This makes the algorithm fast but also sensitive to determining these segments correctly.
     - The segment that is immediately below (or empty space) is used to determine the fill annotations for the current segment.
     - Once all annotations are done, the desired segments can be selected that match a given criteria.
-    - Finally, segments are chained back to paths and polygons. This requires casting to a grid to match starting and end points of segments. This is achieved by rounding any decimal places, by default to the 6th decimal place. See `PolygonAlgorithms.segments_to_paths` and `PolygonAlgorithms.segments_to_polygons` for more detail. 
+    - Finally, segments are chained back to paths and polygons. This requires matching the starting and end points of segments, which may differ by floating point error. End points within half of `1e-6` of each other are matched to the same point. See `PolygonAlgorithms.segments_to_paths` and `PolygonAlgorithms.segments_to_polygons` for more detail. 
 - Limitations:
     1. It is sensitive to numeric inaccuracies e.g. a line that is almost vertical or 
     tiny regions of intersection.

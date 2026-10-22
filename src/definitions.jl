@@ -22,14 +22,19 @@ const Path2D{T<:AbstractFloat} = Vector{<:Point2D{T}}
 """
     default_rtol(T)
 
-The default tolerance for floats of type `T`: `4eps(T)`.
+The default tolerance for floats of type `T`: `64eps(T)`.
+This is `1.4e-14` for `Float64` and `7.6e-6` for `Float32`.
 
 `rtol` is a relative tolerance for floating point error only.
 A computed value `x` is treated as zero if `|x| ≤ rtol * Σ|terms|`, where the terms are the products
 that were added or subtracted to calculate `x`.
 For example, Shewchuk's error bound for the orientation determinant is `≈ 1.5eps * Σ|terms|`.
+
+The default is larger than this bound to allow for inputs which were themselves calculated,
+for example by rotation. Their rounding error is relative to the size of the numbers in that calculation,
+which can be larger than the co-ordinates of the point.
 """
-default_rtol(::Type{T}) where T<:AbstractFloat = 4eps(T)
+default_rtol(::Type{T}) where T<:AbstractFloat = 64eps(T)
 
 """
     decimal_tolerance(rtol)
