@@ -173,12 +173,6 @@ using PolygonAlgorithms: cyclic_set_equality, are_equivalent_polygons
             exteriors, holes = segments_to_paths(segments; face_selection=SPLIT_FACES)
             @test isempty(exteriors) && isempty(holes)
             exteriors, holes = segments_to_paths(segments; face_selection=MERGE_FACES)
-            expected = [
-                [
-                    (0.0, 0.0), (3.0, 3.0), (7.0, -1.0), (3.999, -3.999),
-                    (7.0, -1.0), (3.0, 3.0), (0.0, 0.0), (4.0, -4.0)
-                ]
-            ]
             @test isempty(exteriors) && isempty(holes)
             # gap closed
             exteriors, holes = segments_to_paths(segments; atol=1e-2)
@@ -186,6 +180,21 @@ using PolygonAlgorithms: cyclic_set_equality, are_equivalent_polygons
                 [(4.0, -4.0), (7.0, -1.0), (3.0, 3.0), (0.0, 0.0)]
             ]
             @test cyclic_set_equality(exteriors, expected)
+            @test isempty(holes)
+        end
+
+        @testset "points either side of a rounding boundary" begin
+            # 0.0078125 = 1/128 is halfway between 0.007812 and 0.007813,
+            # so floating point error decides how it rounds to 6 decimal places
+            x = 0.0078125
+            @test round(x, digits=6) != round(nextfloat(x), digits=6)
+            segments = [
+                AnnotatedSegment((x, 0.0), (1.0, 0.0)),
+                AnnotatedSegment((1.0, 0.0), (0.5, 1.0)),
+                AnnotatedSegment((0.5, 1.0), (nextfloat(x), 0.0)),
+            ]
+            exteriors, holes = segments_to_paths(segments)
+            @test cyclic_set_equality(exteriors, [[(0.007812, 0.0), (1.0, 0.0), (0.5, 1.0)]])
             @test isempty(holes)
         end
 

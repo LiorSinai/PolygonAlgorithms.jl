@@ -2,7 +2,6 @@
     contains(vertices, point;
         on_border_is_inside=true,
         atol=default_atol,
-        rtol=default_rtol,
     )
 
 Runs in `O(n)` time where `n=length(vertices)`.
@@ -17,7 +16,6 @@ function contains(
     vertices::Path2D, point::Point2D{T}
     ; 
     on_border_is_inside::Bool=true,
-    rtol::AbstractFloat=default_rtol,
     atol::AbstractFloat=default_atol,
     ) where T
     # First do a bounding box check: is it near the polygon?
@@ -27,7 +25,7 @@ function contains(
     end
 
     # step 1: point intersects a vertex or edge
-    if on_border(vertices, point; atol=atol, rtol=rtol)
+    if on_border(vertices, point; atol=atol)
         return on_border_is_inside
     end
     
@@ -64,9 +62,9 @@ function contains(
         edge = (vertices[s], vertices[next_s])
         intersect = false
         if skipped_right # 3b.ii
-            intersect = do_intersect(edge, (extreme_left, extreme_right); atol=atol, rtol=rtol)
+            intersect = do_intersect(edge, (extreme_left, extreme_right); atol=atol)
         elseif (next_s - s) == 1 || (s == n && next_s == 1) # 3b.i
-            intersect = do_intersect(edge, (point, extreme_right); atol=atol, rtol=rtol)
+            intersect = do_intersect(edge, (point, extreme_right); atol=atol)
         end
         num_intersections += intersect
         if next_s <= s  # gone in a full loop
@@ -78,7 +76,7 @@ function contains(
 end
 
 """
-    on_border(vertices, point; atol=default_atol, rtol=default_rtol)
+    on_border(vertices, point; atol=default_atol)
 
 Return true if `point` lies on any segment between the `vertices`.
 
@@ -86,13 +84,13 @@ Runs in `O(n)` time where `n=length(vertices)`.
 """
 function on_border(
     vertices::Path2D, point::Point2D{T}
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     ) where T
     n = length(vertices)
     for i in 1:n
         next_i = (i % n) + 1
         segment = (vertices[i], vertices[next_i])
-        if on_segment(point, segment; atol=atol, rtol=rtol)
+        if on_segment(point, segment; atol=atol)
             return true
         end
     end

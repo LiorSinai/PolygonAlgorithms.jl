@@ -39,11 +39,11 @@ mirror(points::Vector{<:Tuple}) = [(y, x) for (x, y) in points]
 
 function calculate_metrics(alg, fn, polygon1, polygon2, expected_area::Float64
         ; ntrials::Int=5)
-    stats = @timed fn(alg, polygon1, polygon2; atol=1e-12, rtol=1e-12)
+    stats = @timed fn(alg, polygon1, polygon2; atol=1e-12)
     t = stats.time
     bytes = stats.bytes
     for i in 2:ntrials
-        si = @timed fn(alg, polygon1, polygon2; atol=1e-12, rtol=1e-12)
+        si = @timed fn(alg, polygon1, polygon2; atol=1e-12)
         t += si.time
         bytes += si.bytes
     end
@@ -164,7 +164,5 @@ for (case, polygon1, polygon2) in cases
     canvases[case] = [canvas_base, canvas_algo]
 end
 
-println(first.(cases))
-case, _ = cases[4]
-plot(canvases[case]..., layout=(1, 2), plot_title="$(alg_name)")
-
+algo_canvases = [canvases[case][2] for (case, _) in cases]
+plot(algo_canvases..., layout=(2, 4), size=(1000, 600))

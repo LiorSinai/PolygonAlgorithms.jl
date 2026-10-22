@@ -10,6 +10,7 @@ using PolygonAlgorithms: translate, rotate, Point2D, PointSet
     # Foundation algorithms
     include("bounds.jl")
     include("moments.jl")
+    include("orientation.jl")
     include("intersect.jl")
     include("point_in_polygon.jl")
     # Complex algorithms

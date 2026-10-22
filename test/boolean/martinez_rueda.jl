@@ -10,18 +10,20 @@ using PolygonAlgorithms: are_equivalent_polygons
 
     @testset "almost vertical" begin
         # the original segment was ((0.5345889348336309, 0.9626445530693036), (0.5346819812512368, 0.7153822809806809))
-        # it was not vertical, but the two intersecting lines make a tiny vertical segment
+        # it was not vertical, but the two intersecting lines make a tiny almost vertical segment (Δx=4.3e-7)
+        # Vertical is detected with eps, so it is ordered left to right like any other segment.
         event_queue = [
-            SegmentEvent(((0.5346362515873916, 0.8369046444971744), (0.5346819812512368, 0.7153822809806809)), true),
-            SegmentEvent(((0.5346362515873916, 0.8369046444971744), (0.702057739662388, 0.63591526606886130)), true),
             SegmentEvent(((0.5346358170779485, 0.8380593132624886), (0.5346362515873916, 0.8369046444971744)), true),
             SegmentEvent(((0.5346358170779485, 0.8380593132624886), (0.6336845198791616, 0.7251516629897194)), true),
+            SegmentEvent(((0.5346362515873916, 0.8369046444971744), (0.5346819812512368, 0.7153822809806809)), true),
+            SegmentEvent(((0.5346362515873916, 0.8369046444971744), (0.702057739662388, 0.63591526606886130)), true),
         ]
-        # the event_loop! modified event_queue[3] with update_end!
-        # now, the tail should be inserted after it.
-        tail = SegmentEvent(event_queue[3].segment, false)
+        @test issorted(event_queue; lt=compare_events)
+        # the event_loop! modified event_queue[1] with update_end!
+        # now, the tail should be inserted after its start, and before the events that start at its end point.
+        tail = SegmentEvent(event_queue[1].segment, false)
         idx = searchsortedfirst(event_queue, tail; lt=compare_events)
-        @test idx == 5 skip=(VERSION < v"1.11") # this fails in Julia 1.8
+        @test idx == 3
     end
 
     @testset "divide" begin

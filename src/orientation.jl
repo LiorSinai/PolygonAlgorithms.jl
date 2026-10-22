@@ -9,75 +9,121 @@ The orientation of three ordered points `(p, q, r)`, as returned by `get_orienta
 @enum Orientation COLINEAR=0 CLOCKWISE=1 COUNTER_CLOCKWISE=2
 
 """
-    get_orientation(p, q, r; atol=default_atol, rtol=default_rtol)
+    get_orientation(p, q, r; atol=default_atol)
 
-Determine orientation of three points. 
+Determine orientation of three points.
 
-Colinear if `|cross(pq, qr)| < atol + rtol * scale` where `scale = |pq_y * qr_x| + |qr_y * pq_x|`.
+Colinear if any point is within `atol` of the line through the other two:
+`cross² ≤ atol² max(|pq|², |qr|², |rp|²)`.
+Otherwise counter-clockwise if `cross(pq, qr)` is positive (see `cross_product`), else clockwise.
 
-Clockwise if `cross(pq, qr)` is positive, else counter-clockwise.
+Tolerance derivation:
+```
+   ---------r
+  /        /|
+ /        / |
+/        /θ |
+p------q    s
+
+```
+The cross product `cross(pq, qr)` is equal to the area of a parallelogram
+formed by `pq` and `qr`. This is twice the area of triangle `pqr`.
+`rs` is the height of triangle `pqr` with base `pq`.
+Therefore the following statements are all equivalent:
+```
+|cross(pq, qr)| = |pq| * |qr| * sin(θ) = 2(0.5 * |pq| * |rs|)
+⟹ |rs| = |cross(pq, qr)| / |pq|
+```
+The cross product is the same for every choice of base, so the smallest height is the
+one opposite the longest side.
 """
-function get_orientation(p::Point2D, q::Point2D, r::Point2D; rtol::AbstractFloat=default_rtol, atol::AbstractFloat=default_atol)
+function get_orientation(p::Point2D, q::Point2D, r::Point2D; atol::AbstractFloat=default_atol)
     pq = (q[1] - p[1], q[2] - p[2])
     qr = (r[1] - q[1], r[2] - q[2])
+    rp = (p[1] - r[1], p[2] - r[2])
     cross_product = pq[2] * qr[1] - qr[2] * pq[1]
-    scale = abs(pq[2] * qr[1]) + abs(qr[2] * pq[1])
-    tol = atol + rtol * scale
-    orientation = abs(cross_product) < tol ? COLINEAR : 
-        cross_product >= 0 ?  CLOCKWISE : 
+    length_pq2 = pq[1] * pq[1] + pq[2] * pq[2]
+    length_qr2 = qr[1] * qr[1] + qr[2] * qr[2]
+    length_rp2 = rp[1] * rp[1] + rp[2] * rp[2]
+    length_max = max(length_pq2, length_qr2, length_rp2)
+    is_colinear = cross_product * cross_product <= atol * atol * length_max
+    orientation = is_colinear ? COLINEAR :
+        cross_product >= 0 ?  CLOCKWISE :
         COUNTER_CLOCKWISE
     orientation
 end
 
 """
-    on_segment(point, segment, [on_line]; atol=default_atol, rtol=default_rtol)
+    on_segment(point, segment, [on_line]; atol=default_atol)
 
 Determine if a point lies on the segment.
 
-The point must be colinear with the segment (see `get_orientation`) and lie within the
-bounding box of the segment expanded by `atol` on all sides.
+The point must be within `atol` of the closest point on the segment.
+This implies it is colinear with the segment (see `get_orientation`).
 
-If `on_line::Bool` is given, it is used instead of calculating the colinearity.
+If `on_line::Bool` is given, `false` returns early without calculating the distance.
 This is useful if the orientation is already known.
 """
 function on_segment(
     q::Point2D, segment::NTuple{2, Point2D}
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     )
-    # the bounding box check is cheaper than the orientation, so do it first
-    _in_expanded_bounds(q, segment, atol) &&
-        get_orientation(q, segment[1], segment[2]; atol=atol, rtol=rtol) == COLINEAR
+    # within atol of the segment ⟹ within atol of the segment's line ⟹ COLINEAR
+    _in_distance(q, segment, atol)
 end
 
 function on_segment(
     q::Point2D, segment::NTuple{2, Point2D}, on_line::Bool
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     )
-    on_line && _in_expanded_bounds(q, segment, atol)
+    on_line && _in_distance(q, segment, atol)
 end
 
-function _in_expanded_bounds(q::Point2D, segment::NTuple{2, Point2D}, atol::AbstractFloat)
-    p, r = segment
-    (q[1] <= max(p[1], r[1]) + atol) &&
-    (q[1] >= min(p[1], r[1]) - atol) &&
-    (q[2] <= max(p[2], r[2]) + atol) &&
-    (q[2] >= min(p[2], r[2]) - atol)
+function _in_distance(p::Point2D, segment::NTuple{2, Point2D}, atol::AbstractFloat)
+    # This places a rectangular bounds of half-width atol around the segment,
+    # with two half-circles at either end
+    # s = s1 + t * (s2 - s1)  # equation for the segment
+    # dot(p - s, s2 - s1) = 0 # shortest at perpendicular
+    # ⟹ t = dot(p - s1, s2 - s1) / |s2 - s1|², then clamp t to [0, 1]
+    dx = segment[2][1] - segment[1][1]
+    dy = segment[2][2] - segment[1][2]
+    length2 = dx * dx + dy * dy
+    if iszero(length2) # degenerate segment, avoid 0/0
+        return norm2(p, segment[1]) <= atol * atol
+    end
+    t = ((p[1] - segment[1][1]) * dx + (p[2] - segment[1][2]) * dy) / length2
+    t = clamp(t, zero(t), one(t))
+    # on segment if |p - s| ≤ atol
+    px = segment[1][1] + t * dx - p[1]
+    py = segment[1][2] + t * dy - p[2]
+    px * px + py * py <= atol * atol 
+end
+
+function _in_expanded_bounds(p::Point2D, segment::NTuple{2, Point2D}, atol::AbstractFloat)
+    # This places an axis aligned rectangular bounds around the segment.
+    # _in_distance is more correct but more complex. The difference is small: points
+    # up to √2 * atol past the end may pass
+    q, r = segment
+    (p[1] <= max(q[1], r[1]) + atol) &&
+    (p[1] >= min(q[1], r[1]) - atol) &&
+    (p[2] <= max(q[2], r[2]) + atol) &&
+    (p[2] >= min(q[2], r[2]) - atol)
 end
 
 """
-    isless_orientation(p, q, p0; atol=default_atol, rtol=default_rtol)
+    isless_orientation(p, q, p0; atol=default_atol)
 
 Comparison function for sorting points by angle around `p0` without calculating angles.
 """
 function isless_orientation(
     p::Point2D, q::Point2D, p0::Point2D
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     )
     # a point p is "less than" another if it has a smaller angle from p0 in a counter-clockwise direction
     # or if the angle is the same, if is closer
     # instead of calculating the angle atan(p[2]-p0[2], p[1]-p0[1]), determine if (p0, p, q) is counter-clockwise
     # doesn't seem to work properly for on a circle
-    ori = get_orientation(p0, p, q; atol=atol, rtol=rtol)
+    ori = get_orientation(p0, p, q; atol=atol)
     if ori == COLINEAR
         dp = norm2(p, p0)
         dq = norm2(q, p0)
@@ -144,16 +190,25 @@ sort_clockwise(points::Vector{<:Point2D}) = sort_clockwise!(copy(points))
 
 """
     cross_product(edge1, edge2)
+    cross_product(p, q, r)
 
 The z-component of the cross product of the direction vectors of `edge1` and `edge2`.
+Or the cross product of `pq` and `qr`, which is the same as `cross_product((p, q), (q, r))`.
 
 Positive if `edge2` points counter-clockwise relative to `edge1`, negative if clockwise
 and zero if they are parallel.
+For three points, positive if `p → q → r` turns left (counter-clockwise).
 """
 function cross_product(edge1::Segment2D, edge2::Segment2D)
     a = (edge1[2][1] - edge1[1][1], edge1[2][2] - edge1[1][2])
     b = (edge2[2][1] - edge2[1][1], edge2[2][2] - edge2[1][2])
     a[1] * b[2] - a[2] * b[1]
+end
+
+function cross_product(p::Point2D, q::Point2D, r::Point2D)
+    pq = (q[1] - p[1], q[2] - p[2])
+    qr = (r[1] - q[1], r[2] - q[2])
+    pq[1] * qr[2] - pq[2] * qr[1]
 end
 
 """
@@ -163,6 +218,12 @@ The dot product of the vectors `qp` and `qr`, both starting at the vertex `q`.
 """
 function dot_product(p::Point2D, q::Point2D, r::Point2D)
     (p[1] - q[1]) * (r[1] - q[1]) + (p[2] - q[2]) * (r[2] - q[2])
+end
+
+function dot_product(edge1::Segment2D, edge2::Segment2D)
+    a = (edge1[2][1] - edge1[1][1], edge1[2][2] - edge1[1][2])
+    b = (edge2[2][1] - edge2[1][1], edge2[2][2] - edge2[1][2])
+    a[1] * b[1] + a[2] * b[2]
 end
 
 """
@@ -205,7 +266,7 @@ is_vertical(seg::Segment2D{T}) where T = abs(seg[2][1] - seg[1][1]) <= eps(T)
 is_vertical(pt1::Point2D{T}, pt2::Point2D{T}) where T = abs(pt2[1] - pt1[1]) <= eps(T)
 
 """
-    is_above_or_on(point, segment; atol=default_atol, rtol=default_rtol)
+    is_above_or_on(point, segment; atol=default_atol)
 
 Is `point` above or on `segment`?
 
@@ -226,11 +287,11 @@ yp ≥ max(y₂, y₁)
 ```
 """
 function is_above_or_on(point::Point2D{T}, segment::Segment2D{T}
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     ) where T
     if is_vertical(segment)
         return point[2] >= max(segment[1][2], segment[2][2])
     end
-    cmp = get_orientation(segment[1], segment[2], point; atol=atol, rtol=rtol)
+    cmp = get_orientation(segment[1], segment[2], point; atol=atol)
     cmp != CLOCKWISE # is counter-clockwise or co-linear
 end

@@ -162,7 +162,7 @@ function fuzzy_close!(
     ; atol::AbstractFloat, rtol::AbstractFloat=1.0
     )
     for idx in reverse(eachindex(chains))
-        if is_fuzzy_closed(chains[idx], length(regions) + 1; atol=atol, rtol=rtol)
+        if is_fuzzy_closed(chains[idx], length(regions) + 1; atol=atol)
             push!(regions, popat!(chains, idx))
         end
     end

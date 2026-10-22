@@ -2,7 +2,7 @@ import Base: ==
 
 """
     Polygon(exterior, holes)
-    Polygon(exterior; holes=[], validate=false, atol=default_atol, rtol=default_rtol)
+    Polygon(exterior; holes=[], validate=false, atol=default_atol)
 
 A representation of a Polygon with holes.
 
@@ -60,8 +60,8 @@ function minimal_rotation(p::Polygon)
 end
 
 """
-    validate_polygon(polygon::Polygon; atol=default_atol, rtol=default_rtol)
-    validate_polygon(exterior::Path2D; holes=Path2D{T}[], atol=default_atol, rtol=default_rtol)
+    validate_polygon(polygon::Polygon; atol=default_atol)
+    validate_polygon(exterior::Path2D; holes=Path2D{T}[], atol=default_atol)
     
 The following checks are done, where the exterior has `n` vertices and there are `H` holes with `m` vertices on average per hole:
 1. The exterior and each hole has 3 or more points.
@@ -80,22 +80,22 @@ function validate_polygon(
     exterior::Path2D{T}
     ; holes::Vector{<:Path2D}=Vector{Point2D{T}}[]
     , atol::AbstractFloat=default_atol
-    , rtol::AbstractFloat=default_rtol
+    
     ) where T
     @assert length(exterior) > 2 "exterior requires at least 3 points."
     events = convert_to_events(exterior; atol=atol)
-    @assert !any_intersect(events; atol=atol, rtol=rtol, include_vertices=false) "Invalid exterior: edges self-intersect."
+    @assert !any_intersect(events; atol=atol, include_vertices=false) "Invalid exterior: edges self-intersect."
     if !isempty(holes)
         events = vcat(events, map(h -> convert_to_events(h; atol=atol), holes)...)
-        @assert !any_intersect(events; atol=atol, rtol=rtol, include_vertices=false) "Invalid holes: holes intersect with the exterior or themselves."
+        @assert !any_intersect(events; atol=atol, include_vertices=false) "Invalid holes: holes intersect with the exterior or themselves."
         for (idx, hole) in enumerate(holes)
             @assert length(hole) > 2 "Invalid hole $(idx): requires at least 3 points."
             j = 1
-            while (j < length(hole)) && on_border(exterior, hole[j]; atol=atol, rtol=rtol)
+            while (j < length(hole)) && on_border(exterior, hole[j]; atol=atol)
                 j += 1
             end
             @assert contains(
-                exterior, hole[j]; atol=atol, rtol=rtol, on_border_is_inside=false
+                exterior, hole[j]; atol=atol, on_border_is_inside=false
             ) "Hole $(idx) is outside the polygon."
         end
     end
@@ -108,17 +108,17 @@ function Polygon(
     exterior::Path2D{T}
     ; holes::Vector{<:Path2D}=Vector{Point2D{T}}[],
     validate::Bool=false,
-    atol::AbstractFloat=default_atol,
-    rtol::AbstractFloat=default_rtol) where T
+    atol::AbstractFloat=default_atol
+    ) where T
     if validate
-        validate_polygon(exterior; holes=holes, atol=atol, rtol=rtol)
+        validate_polygon(exterior; holes=holes, atol=atol)
     end
     Polygon{T}(exterior, holes)
 end
 
 
 """
-    fully_contains(polygon1::Path2D, polygon2::Path2D; [atol, rtol])
+    fully_contains(polygon1::Path2D, polygon2::Path2D; [atol])
 
 A `polygon1` fully contains another `polygon2` if:
     1. None of their segments intersect. However, they can touch.
@@ -131,21 +131,21 @@ and `polygon2` respectively and `k` is the total number of intersections
 """
 function fully_contains(
     polygon1::Path2D, polygon2::Path2D
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     )
     queue = convert_to_events(polygon1; atol=atol)
     events2 = convert_to_events(polygon2; primary=false, atol=atol)
     for event in events2
         push!(queue, event)
     end
-    if any_intersect(queue; include_vertices=false, atol=atol, rtol=rtol)
+    if any_intersect(queue; include_vertices=false, atol=atol)
         return false
     end
     j = 1
-    while (j < length(polygon2)) && on_border(polygon1, polygon2[j]; atol=atol, rtol=rtol)
+    while (j < length(polygon2)) && on_border(polygon1, polygon2[j]; atol=atol)
         j += 1
     end
-    contains(polygon1, polygon2[j]; atol=atol, rtol=rtol, on_border_is_inside=false)
+    contains(polygon1, polygon2[j]; atol=atol, on_border_is_inside=false)
 end
 
 """
@@ -175,8 +175,8 @@ function area_polygon(polygon::Polygon)
     area_polygon(polygon.exterior) - sum(area_polygon, polygon.holes, init=0.0)
 end
 
-is_clockwise(polygon::Polygon) = is_clockwise(polygon.exterior)
-is_counter_clockwise(polygon::Polygon) = is_counter_clockwise(polygon.exterior)
+is_clockwise(polygon::Polygon; options...) = is_clockwise(polygon.exterior; options...)
+is_counter_clockwise(polygon::Polygon; options...) = is_counter_clockwise(polygon.exterior; options...)
 
 """
     centroid_polygon(polygon::Polygon)

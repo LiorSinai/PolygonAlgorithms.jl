@@ -72,7 +72,7 @@ struct MartinezRuedaAlg <: PolygonIntersectionAlgorithm end
 # General
 
 """
-    intersect_geometry([alg=MartinezRuedaAlg()], subject, others...; atol=default_atol, rtol=default_rtol)
+    intersect_geometry([alg=MartinezRuedaAlg()], subject, others...; atol=default_atol)
     intersect_geometry(WeilerAthertonAlg(), subject, other; atol=default_atol) # only two arguments supported for this algorithm.
 
 General case of polygon intersection.
@@ -87,7 +87,7 @@ The polygons can be of type:
 Using multiple arguments is more efficient than looping through the polygons and applying `intersect_geometry` sequentially.
 
 Keyword arguments:
-- `atol`, `rtol`: tolerances for point comparisons, orientations and intersections.
+- `atol`: distance tolerance for point comparisons, orientations and intersections.
 - `fill_rule`: rule for which regions of self-intersecting polygons are filled. See `PolygonAlgorithms.FillRule`. Default is `EVEN_ODD`.
 - `face_selection`: how to convert the resultant segments back into polygons. See `PolygonAlgorithms.FaceSelectionStrategy`. Default is `SPLIT_FACES`.
 
@@ -144,7 +144,7 @@ end
 
 
 """
-    difference_geometry([alg=MartinezRuedaAlg()], subject, clips...; atol=default_atol, rtol=default_rtol)
+    difference_geometry([alg=MartinezRuedaAlg()], subject, clips...; atol=default_atol)
 
 General case of polygon difference: points in `subject` that are not in `clip(s)`.
 
@@ -158,7 +158,7 @@ The polygons can be of type:
 Using multiple arguments is more efficient than looping through the polygons and applying `difference_geometry` sequentially.
 
 Keyword arguments:
-- `atol`, `rtol`: tolerances for point comparisons, orientations and intersections.
+- `atol`: distance tolerance for point comparisons, orientations and intersections.
 - `fill_rule`: rule for which regions of self-intersecting polygons are filled. See `PolygonAlgorithms.FillRule`. Default is `EVEN_ODD`.
 - `face_selection`: how to convert the resultant segments back into polygons. See `PolygonAlgorithms.FaceSelectionStrategy`. Default is `SPLIT_FACES`.
 
@@ -202,7 +202,7 @@ function difference_geometry(
 end
 
 """
-    union_geometry([alg=MartinezRuedaAlg()], subject, others...; atol=default_atol, rtol=default_rtol)
+    union_geometry([alg=MartinezRuedaAlg()], subject, others...; atol=default_atol)
 
 General case of polygon union: in any of the polygons.
 
@@ -216,7 +216,7 @@ The polygons can be of type:
 Using multiple arguments is more efficient than looping through the polygons and applying `union_geometry` sequentially.
 
 Keyword arguments:
-- `atol`, `rtol`: tolerances for point comparisons, orientations and intersections.
+- `atol`: distance tolerance for point comparisons, orientations and intersections.
 - `fill_rule`: rule for which regions of self-intersecting polygons are filled. See `PolygonAlgorithms.FillRule`. Default is `EVEN_ODD`.
 - `face_selection`: how to convert the resultant segments back into polygons. See `PolygonAlgorithms.FaceSelectionStrategy`. Default is `SPLIT_FACES`.
 
@@ -263,7 +263,7 @@ function union_geometry(
 end
 
 """
-    xor_geometry([alg=MartinezRuedaAlg()], subject, others...; atol=default_atol, rtol=default_rtol)
+    xor_geometry([alg=MartinezRuedaAlg()], subject, others...; atol=default_atol)
 
 General case of polygon xor: in one polygon or the other but not both.
 
@@ -277,7 +277,7 @@ The polygons can be of type:
 Using multiple arguments is more efficient than looping through the polygons and applying `xor_geometry` sequentially.
 
 Keyword arguments:
-- `atol`, `rtol`: tolerances for point comparisons, orientations and intersections.
+- `atol`: distance tolerance for point comparisons, orientations and intersections.
 - `fill_rule`: rule for which regions of self-intersecting polygons are filled. See `PolygonAlgorithms.FillRule`. Default is `EVEN_ODD`.
 - `face_selection`: how to convert the resultant segments back into polygons. See `PolygonAlgorithms.FaceSelectionStrategy`. Default is `SPLIT_FACES`.
 
@@ -373,14 +373,14 @@ end
 
 function intersect_convex(
     alg::PointSearchAlg, polygon1::Path2D, polygon2::Path2D
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     )
     #https://www.swtestacademy.com/intersection-convex-polygons-algorithm/
-    intersection_points = intersect_edges(polygon1, polygon2; atol=atol, rtol=rtol)
+    intersection_points = intersect_edges(polygon1, polygon2; atol=atol)
     
-    i1_in_2 = [contains(polygon2, p; atol=atol, rtol=rtol) for p in polygon1]
+    i1_in_2 = [contains(polygon2, p; atol=atol) for p in polygon1]
     p1_in_2 = polygon1[i1_in_2]
-    i2_in_1 = [contains(polygon1, p; atol=atol, rtol=rtol) for p in polygon2]
+    i2_in_1 = [contains(polygon1, p; atol=atol) for p in polygon2]
     p2_in_1 = polygon2[i2_in_1]
 
     if isempty(intersection_points) && isempty(p1_in_2) && isempty(p2_in_1)
