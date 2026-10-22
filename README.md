@@ -184,15 +184,11 @@ Core functions that use `atol` include:
 |---|---|---|
 | `is_same_point(p, q)` | `norm2(p, q) ≤ atol²` | Points are within `atol` of each other. |
 | `get_orientation(p, q, r)` | `cross² ≤ atol² \|base\|²` where `base=max(\|pq\|, \|qr\|, \|rp\|)` | Colinear if any point is within `atol` of the line through the other two. `\|cross\| = h * \|pq\|` is the area of the parallelogram where `h` is the height of `r` from the line through `p` and `q`. The cross product is the same for every base, so the smallest height is opposite the longest side. |
-| `on_segment(r, segment)` | colinear and inside the bounding box expanded by `atol` | |
+| `on_segment(r, segment)` | `\|r - s\|² ≤ atol²` where `s` is the closest point on the segment | Within `atol` of the segment, including past either end. This implies colinear. |
 | `intersect_geometry(segment1, segment2)` | `det² ≤ atol² \|segment\|²` , using the longer segment | Parallel if, placed tail to tail, the shorter segment's end is within `atol` of the longer segment's line. |
 | | `-δt ≤ t ≤ 1 + δt`, `δt = atol / \|segment1\|` (same for `u`) | The intersection may be up to `atol` past either end. It is then clamped to `segment1`. |
-| `is_clockwise`, `is_counter_clockwise` | `\|area\| ≤ atol * perimeter / 2` | Thinner than `atol` means zero area: neither direction, and dropped from boolean results. Code that only needs the direction uses `atol=eps(T)`. |
+| `is_clockwise`, `is_counter_clockwise` | `\|area\| ≤ atol * perimeter / 2` | Thinner than `atol` means zero area: neither direction. Code that only needs the direction uses `atol=eps(T)`. |
 | `segments_to_paths` | `digits = ceil(-log10(atol))` | Output points are rounded to this many decimal places. |
-
-Notes:
-- `on_segment`: The simpler bound box check is done rather than determining if the closest point is less than `atol` away from the segment. This means that a point may be up to `√2 * atol` past the end of a segment, while `is_same_point` says it can only be `atol` away.
-- `is_clockwise` and `is_counter_clockwise`: uses the Manhattan perimeter `Σ(|Δx| + |Δy|)` to avoid square roots.
 
 Other uses of tolerances:
 - Vertical segments are detected with machine precision, `eps(T)`, not `atol`.

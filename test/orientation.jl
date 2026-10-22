@@ -81,23 +81,27 @@ end
     @test on_segment((5.0, 0.0), segment, true)
     @test !on_segment((5.0, 0.0), segment, false)
     @test !on_segment((15.0, 0.0), segment, true) # outside the bounds
+
+    # degenerate segment
+    segment = ((1.0, 2.0), (1.0, 2.0))
+    @test on_segment((1.0, 2.0), segment)
+    @test on_segment((1.0 + 5e-7, 2.0), segment)
+    @test !on_segment((1.0 + 2e-6, 2.0), segment)
 end
 
-@testset "on_segment rectangular bounds" begin
-    # The bounds are a rectangle expanded by atol, not a half-circle of radius atol at each end.
-    # So a point just past a corner of the expanded rectangle can be on the segment while being
-    # further than atol from the segment.
+@testset "on_segment bounds" begin
+    # The bounds are a rectangle expanded by atol with a half-circle of radius atol at each end.
     segment = ((0.0, 0.0), (10.0, 0.0))
     atol = 1.0
     point = (10.9, 0.9)
-    @test on_segment(point, segment; atol=atol) # more correct version would return false
+    @test !on_segment(point, segment; atol=atol)
     # the distance to the closest point on the segment is the distance to the end point
     @test !is_same_point(point, segment[2]; atol=atol) # distance is 1.27 > atol
 
-    # For a diagonal segment this happens on the line itself, even for a small atol.
+    # For a diagonal segment the bounding box corner is on the line through the segment.
     segment = ((0.0, 0.0), (1.0, 1.0))
     point = (1.0 + 0.9e-6, 1.0 + 0.9e-6)
-    @test on_segment(point, segment; atol=1e-6) # more correct version would return false
+    @test !on_segment(point, segment; atol=1e-6) # an axis aligned bounding box would return true
     @test !is_same_point(point, segment[2]; atol=1e-6) # distance is 1.27e-6 > atol
 end
 

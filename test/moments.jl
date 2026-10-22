@@ -94,11 +94,12 @@ end
     thicker = [(0.0, 0.0), (10.0, 0.0), (10.0, 3e-6), (0.0, 3e-6)]
     @test is_counter_clockwise(thicker)
     @test is_clockwise(reverse(thicker))
-    # the Manhattan perimeter is up to √2 times larger for diagonal edges, so the error is larger
+    # the Manhattan perimeter is up to √2 times larger for diagonal edges, so this
+    # would fail if the Manhattan perimeter was used
     # area≈1.7e-5, perimeter≈28.3, Manhattan perimeter≈40, error≈2e-5
     d = 1.2e-6 / sqrt(2)
     thin_diagonal = [(0.0, 0.0), (10.0, 10.0), (10.0 - d, 10.0 + d), (-d, d)]
-    @test !is_counter_clockwise(thin_diagonal)
+    @test is_counter_clockwise(thin_diagonal)
     # but the same rectangle aligned with the axes is thicker than atol
     # area≈1.7e-5, perimeter=Manhattan perimeter≈28.3, error≈1.4e-5
     thin_aligned = [(0.0, 0.0), (10.0 * sqrt(2), 0.0), (10.0 * sqrt(2), 1.2e-6), (0.0, 1.2e-6)]

@@ -58,45 +58,56 @@ end
 
 Determine if a point lies on the segment.
 
-The point must be colinear with the segment (see `get_orientation`) and lie within the
-bounding box of the segment expanded by `atol` on all sides.
+The point must be within `atol` of the closest point on the segment.
+This implies it is colinear with the segment (see `get_orientation`).
 
-If `on_line::Bool` is given, it is used instead of calculating the colinearity.
+If `on_line::Bool` is given, `false` returns early without calculating the distance.
 This is useful if the orientation is already known.
 """
 function on_segment(
     q::Point2D, segment::NTuple{2, Point2D}
     ; atol::AbstractFloat=default_atol
     )
-    # the bounding box check is cheaper than the orientation, so do it first
-    # inside the bounds the segment is (up to atol) the longest side of the triangle,
-    # so atol is the distance of q from the segment's line
-    _in_expanded_bounds(q, segment, atol) &&
-        get_orientation(segment[1], segment[2], q; atol=atol) == COLINEAR
+    # within atol of the segment ⟹ within atol of the segment's line ⟹ COLINEAR
+    _in_distance(q, segment, atol)
 end
 
 function on_segment(
     q::Point2D, segment::NTuple{2, Point2D}, on_line::Bool
     ; atol::AbstractFloat=default_atol
     )
-    on_line && _in_expanded_bounds(q, segment, atol)
+    on_line && _in_distance(q, segment, atol)
 end
 
-function _in_expanded_bounds(q::Point2D, segment::NTuple{2, Point2D}, atol::AbstractFloat)
-    # This places an axis aligned rectangular bounds around the segment.
-    # It would be more correct to use two half-circles at either end but that solution is
-    # more complex. The difference is small: points up to √2 * atol past the end may pass
-    # compared to atol for the half-circles.
-    # That solution would be:
+function _in_distance(p::Point2D, segment::NTuple{2, Point2D}, atol::AbstractFloat)
+    # This places a rectangular bounds of half-width atol around the segment,
+    # with two half-circles at either end
     # s = s1 + t * (s2 - s1)  # equation for the segment
-    # dot(q - s, s2 - s1) = 0 # shortest at perpendicular 
-    # ⟹ t = dot(q - s1, s2 - s1) / |s2 - s1|², then clamp t to [0, 1]
-    # on segment if |q - s| ≤ atol
-    p, r = segment
-    (q[1] <= max(p[1], r[1]) + atol) &&
-    (q[1] >= min(p[1], r[1]) - atol) &&
-    (q[2] <= max(p[2], r[2]) + atol) &&
-    (q[2] >= min(p[2], r[2]) - atol)
+    # dot(p - s, s2 - s1) = 0 # shortest at perpendicular
+    # ⟹ t = dot(p - s1, s2 - s1) / |s2 - s1|², then clamp t to [0, 1]
+    dx = segment[2][1] - segment[1][1]
+    dy = segment[2][2] - segment[1][2]
+    length2 = dx * dx + dy * dy
+    if iszero(length2) # degenerate segment, avoid 0/0
+        return norm2(p, segment[1]) <= atol * atol
+    end
+    t = ((p[1] - segment[1][1]) * dx + (p[2] - segment[1][2]) * dy) / length2
+    t = clamp(t, zero(t), one(t))
+    # on segment if |p - s| ≤ atol
+    px = segment[1][1] + t * dx - p[1]
+    py = segment[1][2] + t * dy - p[2]
+    px * px + py * py <= atol * atol 
+end
+
+function _in_expanded_bounds(p::Point2D, segment::NTuple{2, Point2D}, atol::AbstractFloat)
+    # This places an axis aligned rectangular bounds around the segment.
+    # _in_distance is more correct but more complex. The difference is small: points
+    # up to √2 * atol past the end may pass
+    q, r = segment
+    (p[1] <= max(q[1], r[1]) + atol) &&
+    (p[1] >= min(q[1], r[1]) - atol) &&
+    (p[2] <= max(q[2], r[2]) + atol) &&
+    (p[2] >= min(q[2], r[2]) - atol)
 end
 
 """
@@ -207,6 +218,12 @@ The dot product of the vectors `qp` and `qr`, both starting at the vertex `q`.
 """
 function dot_product(p::Point2D, q::Point2D, r::Point2D)
     (p[1] - q[1]) * (r[1] - q[1]) + (p[2] - q[2]) * (r[2] - q[2])
+end
+
+function dot_product(edge1::Segment2D, edge2::Segment2D)
+    a = (edge1[2][1] - edge1[1][1], edge1[2][2] - edge1[1][2])
+    b = (edge2[2][1] - edge2[1][1], edge2[2][2] - edge2[1][2])
+    a[1] * b[1] + a[2] * b[2]
 end
 
 """
