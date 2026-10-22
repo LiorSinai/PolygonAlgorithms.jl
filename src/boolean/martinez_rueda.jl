@@ -80,12 +80,12 @@ function martinez_rueda_algorithm(
         selection_criteria, subject_events, other_events...
         ; atol=atol, options...
     )
-    exteriors, holes = segments_to_paths(
+    exteriors, holes, lines = segments_to_paths(
         segments;
         atol=atol,
         face_selection=face_selection
     )
-    vcat(exteriors, holes)
+    vcat(exteriors, holes, lines)
 end
 
 # Multiple subjects
@@ -113,12 +113,12 @@ function martinez_rueda_algorithm(
         selection_criteria, subject_events, other_events...
         ; atol=atol, options...
     )
-    exteriors, holes = segments_to_paths(
+    exteriors, holes, lines = segments_to_paths(
         segments;
         atol=atol,
         face_selection=face_selection
     )
-    vcat(exteriors, holes)
+    vcat(exteriors, holes, lines)
 end
 
 # Polygons with holes

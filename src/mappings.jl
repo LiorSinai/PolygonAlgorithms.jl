@@ -80,8 +80,10 @@ Assumes there are no intersections between the segments.
 The segments are joined in a graph. 
 Each face with non-zero area will return two faces, a counter-clockwise face with positive area (exterior)
 and a clockwise face with negative area (interior).
-Faces thinner than `atol` are considered to have zero area and are not returned.
-This is estimated as `|area| ≤ atol * perimeter / 2`, using the Manhattan perimeter.
+Faces thinner than `atol` are considered to have zero area.
+This is estimated as `|area| ≤ atol * perimeter / 2`. See `_first_moment_with_error`.
+
+Returns `(exteriors, holes, lines)`, where `lines` are the zero-area faces.
 
 The following selection strategies are used to return half the faces with no duplicates:
 - `MERGE_FACES`: selects all exterior faces that are not holes with interior faces that are holes, resulting in connected graphs being merged together. This returns fewer, larger polygons with holes.
@@ -112,6 +114,7 @@ function segments_to_paths(
     moments_errors = map(p -> _first_moment_with_error(p; atol=atol), polygons)
     are_exteriors = map(((moment, error),) -> moment > error, moments_errors) # counter-clockwise
     are_interiors = map(((moment, error),) -> moment < -error, moments_errors) # clockwise
+    are_zeros = map(((moment, error),) -> abs(moment) <= error, moments_errors)
     # paths → exteriors, holes
     if face_selection == CLOCKWISE_FACES
         exteriors = polygons[are_interiors]
@@ -155,7 +158,7 @@ function segments_to_paths(
             filter!(pts -> !any(pt -> pt in exterior_points, pts), holes)
         end
     end
-    exteriors, holes
+    exteriors, holes, polygons[are_zeros]
 end
 
 """
@@ -264,6 +267,7 @@ number of exteriors, `h` is the number of holes and `n` is the average number of
 function paths_to_polygons(
     exteriors::Vector{<:Vector{<:Point2D}},
     holes::Vector{<:Vector{<:Point2D}},
+    lines::Vector{<:Vector{<:Point2D}},
     ; atol::AbstractFloat=default_atol
     )
     polygons = Polygon.(exteriors)
@@ -275,7 +279,7 @@ function paths_to_polygons(
             @warn "Hole $hole has no parent and will be dropped."
         end
     end
-    polygons
+    vcat(polygons, Polygon.(lines))
 end
 
 """
@@ -299,6 +303,6 @@ function segments_to_polygons(
     atol::AbstractFloat=default_atol,
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
     )
-    exteriors, holes = segments_to_paths(segments; atol=atol, face_selection=face_selection)
-    paths_to_polygons(exteriors, holes; atol=atol)
+    exteriors, holes, lines = segments_to_paths(segments; atol=atol, face_selection=face_selection)
+    paths_to_polygons(exteriors, holes, lines; atol=atol)
 end

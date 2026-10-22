@@ -170,12 +170,17 @@ using PolygonAlgorithms: cyclic_set_equality, are_equivalent_polygons
                 AnnotatedSegment((3.999, -3.999), (7.0, -1.0)),
             ]
             # open chain, gap not closed
-            exteriors, holes = segments_to_paths(segments; face_selection=SPLIT_FACES)
+            exteriors, holes, lines = segments_to_paths(segments; face_selection=SPLIT_FACES)
+            expected = [
+                [(3.999, -3.999), (7.0, -1.0), (3.0, 3.0), (0.0, 0.0), (4.0, -4.0), (0.0, 0.0), (3.0, 3.0), (7.0, -1.0)]
+            ]
             @test isempty(exteriors) && isempty(holes)
-            exteriors, holes = segments_to_paths(segments; face_selection=MERGE_FACES)
+            @test cyclic_set_equality(lines, expected)
+            exteriors, holes, lines = segments_to_paths(segments; face_selection=MERGE_FACES)
             @test isempty(exteriors) && isempty(holes)
+            @test cyclic_set_equality(lines, expected)
             # gap closed
-            exteriors, holes = segments_to_paths(segments; atol=1e-2)
+            exteriors, holes, lines = segments_to_paths(segments; atol=1e-2)
             expected = [
                 [(4.0, -4.0), (7.0, -1.0), (3.0, 3.0), (0.0, 0.0)]
             ]
@@ -193,9 +198,9 @@ using PolygonAlgorithms: cyclic_set_equality, are_equivalent_polygons
                 AnnotatedSegment((1.0, 0.0), (0.5, 1.0)),
                 AnnotatedSegment((0.5, 1.0), (nextfloat(x), 0.0)),
             ]
-            exteriors, holes = segments_to_paths(segments)
+            exteriors, holes, lines = segments_to_paths(segments)
             @test cyclic_set_equality(exteriors, [[(0.007812, 0.0), (1.0, 0.0), (0.5, 1.0)]])
-            @test isempty(holes)
+            @test isempty(holes) && isempty(lines)
         end
 
         @testset "improper" begin

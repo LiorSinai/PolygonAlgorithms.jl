@@ -50,8 +50,7 @@ end
     ]
 
     poly2 = translate(poly1, (2.0, 1.0))
-    expected = (typeof(alg) == PolygonAlgorithms.MartinezRuedaAlg) ?
-        Tuple{Float64, Float64}[] : [(2.0, 1.0), (2.0, 2.0)]
+    expected = [(2.0, 1.0), (2.0, 2.0)]
     points = intersect_convex(alg, poly1, poly2)
     @test are_equivalent_polygons(points, expected; match_reverse=true)
     points = intersect_convex(alg, poly2, poly1)
@@ -60,8 +59,7 @@ end
     poly2 = [
         (2.0, -1.0), (2.0, 3.0), (4.0, 3.0), (4.0, -1.0)
     ]
-    expected = (typeof(alg) == PolygonAlgorithms.MartinezRuedaAlg) ?
-        Tuple{Float64, Float64}[] : [(2.0, 0.0), (2.0, 2.0)]
+    expected = [(2.0, 0.0), (2.0, 2.0)]
     points = intersect_convex(alg, poly1, poly2)
     @test are_equivalent_polygons(points, expected; match_reverse=true)
     points = intersect_convex(alg, poly2, poly1)
@@ -217,8 +215,7 @@ end
     poly2 = [
         (5.0, 1.0), (1.0, 4.0), (9.0, 4.0)
     ]
-    expected = (typeof(alg) == PolygonAlgorithms.MartinezRuedaAlg) ?
-        Tuple{Float64, Float64}[] : [(1.0, 4.0), (9.0, 4.0)]
+    expected = [(1.0, 4.0), (9.0, 4.0)]
     points = intersect_convex(alg, poly1, poly2)
     @test are_equivalent_polygons(points, expected; match_reverse=true)
     points = intersect_convex(alg, poly2, poly1)
@@ -231,9 +228,7 @@ end
     poly2 = [
         (5.0, 1.0), (1.0, 4.0), (5.0, 4.0), (9.0, 4.0)
     ]
-    expected = (typeof(alg) == PolygonAlgorithms.MartinezRuedaAlg) ?
-        Tuple{Float64, Float64}[] : 
-        (typeof(alg) == PolygonAlgorithms.PointSearchAlg) ? [(1.0, 4.0), (5.0, 4.0), (9.0, 4.0)] : 
+    expected = (typeof(alg) == PolygonAlgorithms.PointSearchAlg) ? [(1.0, 4.0), (5.0, 4.0), (9.0, 4.0)] : 
         [(1.0, 4.0), (5.0, 4.0), (9.0, 4.0), (5.0, 4.0)]
     points = intersect_convex(alg, poly1, poly2)
     @test are_equivalent_polygons(points, expected; match_reverse=true)
@@ -282,7 +277,7 @@ end
     points = intersect_convex(alg, poly1, poly2)
     @test are_equivalent_polygons(points, expected; match_reverse=true)
 
-    points = intersect_convex(alg, poly2, poly1)
+    points = intersect_convex(alg, poly2, poly1) 
     @test are_equivalent_polygons(points, expected; match_reverse=true)
 end
 
