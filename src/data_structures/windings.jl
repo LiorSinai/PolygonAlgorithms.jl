@@ -27,15 +27,15 @@ References:
 Change in winding number when a ray crosses the directed edge `start → tail` from top to bottom.
 
 Returns `1` if the edge goes left to right, `-1` if it goes right to left
-and `0` if it is vertical (within `eps(T)`).
+and `0` if it is vertical (see `is_vertical`).
 """
 function calc_winding_top_to_bottom(start::Point2D{T}, tail::Point2D{T}) where T
     # going from top to bottom, we cross right to left from the ray's perspective
     # when the ray goes left to right
-    dx = tail[1] - start[1]
-    if abs(dx) <= eps(T)
+    if is_vertical(start, tail)
         return Int8(0)
     end
+    dx = tail[1] - start[1]
     dx > Int8(0) ? Int8(1) : Int8(-1)
 end
 
@@ -45,11 +45,11 @@ end
 Change in winding number when a ray crosses the directed edge `start → tail` from left to right.
 
 Returns `1` if the edge goes bottom to top, `-1` if it goes top to bottom
-and `0` if it is horizontal (within `eps(T)`).
+and `0` if it is horizontal (within floating point error, `|Δy| ≤ default_rtol(T) * max(|y₁|, |y₂|)`).
 """
 function calc_winding_left_to_right(start::Point2D{T}, tail::Point2D{T}) where T
     dy = tail[2] - start[2]
-    if abs(dy) <= eps(T)
+    if abs(dy) <= default_rtol(T) * max(abs(start[2]), abs(tail[2]))
         return Int8(0)
     end
     dy > Int8(0) ? Int8(1) : Int8(-1)

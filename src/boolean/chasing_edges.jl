@@ -1,5 +1,5 @@
 """
-    chasing_edges_algorithm(polygon1, polygon2; atol=default_atol)
+    chasing_edges_algorithm(polygon1, polygon2; rtol=default_rtol(T))
 
 A fast algorithm for finding the intersection, if it exists, between two
 convex polygons.
@@ -14,16 +14,15 @@ convex polygons.
 """
 function chasing_edges_algorithm(
     polygon1::Path2D{T}, polygon2::Path2D{T}
-    ; atol::AbstractFloat=default_atol
+    ; rtol::AbstractFloat=default_rtol(T)
     ) where T
     n = length(polygon1)
     m = length(polygon2)
     points = Point2D{T}[]
-    # only the direction is needed, so don't treat thin polygons as zero area
-    if is_clockwise(polygon1; atol=eps(T))
+    if is_clockwise(polygon1; rtol=rtol)
         polygon1 = reverse(polygon1)
     end
-    if is_clockwise(polygon2; atol=eps(T))
+    if is_clockwise(polygon2; rtol=rtol)
         polygon2 = reverse(polygon2)
     end
     poly1_in_2 = false
@@ -35,8 +34,8 @@ function chasing_edges_algorithm(
         j_prev = j == 1 ? m : j - 1
         edge1 = (polygon1[i_prev], polygon1[i])
         edge2 = (polygon2[j_prev], polygon2[j])
-        inter = intersect_geometry(edge1, edge2; atol=atol)
-        is_colinear = isapprox(cross_product(edge1, edge2), 0.0; atol=atol)
+        inter = intersect_geometry(edge1, edge2; rtol=rtol)
+        is_colinear = isapprox(cross_product(edge1, edge2), 0.0; rtol=rtol)
         if !isnothing(inter) && !is_colinear
             is_second_iter = k > (m + n)
             if length(points) > 1 && (all(inter .≈ points[1]) && is_second_iter)
@@ -67,9 +66,9 @@ function chasing_edges_algorithm(
         end
     end
     if isempty(points)
-        if contains(polygon2, polygon1[1]; atol=atol)
+        if contains(polygon2, polygon1[1]; rtol=rtol)
             return polygon1
-        elseif contains(polygon1, polygon2[1]; atol=atol)
+        elseif contains(polygon1, polygon2[1]; rtol=rtol)
             return polygon2
         end
     end

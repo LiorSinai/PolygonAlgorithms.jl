@@ -178,9 +178,9 @@ using PolygonAlgorithms: cyclic_set_equality, are_equivalent_polygons
             @test cyclic_set_equality(lines, expected)
             exteriors, holes, lines = segments_to_paths(segments; face_selection=MERGE_FACES)
             @test isempty(exteriors) && isempty(holes)
-            @test cyclic_set_equality(lines, expected)
-            # gap closed
-            exteriors, holes, lines = segments_to_paths(segments; atol=1e-2)
+            # gap closed, because points are rounded to 6 decimal places
+            segments[4] = AnnotatedSegment((4.0 - 1e-8, -4.0 + 1e-8), (7.0, -1.0))
+            exteriors, holes = segments_to_paths(segments)
             expected = [
                 [(4.0, -4.0), (7.0, -1.0), (3.0, 3.0), (0.0, 0.0)]
             ]

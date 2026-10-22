@@ -39,11 +39,11 @@ mirror(points::Vector{<:Tuple}) = [(y, x) for (x, y) in points]
 
 function calculate_metrics(alg, fn, polygon1, polygon2, expected_area::Float64
         ; ntrials::Int=5)
-    stats = @timed fn(alg, polygon1, polygon2; atol=1e-12)
+    stats = @timed fn(alg, polygon1, polygon2)
     t = stats.time
     bytes = stats.bytes
     for i in 2:ntrials
-        si = @timed fn(alg, polygon1, polygon2; atol=1e-12)
+        si = @timed fn(alg, polygon1, polygon2)
         t += si.time
         bytes += si.bytes
     end

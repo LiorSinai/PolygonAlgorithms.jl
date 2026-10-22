@@ -369,17 +369,17 @@ using PolygonAlgorithms: are_equivalent_polygons
         end
     end
 
-    @testset "atol sets the output rounding" begin
-        # the output points are rounded to the decimal places of atol for all input types
-        square1 = [(1e-4, 0.0), (1.0001, 0.0), (1.0001, 1.0), (1e-4, 1.0)]
+    @testset "output rounding" begin
+        # the output points are rounded to 6 decimal places for all input types
+        square1 = [(1e-7, 0.0), (1.0000001, 0.0), (1.0000001, 1.0), (1e-7, 1.0)]
         square2 = [(0.5, 0.5), (1.5, 0.5), (1.5, 1.5), (0.5, 1.5)]
         expected = [(1.0, 0.5), (1.0, 1.0), (0.5, 1.0), (0.5, 0.5)]
         # the start point depends on Dict ordering, which varies between Julia versions
-        regions = intersect_geometry(square1, square2; atol=1e-2)
+        regions = intersect_geometry(square1, square2)
         @test are_equivalent_polygons(regions, [expected])
-        regions = intersect_geometry([square1], square2; atol=1e-2)
+        regions = intersect_geometry([square1], square2)
         @test are_equivalent_polygons(regions, [expected])
-        regions = intersect_geometry(Polygon(square1), Polygon(square2); atol=1e-2)
+        regions = intersect_geometry(Polygon(square1), Polygon(square2))
         @test are_equivalent_polygons(regions, [Polygon(expected)])
     end
 end

@@ -72,38 +72,27 @@ end
     loop = [(0.0, 0.0), (3.0, 3.0), (7.0, -1.0), (3.999, -3.999), (7.0, -1.0), (3.0, 3.0), (0.0, 0.0), (4.0, -4.0)]
     @test !is_clockwise(loop)
     @test !is_counter_clockwise(loop)
-    # even with a very small atol, the error scales with the perimeter
-    @test !is_clockwise(loop; atol=eps(Float64))
-    @test !is_counter_clockwise(loop; atol=eps(Float64))
+    # rotating colinear points introduces rounding errors
+    line = PolygonAlgorithms.rotate([(0.0, 0.0), (1000.0, 0.0), (2000.0, 0.0)], π/4)
+    @test !is_clockwise(line)
+    @test !is_counter_clockwise(line)
 end
 
 @testset "thin polygon" begin
-    # zero area if thinner than atol: |area| ≤ atol * perimeter / 2
-    # width=1e-7: area=1e-6, Manhattan perimeter≈20, so the error is 1e-5 for atol=1e-6
-    thin = [(0.0, 0.0), (10.0, 0.0), (10.0, 1e-7), (0.0, 1e-7)]
-    @test !is_counter_clockwise(thin)
-    @test !is_clockwise(reverse(thin))
-    # with a smaller atol it has a direction
-    @test is_counter_clockwise(thin; atol=1e-8)
-    @test is_clockwise(reverse(thin); atol=1e-8)
-    @test is_counter_clockwise(thin; atol=eps(Float64))
-    # Polygon passes atol to the exterior
-    @test !is_counter_clockwise(PolygonAlgorithms.Polygon(thin))
-    @test is_counter_clockwise(PolygonAlgorithms.Polygon(thin); atol=1e-8)
-    # width=3e-6 is thicker than atol: area=3e-5 > 1e-5
-    thicker = [(0.0, 0.0), (10.0, 0.0), (10.0, 3e-6), (0.0, 3e-6)]
-    @test is_counter_clockwise(thicker)
-    @test is_clockwise(reverse(thicker))
-    # the Manhattan perimeter is up to √2 times larger for diagonal edges, so this
-    # would fail if the Manhattan perimeter was used
-    # area≈1.7e-5, perimeter≈28.3, Manhattan perimeter≈40, error≈2e-5
-    d = 1.2e-6 / sqrt(2)
-    thin_diagonal = [(0.0, 0.0), (10.0, 10.0), (10.0 - d, 10.0 + d), (-d, d)]
-    @test is_counter_clockwise(thin_diagonal)
-    # but the same rectangle aligned with the axes is thicker than atol
-    # area≈1.7e-5, perimeter=Manhattan perimeter≈28.3, error≈1.4e-5
-    thin_aligned = [(0.0, 0.0), (10.0 * sqrt(2), 0.0), (10.0 * sqrt(2), 1.2e-6), (0.0, 1.2e-6)]
-    @test is_counter_clockwise(thin_aligned)
+    # only zero area within floating point error: |area| ≤ n * rtol * Σ(|xᵢyᵢ₊₁| + |yᵢxᵢ₊₁|) / 2
+    # a thin polygon near the origin has a direction
+    thin = [(0.0, 0.0), (10.0, 0.0), (10.0, 1e-15), (0.0, 1e-15)]
+    @test is_counter_clockwise(thin)
+    @test is_clockwise(reverse(thin))
+    @test is_counter_clockwise(PolygonAlgorithms.Polygon(thin))
+    # the same polygon far from the origin is within floating point error
+    thin_far = PolygonAlgorithms.translate(thin, (1000.0, 1000.0))
+    @test !is_counter_clockwise(thin_far)
+    @test !is_clockwise(reverse(thin_far))
+    # a thicker polygon far from the origin has a direction, unless the relative tolerance is large
+    thicker_far = PolygonAlgorithms.translate([(0.0, 0.0), (10.0, 0.0), (10.0, 1e-6), (0.0, 1e-6)], (1000.0, 1000.0))
+    @test is_counter_clockwise(thicker_far)
+    @test !is_counter_clockwise(thicker_far; rtol=1e-6)
 end
 
 end

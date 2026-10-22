@@ -179,9 +179,8 @@ end;
     @test !contains(pentagon[1], (10.0, 7.0))
 end;
 
-@testset "vertex within atol of the ray" begin
+@testset "vertex near the ray" begin
     # sin(π) = 1.2e-16, so vertex 11 is at y=1.2e-16 while vertex 1 is at y=0.0
-    # The vertex at y=0.0 is within atol of the ray and should not be counted twice
     polygon = [(cos(2π*k/20), sin(2π*k/20)) for k in 0:19]
     @test contains(polygon, (-0.9, sin(π)))
     @test contains(polygon, (0.9, sin(π)))

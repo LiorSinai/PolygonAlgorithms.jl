@@ -1,5 +1,5 @@
 """
-    weiler_atherton_algorithm(polygon1, polygon2; atol=default_atol)
+    weiler_atherton_algorithm(polygon1, polygon2; rtol=default_rtol(T))
 
 The Weiler-Atherton polygon clipping algorithm.
 Returns regions, edges and single points of intersection. 
@@ -21,7 +21,7 @@ For a more general algorithm see the Martinez-Rueda polygon clipping algorithm.
 """
 function weiler_atherton_algorithm(
     polygon1::Path2D{T}, polygon2::Path2D{T}
-    ; atol::AbstractFloat=default_atol
+    ; rtol::AbstractFloat=default_rtol(T)
     ) where T
     if polygon1 == polygon2
         return [polygon1]
@@ -29,24 +29,23 @@ function weiler_atherton_algorithm(
     n = length(polygon1)
     m = length(polygon2)
     @assert n > 2 &&  m > 2 "require at least 3 points per polygons; lengths are $n and $m"
-    # only the direction is needed, so don't treat thin polygons as zero area
-    if is_counter_clockwise(polygon1; atol=eps(T))
+    if is_counter_clockwise(polygon1; rtol=rtol)
         polygon1 = reverse(polygon1)
     end
-    if is_counter_clockwise(polygon2; atol=eps(T))
+    if is_counter_clockwise(polygon2; rtol=rtol)
         polygon2 = reverse(polygon2)
     end
     list1 = convert_to_linked_list(polygon1)
     list2 = convert_to_linked_list(polygon2)
-    find_and_insert_intersections!(list1, list2; atol=atol)
+    find_and_insert_intersections!(list1, list2; rtol=rtol)
     regions, visited = walk_linked_lists(list2)
     # special cases
     if isempty(regions)
         p1 = get_first_non_intersection_point(list1)
         p2 = get_first_non_intersection_point(list2)
-        if contains(polygon2, p1; atol=atol)
+        if contains(polygon2, p1; rtol=rtol)
             return [polygon1]
-        elseif contains(polygon1, p2; atol=atol)
+        elseif contains(polygon1, p2; rtol=rtol)
             return [polygon2]
         end
     end
@@ -113,7 +112,7 @@ function get_first_non_intersection_point(polygon::DoublyLinkedList{<:PointEvent
 end
 
 """
-    find_and_insert_intersections!(polygon1, polygon2; atol=default_atol)
+    find_and_insert_intersections!(polygon1, polygon2; rtol=default_rtol(T))
 
 Intersect every edge of `polygon1` with every edge of `polygon2` in `O(nm)` time.
 Each intersection point is inserted into both linked lists in order along the edge
@@ -121,7 +120,7 @@ Each intersection point is inserted into both linked lists in order along the ed
 function find_and_insert_intersections!(
         polygon1::DoublyLinkedList{PointEvent{T}}, 
         polygon2::DoublyLinkedList{PointEvent{T}};
-        atol::AbstractFloat=default_atol
+        rtol::AbstractFloat=default_rtol(T)
         ) where T
     ## collect original nodes before mutating in place
     vec1 = collect_nodes(polygon1)
@@ -135,38 +134,38 @@ function find_and_insert_intersections!(
         for (i, node1) in enumerate(vec1)
             next1 = vec1[i % n1 + 1]
             edge1 = (node1.data.point, next1.data.point) 
-            p = intersect_geometry(edge1, edge2; atol=atol)
+            p = intersect_geometry(edge1, edge2; rtol=rtol)
             if !isnothing(p)
-                i1 = insert_intersection_in_order!(p, node1, next1; atol=atol)
-                i2 = insert_intersection_in_order!(p, node2, next2; atol=atol)
-                link_intersections!(i1, i2, edge1, edge2; atol=atol)
+                i1 = insert_intersection_in_order!(p, node1, next1; rtol=rtol)
+                i2 = insert_intersection_in_order!(p, node2, next2; rtol=rtol)
+                link_intersections!(i1, i2, edge1, edge2; rtol=rtol)
             end
         end
     end
 end
 
 """
-    insert_intersection_in_order!(point, tail, head; atol=default_atol)
+    insert_intersection_in_order!(point, tail, head; rtol=default_rtol(T))
 
 Insert an intersection `point` between the nodes `tail` and `head`, which were originally adjacent
 but may now have other intersections between them.
 The point is inserted in order of distance from `tail`.
 
-If the point is within `atol` of an existing node, that node is marked as an intersection and returned
-instead of inserting a new node.
+If the point is the same as an existing node (see `is_same_point`), that node is marked as an intersection
+and returned instead of inserting a new node.
 """
 function insert_intersection_in_order!(
-    point::Point2D, tail::Node{<:PointEvent}, head::Node{<:PointEvent}
-    ; atol::AbstractFloat=default_atol
-    )
+    point::Point2D{T}, tail::Node{<:PointEvent}, head::Node{<:PointEvent}
+    ; rtol::AbstractFloat=default_rtol(T)
+    ) where T
     node = tail
     while node != head.next
         d1 = norm(point, node.data.point)
         d2 = norm(node.next.data.point, node.data.point)
-        if d1 < atol # either on tail or intersection here already
+        if is_same_point(point, node.data.point; rtol=rtol) # either on tail or intersection here already
             node.data.intersection = true
             return node
-        elseif abs(d1 - d2) < atol # either on head or intersection here already
+        elseif is_same_point(point, node.next.data.point; rtol=rtol) # either on head or intersection here already
             node.next.data.intersection = true
             return node.next
         elseif d1 < d2
@@ -179,7 +178,7 @@ function insert_intersection_in_order!(
 end
 
 """
-    link_intersections!(inter1, inter2, edge1, edge2; atol=default_atol)
+    link_intersections!(inter1, inter2, edge1, edge2; rtol=default_rtol(T))
 
 Link the intersection nodes `inter1` (on `polygon1`) and `inter2` (on `polygon2`)
 and classify the intersection as an `ENTRY`, `EXIT` or `VERTEX`.
@@ -196,14 +195,14 @@ Assumes both polygons are clockwise.
 function link_intersections!(
         inter1::Node{<:PointEvent}, 
         inter2::Node{<:PointEvent}, 
-        edge1::Segment2D, 
+        edge1::Segment2D{T}, 
         edge2::Segment2D; 
-        atol::AbstractFloat=default_atol
-    )
+        rtol::AbstractFloat=default_rtol(T)
+    ) where T
     point = inter1.data.point
-    on_edge1 = (is_same_point(point, edge1[1]; atol=atol) || is_same_point(point, edge1[2]; atol=atol))
-    head2_on_edge = is_same_point(point, edge2[2]; atol=atol)
-    tail2_on_edge = is_same_point(point, edge2[1]; atol=atol)
+    on_edge1 = (is_same_point(point, edge1[1]; rtol=rtol) || is_same_point(point, edge1[2]; rtol=rtol))
+    head2_on_edge = is_same_point(point, edge2[2]; rtol=rtol)
+    tail2_on_edge = is_same_point(point, edge2[1]; rtol=rtol)
     on_edge2 = head2_on_edge || tail2_on_edge
     if on_edge1 && on_edge2 # case 1: intersect at common vertex
         prev1 = inter1.prev.data.point
