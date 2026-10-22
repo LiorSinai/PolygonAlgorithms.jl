@@ -166,6 +166,3 @@ end
 
 algo_canvases = [canvases[case][2] for (case, _) in cases]
 plot(algo_canvases..., layout=(2, 4), size=(1000, 600))
-
-# case, _ = cases[4]
-# plot(canvases[case]..., layout=(1, 2), plot_title="$(alg_name)")
