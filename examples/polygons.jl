@@ -66,7 +66,7 @@ end
 
 function random_spiked_balls(rng, n::Int=100, origin=(0.0, 0.0))
     points = [(origin[1] + rand(rng), origin[2] + rand(rng)) for i in 1:n]
-    PolygonAlgorithms.sort_clockwise(points)
+    PolygonAlgorithms.sort_counter_clockwise!(points)
 end
 
 function random_concave_saw_from_points(points::Vector{<:Point2D})
