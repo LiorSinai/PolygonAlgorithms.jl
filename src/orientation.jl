@@ -66,9 +66,9 @@ Determine if a point lies on the segment.
 
 The point must be colinear with the segment (see `get_orientation`) and lie within the
 bounding box of the segment, expanded by the floating point error of the co-ordinates:
-`rtol * max(|x|)` horizontally and `rtol * max(|y|)` vertically.
+`rtol * scale` on all sides, where `scale` is the largest absolute co-ordinate, as in `get_orientation`.
 
-If `on_line::Bool` is given, `false` returns early without calculating the distance.
+If `on_line::Bool` is given, it is used instead of calculating the colinearity.
 This is useful if the orientation is already known.
 """
 function on_segment(
@@ -110,13 +110,14 @@ end
 function _in_expanded_bounds(q::Point2D, segment::NTuple{2, Point2D}, rtol::AbstractFloat)
     # This places an axis aligned rectangular bounds around the segment,
     # expanded by the floating point error of the co-ordinates.
+    # Use the largest co-ordinate for both axes, as in get_orientation.
     p, r = segment
-    δx = rtol * max(abs(p[1]), abs(r[1]), abs(q[1]))
-    δy = rtol * max(abs(p[2]), abs(r[2]), abs(q[2]))
-    (q[1] <= max(p[1], r[1]) + δx) &&
-    (q[1] >= min(p[1], r[1]) - δx) &&
-    (q[2] <= max(p[2], r[2]) + δy) &&
-    (q[2] >= min(p[2], r[2]) - δy)
+    scale = max(abs(p[1]), abs(p[2]), abs(r[1]), abs(r[2]), abs(q[1]), abs(q[2]))
+    δ = rtol * scale
+    (q[1] <= max(p[1], r[1]) + δ) &&
+    (q[1] >= min(p[1], r[1]) - δ) &&
+    (q[2] <= max(p[2], r[2]) + δ) &&
+    (q[2] >= min(p[2], r[2]) - δ)
 end
 
 """

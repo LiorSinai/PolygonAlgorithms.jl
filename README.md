@@ -166,7 +166,6 @@ See https://www.angusj.com/clipper2/Docs/Units/Clipper/Types/FillRule.htm and ht
 Mathematically, the algorithms are infinitely precise.
 Practically, this code works with floats, which have rounding errors.
 The philosophy of this package is that tolerances only absorb floating point error.
-They are not a distance for snapping nearby points or edges together.
 
 There is a single relative tolerance `rtol` that is passed down as a keyword argument throughout the entire algorithm.
 Its default value depends on the float type: `PolygonAlgorithms.default_rtol(T) = 64eps(T)`.
@@ -224,7 +223,7 @@ Core functions that use `rtol` include:
 |---|---|---|
 | `is_same_point(p, q)` | `\|p - q\|² ≤ rtol² * max(\|p\|², \|q\|²)` | Points are equal up to the rounding of their co-ordinates. |
 | `get_orientation(p, q, r)` | `\|L - R\| ≤ rtol * (\|L\| + \|R\| + scale * side)` | Colinear if the cross product `L - R` is within arithmetic and representation error. `scale` is the largest absolute co-ordinate and `side` is the longest side of the triangle, using the Manhattan distance `\|Δx\| + \|Δy\|`. Symmetric in `p`, `q` and `r`. |
-| `on_segment(r, segment)` | colinear and inside the bounding box expanded by `rtol * max\|x\|` and `rtol * max\|y\|` | |
+| `on_segment(r, segment)` | colinear and inside the bounding box expanded by `rtol * scale` | `scale` is the largest absolute co-ordinate, as in `get_orientation`, so both tests use the same representation error. |
 | `is_vertical(segment)` | `\|Δx\| ≤ rtol * max(\|x₁\|, \|x₂\|)` | |
 | `intersect_geometry(segment1, segment2)` | orientations of the end points, as in `do_intersect` | No intersection if both end points of one segment are on the same side of the other. Parallel if both end points of one segment are colinear with the other. If an end point is colinear with the other segment, it is returned exactly. Otherwise the intersection is calculated and clamped to `segment1`. |
 | `is_clockwise`, `is_counter_clockwise` | `\|area\| ≤ n * rtol * Σ(\|xᵢyᵢ₊₁\| + \|yᵢxᵢ₊₁\|) / 2` | Zero area within floating point error: neither direction, and dropped from boolean results. The error of a sum of `n` terms grows at most linearly with `n`. |

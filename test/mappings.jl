@@ -199,7 +199,7 @@ using PolygonAlgorithms: cyclic_set_equality, are_equivalent_polygons
                 AnnotatedSegment((0.5, 1.0), (nextfloat(x), 0.0)),
             ]
             exteriors, holes, lines = segments_to_paths(segments)
-            @test cyclic_set_equality(exteriors, [[(0.007812, 0.0), (1.0, 0.0), (0.5, 1.0)]])
+            @test cyclic_set_equality(exteriors, [[(x, 0.0), (1.0, 0.0), (0.5, 1.0)]])
             @test isempty(holes) && isempty(lines)
         end
 

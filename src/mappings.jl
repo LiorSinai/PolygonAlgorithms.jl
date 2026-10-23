@@ -301,7 +301,7 @@ function segments_to_polygons(
     ; 
     rtol::AbstractFloat=default_rtol(T),
     face_selection::FaceSelectionStrategy=SPLIT_FACES,
-    )
+    ) where {T}
     exteriors, holes, lines = segments_to_paths(segments; rtol=rtol, face_selection=face_selection)
-    paths_to_polygons(exteriors, holes, lines; atol=atol)
+    paths_to_polygons(exteriors, holes, lines; rtol=rtol)
 end

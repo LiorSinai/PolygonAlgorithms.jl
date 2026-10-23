@@ -55,7 +55,8 @@ end
     @test on_segment((5.0, 0.0), segment)
     @test on_segment((0.0, 0.0), segment) # start point
     @test on_segment((10.0, 0.0), segment) # end point
-    @test !on_segment((5.0, 1e-15), segment) # off the line
+    @test on_segment((5.0, 1e-15), segment) # within floating point error of the line, relative to 10
+    @test !on_segment((5.0, 1e-12), segment) # off the line
     @test on_segment((nextfloat(10.0), 0.0), segment) # within floating point error past the end
     @test !on_segment((10.0 + 1e-12, 0.0), segment) # beyond floating point error past the end
     @test !on_segment((15.0, 0.0), segment) # colinear but not on the segment
@@ -78,24 +79,36 @@ end
     # degenerate segment
     segment = ((1.0, 2.0), (1.0, 2.0))
     @test on_segment((1.0, 2.0), segment)
-    @test on_segment((1.0 + 5e-7, 2.0), segment)
-    @test !on_segment((1.0 + 2e-6, 2.0), segment)
+    @test on_segment((nextfloat(1.0), 2.0), segment) # within floating point error
+    @test !on_segment((1.0 + 1e-12, 2.0), segment)
 end
 
 @testset "on_segment bounds" begin
-    # The bounds are a rectangle expanded by atol with a half-circle of radius atol at each end.
+    # The bounds are a rectangle expanded by rtol * scale, where scale is the largest absolute co-ordinate.
+    # So the same distance past the end is within the bounds for large co-ordinates but not small ones.
+    @test !on_segment((1.0 + 1e-10, 0.0), ((0.0, 0.0), (1.0, 0.0)))
+    @test on_segment((1e6 + 1e-10, 0.0), ((0.0, 0.0), (1e6, 0.0)))
+    # a larger tolerance: the bounds are expanded by 1e-6 * 10 = 1e-5
     segment = ((0.0, 0.0), (10.0, 0.0))
-    atol = 1.0
-    point = (10.9, 0.9)
-    @test !on_segment(point, segment; atol=atol)
-    # the distance to the closest point on the segment is the distance to the end point
-    @test !is_same_point(point, segment[2]; atol=atol) # distance is 1.27 > atol
+    @test on_segment((10.0 + 5e-6, 0.0), segment; rtol=1e-6)
+    @test !on_segment((10.0 + 2e-5, 0.0), segment; rtol=1e-6)
+    # at the corner of the rectangle, on_segment agrees with is_same_point because both are relative
+    segment = ((0.0, 0.0), (10.0, 10.0))
+    point = (10.0 + 9e-6, 10.0 + 9e-6)
+    @test on_segment(point, segment; rtol=1e-6)
+    @test is_same_point(point, segment[2]; rtol=1e-6)
 
-    # For a diagonal segment the bounding box corner is on the line through the segment.
-    segment = ((0.0, 0.0), (1.0, 1.0))
-    point = (1.0 + 0.9e-6, 1.0 + 0.9e-6)
-    @test !on_segment(point, segment; atol=1e-6) # an axis aligned bounding box would return true
-    @test !is_same_point(point, segment[2]; atol=1e-6) # distance is 1.27e-6 > atol
+    # Both axes are expanded by the largest co-ordinate, as in get_orientation.
+    # So a point that is colinear and inside the x range is on the segment,
+    # even though its y co-ordinate is far outside rtol * max|y| = 0.
+    segment = ((1e6, 0.0), (1e6 + 10.0, 0.0))
+    point = (1e6 + 5.0, 1e-12)
+    @test get_orientation(segment[1], segment[2], point) == COLINEAR
+    @test on_segment(point, segment)
+    # but not if it is clearly above the segment
+    @test !on_segment((1e6 + 5.0, 1e-6), segment)
+end
+
 @testset "is_same_point" begin
     # relative to the size of the co-ordinates
     @test is_same_point((1000.0, 0.0), (nextfloat(1000.0), 0.0))
