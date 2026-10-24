@@ -1,6 +1,6 @@
 using Plots
 using PolygonAlgorithms: Polygon, x_coords, y_coords, is_clockwise
-using PolygonAlgorithms: Segment2D
+using PolygonAlgorithms: Point2D, Segment2D
 
 function plot_polygons!(canvas, polygons::AbstractVector{<:Polygon}; options...)
     for polygon in polygons
@@ -18,7 +18,7 @@ function plot_polygon!(canvas, polygon::Polygon; options...)
     idxs = vcat(1:length(region), 1)
     plot!(canvas, x_coords(region[idxs]), y_coords(region[idxs]); options...)
     # Set hole colors
-    options = merge((;options...), (;fill=(0, 0.7, :grey70)))
+    options = merge((;options...), (;fill=(0, 0.7, :grey70), color=:black))
     for hole in polygon.holes
         idxs = vcat(1:length(hole), 1)
         plot!(canvas, x_coords(hole[idxs]), y_coords(hole[idxs]); options...)
@@ -41,7 +41,7 @@ function plot_polygon!(canvas, polygon::Vector{<:Point2D}; options...)
     end
     idxs = vcat(1:length(polygon), 1)
     if is_clockwise(polygon) # assume this is a hole
-        options = merge((;options...), (;fill=(0, 0.7, :grey70)))
+        options = merge((;options...), (;fill=(0, 0.7, :grey70), color=:black))
     end
     plot!(canvas, x_coords(polygon[idxs]), y_coords(polygon[idxs]); options...)
 end
