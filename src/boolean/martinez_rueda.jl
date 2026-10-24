@@ -307,9 +307,9 @@ function event_loop!(
         else # event is ending, so remove it from the status
             # Remove head from the queue first. Dividing the new adjacent edges can insert an
             # event ahead of it, e.g. if an intersection is snapped to head's end point.
-            # This tends to happen more often with a larger atol
+            # This tends to happen more often with a larger rtol
             popfirst!(queue)
-            idx = find_transition(sweep_status, head.other; atol=atol)
+            idx = find_transition(sweep_status, head.other; rtol=rtol)
             if !(0 < idx <= length(sweep_status) && sweep_status[idx] === head.other)
                 @warn "$(head.other) was not in the expected location in the sweep status. " * 
                     "Falling back to linear search."
@@ -319,8 +319,6 @@ function event_loop!(
                     "$(head.other) is missing from the sweep_status. The start event should always be processed before the end event."
                 )
             end
-            # Remove head before checking its neighbours, because dividing them can insert events ahead of it.
-            #popfirst!(queue)
             if (idx != 1) && (idx != length(sweep_status))
                 # there will be 2 new adjacent edges, so check the intersection between them
                 check_and_divide_intersection!(
@@ -330,7 +328,6 @@ function event_loop!(
             end
             push!(annotated_segments, copy(head.other))
             popat!(sweep_status, idx)
-            #continue
         end
     end
     annotated_segments
