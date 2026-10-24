@@ -118,7 +118,7 @@ function execute_clipper_test(test::PolygonTest, subjects::Vector, clips::Vector
 end
 
 @testset "Clipper2" begin
-    tests = load_tests(joinpath(@__DIR__, "clipper.txt"))
+    tests = load_tests(joinpath(@__DIR__, "Polygons.txt"))
     results = ClipperResult[]
     for (idx, poly_test) in enumerate(tests)
         @testset "caption $(poly_test.caption)" begin
