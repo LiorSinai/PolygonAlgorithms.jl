@@ -217,7 +217,7 @@ Therefore, the points will not exactly align below this tolerance.
 Because of this, running `intersect_geometry(polygon1, polygon2; atol=atol)` will only succeed for `atol ≥ 1e-14`. 
 
 In the next example, the tolerances cause unexpected behaviour.
-This example is from [Clipper2: test 141](test\boolean\Polygons.txt):
+This example is from [Clipper2: test 141](https://github.com/LiorSinai/PolygonAlgorithms.jl/blob/main/test/boolean/Polygons.txt):
 
 <p align="center">
   <img src="images/robustness_segments.png" width="45%" style="padding:5px"/>
@@ -269,5 +269,6 @@ julia> using PolygonAlgorithms
 
 ## Related
 
-- [PolygonOps](https://github.com/JuliaGeometry/PolygonOps.jl)
+- [GeometryOps](https://github.com/JuliaGeo/GeometryOps.jl)
 - [PolygonClipping](https://github.com/JuliaGeometry/PolygonClipping.jl)
+- [PolygonOps](https://github.com/JuliaGeometry/PolygonOps.jl)
