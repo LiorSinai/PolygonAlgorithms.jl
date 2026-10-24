@@ -19,36 +19,27 @@ using Test
     @test get_orientation((1.0, 1.0), (1.0, 1.0), (5.0, 3.0)) == COLINEAR
 end
 
-@testset "get_orientation distance" begin
-    # colinear if the distance of a point from the line through the other two is at most atol=1e-6
-    # rp is the longest side so the smallest distance is of q from the line pr
-    @test get_orientation((0.0, 0.0), (1.0, 1.0), (2.0, 2.0)) == COLINEAR
-    @test get_orientation((0.0, 0.0), (1.0, 1.0), (2.0, 2.0 + 2e-6)) == COLINEAR # distance is 7.1e-7
-    @test get_orientation((0.0, 0.0), (1.0, 1.0), (2.0, 2.0 + 4e-6)) == COUNTER_CLOCKWISE # distance is 1.4e-6
-    @test get_orientation((0.0, 0.0), (500.0, 500.0), (1000.0, 1000.0)) == COLINEAR
-    # the distance does not scale with the size of the coordinates
-    @test get_orientation((0.0, 0.0), (500.0, 500.0), (1000.0, 1000.001)) == COUNTER_CLOCKWISE # distance is 3.5e-4
-    @test get_orientation((0.0, 0.0), (500.0, 500.0), (1000.0, 1000.001); atol=1e-3) == COLINEAR
-    @test get_orientation((0.0, 0.0), (1e9, 1e9), (2e9, 2e9 + 10)) == COUNTER_CLOCKWISE # distance is 3.5
-    @test get_orientation((0.0, 0.0), (1e9, 1e9), (2e9, 2e9 + 10); atol=10.0) == COLINEAR
-    # small coordinates: the cross product is tiny (1e-10) but the distance of q from pr is 1e-6
-    @test get_orientation((0.0, 0.0), (1e-6, 0.0), (2e-6, 1e-4); atol=1e-7) == COUNTER_CLOCKWISE
-    # p and q are within atol so they are the same point: q is 1e-6 from the line pr
-    @test get_orientation((0.0, 0.0), (1e-6, 0.0), (2e-6, 1e-4)) == COLINEAR
+@testset "get_orientation floating point error" begin
+    # colinear if the cross product L - R is within floating point error: |L - R| ≤ rtol * (|L| + |R|)
+    # 0.1, 0.2 and 0.3 are not exact in binary, but the points are colinear within floating point error
+    @test get_orientation((0.1, 0.1), (0.2, 0.2), (0.3, 0.3)) == COLINEAR
+    @test get_orientation((0.1, 0.3), (0.2, 0.2), (0.3, 0.1)) == COLINEAR
+    @test get_orientation((1e9 + 0.1, 1e9 + 0.1), (2e9 + 0.2, 2e9 + 0.2), (3e9 + 0.3, 3e9 + 0.3)) == COLINEAR
+    # any offset larger than floating point error is not colinear, at every scale
+    @test get_orientation((0.0, 0.0), (1.0, 1.0), (2.0, 2.0 + 1e-12)) == COUNTER_CLOCKWISE
+    @test get_orientation((0.0, 0.0), (1e9, 1e9), (2e9, 2e9 + 1e-3)) == COUNTER_CLOCKWISE
+    @test get_orientation((0.0, 0.0), (1e-9, 1e-9), (2e-9, 2e-9 + 1e-21)) == COUNTER_CLOCKWISE
+    @test get_orientation((0.0, 0.0), (1e-6, 0.0), (2e-6, 1e-4)) == COUNTER_CLOCKWISE
+    # a larger relative tolerance
+    @test get_orientation((0.0, 0.0), (1.0, 1.0), (2.0, 2.0 + 1e-12); rtol=1e-9) == COLINEAR
 end
 
 @testset "get_orientation symmetric" begin
-    # the cross product is the same for every base, so colinearity uses the smallest height
-    p, q, r = (0.0, 0.0), (10.0, 0.0), (10.5, 5e-7)
-    # r is 5e-7 from the line pq, but p is 1e-5 from the line qr of length 0.5
+    # rotating exactly colinear points introduces rounding errors
+    p, q, r = PolygonAlgorithms.rotate([(0.0, 0.0), (1000.0, 0.0), (2000.0, 0.0)], π/4)
     for (a, b, c) in [(p, q, r), (q, r, p), (r, p, q), (q, p, r), (p, r, q), (r, q, p)]
         @test get_orientation(a, b, c) == COLINEAR
     end
-    # q is between p and r so rp is the longest side: q is 9e-7 from the line pr
-    p, q, r = (0.0, 0.0), (1.0, 9e-7), (2.0, 0.0)
-    @test get_orientation(p, q, r) == COLINEAR
-    @test get_orientation(q, r, p) == COLINEAR
-    @test get_orientation(p, r, q) == COLINEAR
     # cyclic permutations keep the orientation and swaps flip it
     p, q, r = (0.0, 0.0), (1.0, 0.0), (0.0, 1.0)
     for (a, b, c) in [(p, q, r), (q, r, p), (r, p, q)]
@@ -64,12 +55,15 @@ end
     @test on_segment((5.0, 0.0), segment)
     @test on_segment((0.0, 0.0), segment) # start point
     @test on_segment((10.0, 0.0), segment) # end point
-    @test on_segment((5.0, 5e-7), segment) # within atol of the line
-    @test !on_segment((5.0, 2e-6), segment) # beyond atol of the line
-    @test on_segment((10.0 + 5e-7, 0.0), segment) # within atol past the end
-    @test !on_segment((10.0 + 2e-6, 0.0), segment) # beyond atol past the end
+    @test on_segment((5.0, 1e-15), segment) # within floating point error of the line, relative to 10
+    @test !on_segment((5.0, 1e-12), segment) # off the line
+    @test on_segment((nextfloat(10.0), 0.0), segment) # within floating point error past the end
+    @test !on_segment((10.0 + 1e-12, 0.0), segment) # beyond floating point error past the end
     @test !on_segment((15.0, 0.0), segment) # colinear but not on the segment
     @test !on_segment((-5.0, 0.0), segment)
+
+    segment = ((0.1, 0.1), (0.3, 0.3)) # inexact co-ordinates
+    @test on_segment((0.2, 0.2), segment)
 
     segment = ((1.0, 1.0), (3.0, 5.0)) # diagonal
     @test on_segment((2.0, 3.0), segment)
@@ -85,24 +79,44 @@ end
     # degenerate segment
     segment = ((1.0, 2.0), (1.0, 2.0))
     @test on_segment((1.0, 2.0), segment)
-    @test on_segment((1.0 + 5e-7, 2.0), segment)
-    @test !on_segment((1.0 + 2e-6, 2.0), segment)
+    @test on_segment((nextfloat(1.0), 2.0), segment) # within floating point error
+    @test !on_segment((1.0 + 1e-12, 2.0), segment)
 end
 
 @testset "on_segment bounds" begin
-    # The bounds are a rectangle expanded by atol with a half-circle of radius atol at each end.
+    # The bounds are a rectangle expanded by rtol * scale, where scale is the largest absolute co-ordinate.
+    # So the same distance past the end is within the bounds for large co-ordinates but not small ones.
+    @test !on_segment((1.0 + 1e-10, 0.0), ((0.0, 0.0), (1.0, 0.0)))
+    @test on_segment((1e6 + 1e-10, 0.0), ((0.0, 0.0), (1e6, 0.0)))
+    # a larger tolerance: the bounds are expanded by 1e-6 * 10 = 1e-5
     segment = ((0.0, 0.0), (10.0, 0.0))
-    atol = 1.0
-    point = (10.9, 0.9)
-    @test !on_segment(point, segment; atol=atol)
-    # the distance to the closest point on the segment is the distance to the end point
-    @test !is_same_point(point, segment[2]; atol=atol) # distance is 1.27 > atol
+    @test on_segment((10.0 + 5e-6, 0.0), segment; rtol=1e-6)
+    @test !on_segment((10.0 + 2e-5, 0.0), segment; rtol=1e-6)
+    # at the corner of the rectangle, on_segment agrees with is_same_point because both are relative
+    segment = ((0.0, 0.0), (10.0, 10.0))
+    point = (10.0 + 9e-6, 10.0 + 9e-6)
+    @test on_segment(point, segment; rtol=1e-6)
+    @test is_same_point(point, segment[2]; rtol=1e-6)
 
-    # For a diagonal segment the bounding box corner is on the line through the segment.
-    segment = ((0.0, 0.0), (1.0, 1.0))
-    point = (1.0 + 0.9e-6, 1.0 + 0.9e-6)
-    @test !on_segment(point, segment; atol=1e-6) # an axis aligned bounding box would return true
-    @test !is_same_point(point, segment[2]; atol=1e-6) # distance is 1.27e-6 > atol
+    # Both axes are expanded by the largest co-ordinate, as in get_orientation.
+    # So a point that is colinear and inside the x range is on the segment,
+    # even though its y co-ordinate is far outside rtol * max|y| = 0.
+    segment = ((1e6, 0.0), (1e6 + 10.0, 0.0))
+    point = (1e6 + 5.0, 1e-12)
+    @test get_orientation(segment[1], segment[2], point) == COLINEAR
+    @test on_segment(point, segment)
+    # but not if it is clearly above the segment
+    @test !on_segment((1e6 + 5.0, 1e-6), segment)
+end
+
+@testset "is_same_point" begin
+    # relative to the size of the co-ordinates
+    @test is_same_point((1000.0, 0.0), (nextfloat(1000.0), 0.0))
+    @test !is_same_point((1000.0, 0.0), (1000.0 + 1e-9, 0.0))
+    @test is_same_point((1000.0, 0.0), (1000.0 + 1e-9, 0.0); rtol=1e-6)
+    @test is_same_point((0.1 + 0.2, 0.0), (0.3, 0.0))
+    # near the origin small differences are still significant
+    @test !is_same_point((0.0, 0.0), (1e-10, 0.0))
 end
 
 @testset "isless_orientation" begin
@@ -200,7 +214,10 @@ end
     @test is_vertical(((1.0, 0.0), (1.0, 5.0)))
     @test is_vertical((1.0, 0.0), (1.0, 5.0))
     @test is_vertical(((1.0, 0.0), (1.0 + eps(1.0), 5.0)))
-    @test !is_vertical(((1.0, 0.0), (1.0 + 1e-10, 5.0))) # uses eps, not atol
+    @test !is_vertical(((1.0, 0.0), (1.0 + 1e-10, 5.0)))
+    # relative to the size of the x co-ordinates
+    @test is_vertical(((1e9, 0.0), (nextfloat(1e9), 5.0)))
+    @test !is_vertical(((1e-9, 0.0), (1e-9 + 1e-20, 5.0)))
     @test !is_vertical(((0.0, 0.0), (1.0, 0.0)))
     @test is_vertical(((1.0f0, 0.0f0), (1.0f0, 5.0f0))) # Float32
 end
@@ -210,8 +227,9 @@ end
     @test is_above_or_on((5.0, 6.0), segment)
     @test !is_above_or_on((5.0, 4.0), segment)
     @test is_above_or_on((5.0, 5.0), segment) # on
-    @test is_above_or_on((5.0, 5.0 - 1e-7), segment) # within atol
-    @test !is_above_or_on((5.0, 5.0 - 1e-5), segment)
+    @test is_above_or_on((5.0, prevfloat(5.0)), segment) # within floating point error
+    @test !is_above_or_on((5.0, 5.0 - 1e-12), segment)
+    @test is_above_or_on((0.5, prevfloat(0.5)), ((0.1, 0.1), (0.3, 0.3))) # inexact co-ordinates
     @test is_above_or_on((20.0, 21.0), segment) # beyond the end: extended as a line
     # vertical segment: above the top
     segment = ((0.0, 0.0), (0.0, 10.0))

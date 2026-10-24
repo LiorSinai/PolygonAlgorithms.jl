@@ -1,13 +1,13 @@
 """
-    do_intersect(segment1, segment2; atol=default_atol)
+    do_intersect(segment1, segment2; rtol=default_rtol(T))
 
 Determine if the segments intersect. For the intersection point, use `intersect_geometry`. 
 """
-function do_intersect(segment1::Segment2D, segment2::Segment2D; atol::AbstractFloat=default_atol)
-    o1 = get_orientation(segment1[1], segment1[2], segment2[1]; atol=atol)
-    o2 = get_orientation(segment1[1], segment1[2], segment2[2]; atol=atol)
-    o3 = get_orientation(segment2[1], segment2[2], segment1[1]; atol=atol)
-    o4 = get_orientation(segment2[1], segment2[2], segment1[2]; atol=atol)
+function do_intersect(segment1::Segment2D{T}, segment2::Segment2D{T}; rtol::AbstractFloat=default_rtol(T)) where T
+    o1 = get_orientation(segment1[1], segment1[2], segment2[1]; rtol=rtol)
+    o2 = get_orientation(segment1[1], segment1[2], segment2[2]; rtol=rtol)
+    o3 = get_orientation(segment2[1], segment2[2], segment1[1]; rtol=rtol)
+    o4 = get_orientation(segment2[1], segment2[2], segment1[2]; rtol=rtol)
 
     # general case
     # Colinear points within tolerance are excluded
@@ -18,15 +18,15 @@ function do_intersect(segment1::Segment2D, segment2::Segment2D; atol::AbstractFl
     end
 
     # special cases -> co-linear points on the segment
-    return ((o1 == COLINEAR && on_segment(segment2[1], segment1; atol=atol)) ||
-        (o2 == COLINEAR && on_segment(segment2[2], segment1; atol=atol)) ||
-        (o3 == COLINEAR && on_segment(segment1[1], segment2; atol=atol)) || 
-        (o4 == COLINEAR && on_segment(segment1[2], segment2; atol=atol))
+    return ((o1 == COLINEAR && on_segment(segment2[1], segment1; rtol=rtol)) ||
+        (o2 == COLINEAR && on_segment(segment2[2], segment1; rtol=rtol)) ||
+        (o3 == COLINEAR && on_segment(segment1[1], segment2; rtol=rtol)) || 
+        (o4 == COLINEAR && on_segment(segment1[2], segment2; rtol=rtol))
         )
 end
     
 """
-    intersect_geometry(segment1, segment2; atol=default_atol)
+    intersect_geometry(segment1, segment2; rtol=default_rtol(T))
 
 Returns the intersection point if it exists or nothing otherwise.
 Use `do_intersect` for a quicker boolean test.
@@ -46,76 +46,65 @@ where both `0≤ t ≤1` and `0≤ u ≤1`. This can be solved as a linear equat
 [t;u] = ΔP \\ (Q1 - P1)
 ```
 
-The determinant is the area of the parallelogram with sides `ΔP` and `ΔQ`:
-```
-      ------------>
-     /|          /
-    / | h       /
-   /θ |        /
-  ------------>
-       base
-```
-`|det| = |ΔP||ΔQ|sin(θ) = base * h` where `θ` is the angle between `ΔP` and `ΔQ`.
-Taking the longer of `ΔP` and `ΔQ` as the base gives the smaller height:
-```
-h = |det| / max(|ΔP|, |ΔQ|)
-```
-The segments are considered parallel if `h ≤ atol`, calculated with `|det|² ≤ atol² * max(|ΔP|², |ΔQ|²)`.
-
-The parameters `t` and `u` are fractions of each segment's length, so the intersection point
-may be up to `atol` past the end of each segment.
-Then `t` is clamped to `[0, 1]`, so the returned point lies on `segment1`
-but it may still be up to `atol` past the end of `segment2`.
-
-For the following small ranges these tolerances will disagree, assuming |segment1| > |segment2|:
-- `|t| * |segment1| ≤ atol < |det| / |segment1|`
+Whether the segments intersect is decided by the orientation predicates, as in `do_intersect`,
+so that the two functions always agree:
+1. If both end points of one segment are strictly on the same side of the other, there is no intersection.
+2. If both end points of one segment are colinear with the other, the segments are parallel
+and `nothing` is returned. Use the orientations to check if they overlap.
+3. If an end point is colinear with the other segment, it is the intersection and is returned exactly.
+4. Otherwise the segments cross and `t` is used to calculate the point. It is clamped to `[0, 1]`,
+so the returned point lies on `segment1`.
 """
 function intersect_geometry(
-    segment1::Segment2D, segment2::Segment2D;
-    atol::AbstractFloat=default_atol
-    )
+    segment1::Segment2D{T}, segment2::Segment2D{T};
+    rtol::AbstractFloat=default_rtol(T)
+    ) where T
+    o1 = get_orientation(segment1[1], segment1[2], segment2[1]; rtol=rtol)
+    o2 = get_orientation(segment1[1], segment1[2], segment2[2]; rtol=rtol)
+    o3 = get_orientation(segment2[1], segment2[2], segment1[1]; rtol=rtol)
+    o4 = get_orientation(segment2[1], segment2[2], segment1[2]; rtol=rtol)
+    if (o1 == o2 && o1 != COLINEAR) || (o3 == o4 && o3 != COLINEAR)
+        return nothing # both end points are on the same side
+    end
+    if (o1 == COLINEAR && o2 == COLINEAR) || (o3 == COLINEAR && o4 == COLINEAR)
+        return nothing # parallel lines or coincident
+    end
+    # an end point on the other segment is the intersection
+    o1 == COLINEAR && return segment2[1]
+    o2 == COLINEAR && return segment2[2]
+    o3 == COLINEAR && return segment1[1]
+    o4 == COLINEAR && return segment1[2]
     # A = [P2-P1  Q1-Q2]
     A11 = segment1[2][1] - segment1[1][1] # ΔPx
     A12 = segment2[1][1] - segment2[2][1] # -ΔQx
     A21 = segment1[2][2] - segment1[1][2] # ΔPy
     A22 = segment2[1][2] - segment2[2][2] # -ΔQy
     determinant = A11 * A22 - A12 * A21 # = cross_product((ΔPx, ΔPy), (0.0, 0.0), (ΔQx, ΔQy))
-    length1_sq = A11 * A11 + A21 * A21
-    length2_sq = A12 * A12 + A22 * A22
-    if (determinant * determinant <= atol * atol * max(length1_sq, length2_sq))
-        return nothing # parallel lines or coincident
-    end
     b1 = segment2[1][1] - segment1[1][1]
     b2 = segment2[1][2] - segment1[1][2]
     # tu = A \ b
     t = (A22 * b1 - A12 * b2) / determinant
-    u = (A11 * b2 - A21 * b1) / determinant
-    # allow the point to be up to atol past the end of each segment
-    δt = atol / sqrt(length1_sq)
-    δu = atol / sqrt(length2_sq)
-    if -δt <= t <= (1 + δt) && -δu <= u <= (1 + δu)
-        # but then clamp to on segment
-        t = clamp(t, zero(t), one(t))
-        x = segment1[1][1] + t * A11
-        y = segment1[1][2] + t * A21
-        return (x, y)
-    else
-        return nothing
-    end
+    # clamp to on segment
+    t = clamp(t, zero(t), one(t))
+    x = segment1[1][1] + t * A11
+    y = segment1[1][2] + t * A21
+    (x, y)
 end
 
 """
-    classify_intersection(segment, point; atol=default_atol)
+    classify_intersection(segment, point; rtol=default_rtol(T))
 
 Classify where `point` lies on `segment`. Returns a tuple of booleans `(at_start, at_end, along)`,
 where `along` is true if the point is strictly between the end points.
 
-Assumes `point` is on `segment`.
+Assumes `point` is on `segment` and the segment is ordered left to right (see `_compare_points`).
+An intersection point calculated on another segment can be a few ulps past the end of this one.
+So a point at or before the start is classified as the start and a point at or after the end as the end.
 """
-function classify_intersection(segment::Segment2D, point::Point2D; atol::AbstractFloat=default_atol)
-    # assumes point is on segment
-    at_start = is_same_point(segment[1], point; atol=atol)
-    at_end = is_same_point(segment[2], point; atol=atol)
+function classify_intersection(segment::Segment2D{T}, point::Point2D{T}; rtol::AbstractFloat=default_rtol(T)) where T
+    at_start = is_same_point(segment[1], point; rtol=rtol) || _compare_points(point, segment[1]; rtol=rtol) <= 0
+    at_end = !at_start &&
+        (is_same_point(segment[2], point; rtol=rtol) || _compare_points(point, segment[2]; rtol=rtol) >= 0)
     along = !(at_start || at_end)
     (at_start, at_end, along)
 end
@@ -125,7 +114,7 @@ end
 
 Returns the intersection point if it exists or nothing if they are parallel or coincident.
 
-Lines are infinite so they are only parallel if the determinant is effectively zero: `|det| ≤ eps(T)`.
+Lines are parallel if the determinant is within floating point error: `|det| ≤ default_rtol(T) * (|a1 * b2| + |a2 * b1|)`.
 
 Equation of line is `ax + by = c`.
 
@@ -139,7 +128,7 @@ function intersect_geometry(line1::Line2D{T}, line2::Line2D{T}) where T
     a1, b1, c1 = line1.a, line1.b, line1.c
     a2, b2, c2 = line2.a, line2.b, line2.c
     determinant = a1 * b2 - a2 * b1
-    if abs(determinant) <= eps(T)
+    if abs(determinant) <= default_rtol(T) * (abs(a1 * b2) + abs(a2 * b1))
         return nothing # parallel lines or coincident
     end
     x = (b2 * c1 - b1 * c2) / determinant
@@ -148,7 +137,7 @@ function intersect_geometry(line1::Line2D{T}, line2::Line2D{T}) where T
 end
 
 """
-    intersect_edges(polygon1, polygon2; atol=default_atol)
+    intersect_edges(polygon1, polygon2; rtol=default_rtol(T))
 
 Find all points which lie on the intersection of the edges of the vertices given by `polygon1` and `polygon2`.
 
@@ -156,7 +145,7 @@ Time complexity is `O(nm)` where `n` and `m` are the number of vertices of polyg
 """
 function intersect_edges(
     polygon1::Path2D{T}, polygon2::Path2D{T}
-    ; atol::AbstractFloat=default_atol
+    ; rtol::AbstractFloat=default_rtol(T)
     ) where T
     points = Point2D{T}[]
     n = length(polygon1)
@@ -165,7 +154,7 @@ function intersect_edges(
         edge1 = (polygon1[i], polygon1[i % n + 1])
         for j in 1:m
             edge2 = (polygon2[j], polygon2[j % m + 1])
-            p = intersect_geometry(edge1, edge2; atol=atol)
+            p = intersect_geometry(edge1, edge2; rtol=rtol)
             if !isnothing(p)
                 push!(points, (p[1], p[2]))
             end

@@ -15,7 +15,7 @@ end
 
 function chain_segments(
     segments::AbstractVector{SegmentEvent{T}}
-    ; atol::AbstractFloat=default_atol, check_closes::Bool=true, fuzzy_rtol::AbstractFloat=1.0
+    ; rtol::AbstractFloat=default_rtol, check_closes::Bool=true, fuzzy_rtol::AbstractFloat=1.0
     ) where T
     # Note: if any of the regions intersect at a vertex, than this is not guaranteed to give consistent results
     # They might be joined into one region or presented as separate regions.
@@ -32,7 +32,7 @@ function chain_segments(
         @debug("[chain_segment]: event=$event")
         @debug("[chain_segment]: candidates=$candidates")
         for (chain_idx, chain) in enumerate(chains)
-            insert_matching_candidate!(candidates, chain, chain_idx, event; atol=atol)
+            insert_matching_candidate!(candidates, chain, chain_idx, event; rtol=rtol)
         end
         if length(candidates) == 0 # start a new open chain
             chain = [
@@ -44,7 +44,7 @@ function chain_segments(
         elseif length(candidates) == 1 # check if it closes else append to chain
             candidate = candidates[1]
             chain = chains[candidate.chain_idx]
-            if check_closes && closes_chain(chain, candidate; atol=atol)
+            if check_closes && closes_chain(chain, candidate; rtol=rtol)
                 popat!(chains, candidate.chain_idx)
                 push!(regions, chain)
                 @debug("[chain_segment]: closed chain")
@@ -70,7 +70,7 @@ function chain_segments(
     # - it is improper: the beginning and end is a segment(s) jutting out, so it can be closed with a segment in processing
     if check_closes
         if !isempty(chains)
-            fuzzy_close!(chains, regions; atol=atol, rtol=fuzzy_rtol)
+            fuzzy_close!(chains, regions; rtol=rtol, rtol=fuzzy_rtol)
         end
         @assert isempty(chains) "There are still open chains at the end of processing all segments."
         return regions
@@ -84,23 +84,23 @@ function insert_matching_candidate!(
     chain::Vector{<:SegmentEvent},
     chain_idx::Int,
     event::SegmentEvent
-    ; atol::AbstractFloat=default_atol
+    ; rtol::AbstractFloat=default_rtol
     )
     segment = event.segment
     is_match = false
-    if is_same_point(chain[1].point, segment[1]; atol=atol)
+    if is_same_point(chain[1].point, segment[1]; rtol=rtol)
         is_match = true
         match_chain_start = true
         match_idx = 1
-    elseif is_same_point(chain[1].point, segment[2]; atol=atol)
+    elseif is_same_point(chain[1].point, segment[2]; rtol=rtol)
         is_match = true
         match_chain_start = true
         match_idx = 2
-    elseif is_same_point(chain[end].point, segment[1]; atol=atol)
+    elseif is_same_point(chain[end].point, segment[1]; rtol=rtol)
         is_match = true
         match_chain_start = false
         match_idx = 1
-    elseif is_same_point(chain[end].point, segment[2]; atol=atol)
+    elseif is_same_point(chain[end].point, segment[2]; rtol=rtol)
         is_match = true
         match_chain_start = false
         match_idx = 2
@@ -120,7 +120,7 @@ end
 function append_candidate!(
     chain::Vector{<:SegmentEvent},
     candidate::SegmentChainCandidate
-    ; atol::AbstractFloat=default_atol
+    ; rtol::AbstractFloat=default_rtol
     )
     if candidate.match_chain_start
         if length(chain) > 1 && 
@@ -128,7 +128,7 @@ function append_candidate!(
                 candidate.segment_event.point,
                 chain[1].point,
                 chain[2].point
-                ; atol=atol
+                ; rtol=rtol
             ) == COLINEAR
             popfirst!(chain)
         end
@@ -139,7 +139,7 @@ function append_candidate!(
                 chain[end-1].point,
                 chain[end].point,
                 candidate.segment_event.point
-                ; atol=atol
+                ; rtol=rtol
             ) == COLINEAR
             pop!(chain)
         end
@@ -147,30 +147,30 @@ function append_candidate!(
     end
 end
 
-function closes_chain(chain::Vector{<:SegmentEvent}, candidate::SegmentChainCandidate; atol::AbstractFloat=default_atol)
+function closes_chain(chain::Vector{<:SegmentEvent}, candidate::SegmentChainCandidate; rtol::AbstractFloat=default_rtol)
     candidate_point = candidate.segment_event.point
     if candidate.match_chain_start
-        return is_same_point(chain[end].point, candidate_point; atol=atol)
+        return is_same_point(chain[end].point, candidate_point; rtol=rtol)
     else
-        return is_same_point(chain[1].point, candidate_point; atol=atol)
+        return is_same_point(chain[1].point, candidate_point; rtol=rtol)
     end
 end
 
 function fuzzy_close!(
     chains::Vector{<:Vector{<:SegmentEvent}},
     regions::Vector{<:Vector{<:SegmentEvent}}
-    ; atol::AbstractFloat, rtol::AbstractFloat=1.0
+    ; rtol::AbstractFloat, rtol::AbstractFloat=1.0
     )
     for idx in reverse(eachindex(chains))
-        if is_fuzzy_closed(chains[idx], length(regions) + 1; atol=atol)
+        if is_fuzzy_closed(chains[idx], length(regions) + 1; rtol=rtol)
             push!(regions, popat!(chains, idx))
         end
     end
     regions
 end
 
-function is_fuzzy_closed(chain::Vector{<:SegmentEvent}, idx::Int; atol::AbstractFloat, rtol::AbstractFloat=1.0)
-    if is_same_point(chain[1].point, chain[end].point; atol=atol)
+function is_fuzzy_closed(chain::Vector{<:SegmentEvent}, idx::Int; rtol::AbstractFloat, rtol::AbstractFloat=1.0)
+    if is_same_point(chain[1].point, chain[end].point; rtol=rtol)
         return true
     end
     gap = norm(chain[1].point, chain[end].point)

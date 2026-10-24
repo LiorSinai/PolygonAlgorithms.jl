@@ -60,58 +60,73 @@ end
 
 @testset "intersect segments almost" begin
     # These don't intersect. The lines cross between 3e-7 and 6e-7 past the end of one segment.
-    # So they intersect for atol=1e-6 but not for atol=1e-7.
+    # This is much larger than floating point error, so they only intersect for a large relative tolerance.
     # do_intersect and intersect_geometry should agree.
     seg1 = ((0.2182133588430426, 0.42855583950407183), (0.6180465602541201, 0.8984103075263743))
     seg2 = ((0.830526104459048, 0.7943013174345828), (0.08723085309732159, 0.35031746510063355))
-    @test do_intersect(seg1, seg2)
-    @test intersect_geometry(seg1, seg2) == seg1[1] # 3.4e-7 before the start, so clamped to it
-    @test !do_intersect(seg1, seg2; atol=1e-7)
-    @test isnothing(intersect_geometry(seg1, seg2; atol=1e-7))
+    @test !do_intersect(seg1, seg2)
+    @test isnothing(intersect_geometry(seg1, seg2))
+    @test do_intersect(seg1, seg2; rtol=1e-5)
+    @test intersect_geometry(seg1, seg2; rtol=1e-5) == seg1[1] # 3.4e-7 before the start, so colinear with it
 
     seg1 = ((0.950520984763203, 0.9955447269810986), (0.8147603032908444, 0.0733985670511772))
     seg2 = ((0.9238819633881898, 0.8146036454030574), (0.7570281114911228, 0.8580955127719763))
-    @test do_intersect(seg1, seg2)
-    @test all(intersect_geometry(seg1, seg2) .≈ (0.9238823672633001, 0.8146035401295949)) # 4.2e-7 before the start of seg2
-    @test !do_intersect(seg1, seg2; atol=1e-7)
-    @test isnothing(intersect_geometry(seg1, seg2; atol=1e-7))
+    @test !do_intersect(seg1, seg2)
+    @test isnothing(intersect_geometry(seg1, seg2))
+    @test do_intersect(seg1, seg2; rtol=1e-5)
+    @test intersect_geometry(seg1, seg2; rtol=1e-5) == seg2[1] # 4.2e-7 before the start of seg2
 
     seg1 = ((0.4856517528012627, 0.8793324264376292), (0.5066211310466722, 0.03827488541514157))
     seg2 = ((0.6514230424916896, 0.8877275468529608), (0.5042397387902877, 0.13379459881948708))
-    @test do_intersect(seg1, seg2)
-    @test all(intersect_geometry(seg1, seg2) .≈ (0.5042396322136217, 0.13379405289030877)) # 5.6e-7 past the end of seg2
-    @test !do_intersect(seg1, seg2; atol=1e-7)
-    @test isnothing(intersect_geometry(seg1, seg2; atol=1e-7))
+    @test !do_intersect(seg1, seg2)
+    @test isnothing(intersect_geometry(seg1, seg2))
+    @test do_intersect(seg1, seg2; rtol=1e-5)
+    @test intersect_geometry(seg1, seg2; rtol=1e-5) == seg2[2] # 5.6e-7 past the end of seg2
 end
 
-@testset "intersect tolerances are distances" begin
-    # small segments that clearly cross. The determinant is an area so must not be compared to atol.
+@testset "intersect tolerances are relative" begin
+    # small segments that clearly cross
     s = 5e-4
     seg1 = ((0.0, 0.0), (s, s))
     seg2 = ((0.0, s), (s, 0.0))
     @test do_intersect(seg1, seg2)
     @test all(intersect_geometry(seg1, seg2) .≈ (s/2, s/2))
 
-    # long segment. The other segment stops 500*atol past its end.
-    seg1 = ((0.0, 0.0), (1000.0, 0.0))
-    seg2 = ((1000.0005, -1.0), (1000.0005, 1.0))
-    @test !do_intersect(seg1, seg2)
-    @test isnothing(intersect_geometry(seg1, seg2))
+    # inexact co-ordinates
+    seg1 = ((0.1, 0.1), (0.3, 0.3))
+    seg2 = ((0.1, 0.3), (0.3, 0.1))
+    @test do_intersect(seg1, seg2)
+    @test all(intersect_geometry(seg1, seg2) .≈ (0.2, 0.2))
 
-    # within atol past the end: clamped to the end point
-    seg2 = ((1000.0000005, -1.0), (1000.0000005, 1.0))
+    # an end point on the other segment is returned exactly
+    seg1 = ((0.0, 0.0), (0.3, 0.9))
+    seg2 = ((0.5, 0.3), (0.1, 0.3))
+    @test do_intersect(seg1, seg2)
+    @test intersect_geometry(seg1, seg2) == (0.1, 0.3)
+
+    # long segment
+    seg1 = ((0.0, 0.0), (1000.0, 0.0))
+    seg2 = ((1000.0, -1.0), (1000.0, 1.0))
     @test do_intersect(seg1, seg2)
     @test intersect_geometry(seg1, seg2) == (1000.0, 0.0)
+    # one ulp past the end is within the rounding error of the co-ordinates
+    seg2 = ((nextfloat(1000.0), -1.0), (nextfloat(1000.0), 1.0))
+    @test do_intersect(seg1, seg2)
+    @test intersect_geometry(seg1, seg2) == (1000.0, 0.0)
+    # but 1e-9 past the end is not
+    seg2 = ((1000.0 + 1e-9, -1.0), (1000.0 + 1e-9, 1.0))
+    @test !do_intersect(seg1, seg2)
+    @test isnothing(intersect_geometry(seg1, seg2))
 end
 
 @testset "orientation is rotation invariant" begin
-    # r is 5e-4 = 500*atol off the line
     p, q, r = (0.0, 0.0), (1000.0, 0.0), (2000.0, 5e-4)
     @test get_orientation(p, q, r) == COUNTER_CLOCKWISE
     p_rot, q_rot, r_rot = PolygonAlgorithms.rotate([p, q, r], π/4)
     @test get_orientation(p_rot, q_rot, r_rot) == COUNTER_CLOCKWISE
-    # within atol of the line
-    @test get_orientation(p, q, (2000.0, 5e-7)) == COLINEAR
+    # colinear points are still colinear after rotation, despite rounding errors
+    p_rot, q_rot, r_rot = PolygonAlgorithms.rotate([p, q, (2000.0, 0.0)], π/4)
+    @test get_orientation(p_rot, q_rot, r_rot) == COLINEAR
 end
 
 @testset "intersect tolerances disagree" begin
@@ -124,11 +139,13 @@ end
     p23 = intersect_geometry(segment2, segment3)
     s123 = (p12, p13) # norm is 5e-5
     s23 = (p23, segment3[2]) # norm is 209
+    # with only floating point error tolerance, they do not intersect
     @test isnothing(intersect_geometry(s123, s23))
-    @test isnothing(intersect_geometry(s123, s23; atol=1e-4))
-    @test all(intersect_geometry(s123, s23; atol=4.3e-5) .≈ (1240.8493236866939, 831.7363950927964))
-    @test isnothing(intersect_geometry(s123, s23; atol=1e-5))
-    @test isnothing(intersect_geometry(s123, s23; atol=1e-6))
+    @test !do_intersect(s123, s23)
+    # a large relative tolerance makes them nearly parallel. do_intersect finds colinear end points
+    # but intersect_geometry returns nothing for parallel segments
+    @test do_intersect(s123, s23; rtol=1e-6)
+    @test isnothing(intersect_geometry(s123, s23; rtol=1e-6))
 end
 
 @testset "intersect rectangles" begin

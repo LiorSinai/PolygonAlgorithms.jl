@@ -6,8 +6,8 @@ Each segment creates two half-edges.
 Each node is a point with the list of connected half edges,
 where each half edge points to another node and are sorted clockwise around the point.
 
-To ensure exact matches, the points are snapped to a grid with `digits` decimal places. See `snap_to_grid!`.
-Segments that become a single point are skipped.
+To ensure exact matches, points within half a grid spacing (`0.5 * 10^-digits`) of each other are
+snapped to the same point. See `snap_to_grid!`. Segments that become a single point are skipped.
 
 Assumes that the segments do not intersect.
 
@@ -22,7 +22,6 @@ function directed_graph_from_segments(
     graph = Dict{Point2D{T}, Vector{AnnotatedSegment{T}}}() # point => half_edges
     grid = Dict{Point2D{T}, Point2D{T}}() # grid point => first original point snapped to it
     for ev in events
-        # It is preferred to carry through the loss in precision, so the grid points are used, not the originals.
         segment = (snap_to_grid!(grid, ev.segment[1], digits), snap_to_grid!(grid, ev.segment[2], digits))
         if segment[1] == segment[2]
             continue # shorter than the grid spacing
@@ -43,8 +42,9 @@ end
 """
     snap_to_grid!(grid, point, digits)
 
-Round `point` to `digits` decimal places, unless it is very close to a point already on a neighbouring grid point.
-`grid` maps each grid point to the first original point that was snapped to it, and is updated in place.
+Return the first point seen within half a grid spacing of `point`, or `point` itself if there is none.
+The grid has `digits` decimal places. `grid` maps each grid point to the first original point that was
+rounded to it, and is updated in place. The output points are the original points, not the grid points.
 
 Rounding alone is not enough. Two points that differ only by floating point error are rounded to different
 grid points if they lie either side of a rounding boundary. For example, with `digits=6`:
@@ -62,7 +62,7 @@ The point is snapped to a neighbour if it is within half a grid spacing of the o
 function snap_to_grid!(grid::Dict{Point2D{T}, Point2D{T}}, point::Point2D{T}, digits::Int) where T
     grid_point = round.(point, digits=digits) .+ zero(T) # convert -0.0 to 0.0
     if haskey(grid, grid_point)
-        return grid_point
+        return grid[grid_point]
     end
     spacing = T(10.0^-digits)
     for dx in -1:1, dy in -1:1
@@ -70,12 +70,13 @@ function snap_to_grid!(grid::Dict{Point2D{T}, Point2D{T}}, point::Point2D{T}, di
         if haskey(grid, neighbour)
             original = grid[neighbour]
             if abs(original[1] - point[1]) <= spacing / 2 && abs(original[2] - point[2]) <= spacing / 2
-                return neighbour
+                return original
             end
         end
     end
+    point = point .+ zero(T) # convert -0.0 to 0.0
     grid[grid_point] = point
-    grid_point
+    point
 end
 
 """

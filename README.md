@@ -123,7 +123,7 @@ For all of the the following `n` and `m` are the number of vertices of the polyg
 ## Segments to paths
 
 Segments are converted back to paths and polygons by computing the faces of a graph. This has several implications.
-- It requires casting to a grid to match starting and end points of segments. This is achieved by rounding any decimal places, by default to the 6th decimal place.
+- It requires matching the starting and end points of segments, which may differ by floating point error. End points within half of `1e-6` of each other are matched to the same point. The output points are not rounded.
 - Every zero area polygon (lines) will return a single face. 
 - For every non-zero area polygon, the graph will always have one counter-clockwise exterior and one or more clockwise interiors. Every area in the graph is therefore counted twice. There are two methods to reduce the faces in half:
     - `MERGE_FACES`: all exterior faces that are not holes and holes are interior faces that are holes.
@@ -164,35 +164,76 @@ See https://www.angusj.com/clipper2/Docs/Units/Clipper/Types/FillRule.htm and ht
 ## Robustness
 
 Mathematically, the algorithms are infinitely precise.
-Practically, this code works with floats that require a tolerance threshold.
-The philosophy of this package is to define tolerances that can be passed down as keyword arguments throughout the entire algorithm.
-The main tolerance is the absolute tolerance `atol`, with a default value of `PolygonAlgorithms.default_atol=1e-6`. `atol` is always a distance.
+Practically, this code works with floats, which have rounding errors.
+The philosophy of this package is that tolerances only absorb floating point error.
 
-`atol` should be small relative to the features of the polygons.
-Large values can cause the Martinez-Rueda algorithm to fail.
-For example, [Clipper2](https://github.com/AngusJohnson/Clipper2) test 141, which has integer co-ordinates, passes for `atol ≤ 0.6` but fails for `atol ≥ 0.7`.
+There is a single relative tolerance `rtol` that is passed down as a keyword argument throughout the entire algorithm.
+Its default value depends on the float type: `PolygonAlgorithms.default_rtol(T) = 64eps(T)`.
+This is `1.4e-14` for `Float64` and `7.6e-6` for `Float32`.
+A computed value `x` is treated as zero if `|x| ≤ rtol * Σ|terms|`, where the terms are the values that were added or subtracted to calculate `x`.
+
+Previous versions used an absolute tolerance `atol` as a distance, with a default of `1e-6`.
+A larger `atol` was expected to "fudge" results into simpler polygons.
+Instead the useful range was limited by the size of the smallest features of the polygons, and larger values mostly caused errors in the Martinez-Rueda algorithm.
+This is because fuzzy comparisons are not transitive: `A ≈ B` and `B ≈ C` does not mean `A ≈ C`.
+The Martinez-Rueda algorithm maintains a precise order of segments and their intersections, and fails if these comparisons contradict each other.
+With floating point tolerances, the comparisons are exact whenever the sign of the computed value can be trusted.
+
+The tolerance can still be increased, but this is not recommended.
+Here are the results of the 195 [Clipper2](https://github.com/AngusJohnson/Clipper2) tests for different values of `rtol`:
+
+| `rtol` | Pass | Fail or error |
+|---|---|---|
+| `64eps = 1.4e-14` (default) | 195 | 0 |
+| `1e-12` | 195 | 0 |
+| `1e-9` | 194 | 1 |
+| `1e-6` | 185 | 10 |
+| `1e-4` | 122 | 73 |
+
+To simplify the output polygons, round the co-ordinates of the input before running the algorithm instead.
 
 [Clipper2](https://www.angusj.com/clipper2/Docs/Robustness.htm) has a different approach to robustness: it casts all numbers to integers.
 Hence for multiple lines, like the case study below, intersections will be collapsed to a single point, and the segments adjusted slightly.
 This means that the two halves of each segment will no longer lie perfectly on a straight line.
 
+### Sources of floating point error
+
+There are two sources of error:
+1. Arithmetic error. Each floating point operation has a relative error of at most `u = eps(T)/2`.
+For example, the cross product `L - R` of three points is a difference of two products.
+Jonathan Shewchuk showed that its error is at most `(3u + 16u²) * (|L| + |R|) ≈ 1.5eps * (|L| + |R|)`.
+See "Adaptive Precision Floating-Point Arithmetic and Fast Robust Geometric Predicates" (1997).
+The bound is relative to `|L| + |R|`, not `|L - R|`, so it is meaningful for nearly colinear points, where `L` and `R` are large and almost cancel.
+2. Representation error. Shewchuk's bound assumes the points are exact.
+But intersection points are calculated, so their co-ordinates are rounded to within about `u * |x|`.
+So an intersection point does not lie exactly on either segment.
+This error is relative to the size of the co-ordinates, not the size of the segments.
+It is important for short segments far from the origin.
+The input points may also have been calculated, for example by rotation.
+Their error is relative to the size of the numbers in that calculation, which can be larger than the point itself.
+For example, rotating the Hilbert curve in `examples/hilbert.jl` about `(0.5, 0.5)` moves points near the origin by up to `5.6e-17`, which is `6eps` relative to a point at `0.04`.
+This is why the default `rtol` is `64eps` rather than a bound closer to Shewchuk's `1.5eps`.
+That example is only correct for `rtol ≥ 32eps`.
+
 ### Tolerance tests
 
-Core functions that use `atol` include:
+Core functions that use `rtol` include:
 
 | Function | Test | Meaning |
 |---|---|---|
-| `is_same_point(p, q)` | `norm2(p, q) ≤ atol²` | Points are within `atol` of each other. |
-| `get_orientation(p, q, r)` | `cross² ≤ atol² \|base\|²` where `base=max(\|pq\|, \|qr\|, \|rp\|)` | Colinear if any point is within `atol` of the line through the other two. `\|cross\| = h * \|pq\|` is the area of the parallelogram where `h` is the height of `r` from the line through `p` and `q`. The cross product is the same for every base, so the smallest height is opposite the longest side. |
-| `on_segment(r, segment)` | `\|r - s\|² ≤ atol²` where `s` is the closest point on the segment | Within `atol` of the segment, including past either end. This implies colinear. |
-| `intersect_geometry(segment1, segment2)` | `det² ≤ atol² \|segment\|²` , using the longer segment | Parallel if, placed tail to tail, the shorter segment's end is within `atol` of the longer segment's line. |
-| | `-δt ≤ t ≤ 1 + δt`, `δt = atol / \|segment1\|` (same for `u`) | The intersection may be up to `atol` past either end. It is then clamped to `segment1`. |
-| `is_clockwise`, `is_counter_clockwise` | `\|area\| ≤ atol * perimeter / 2` | Thinner than `atol` means zero area: neither direction. Code that only needs the direction uses `atol=eps(T)`. |
-| `segments_to_paths` | `digits = ceil(-log10(atol))` | Output points are rounded to this many decimal places. |
+| `is_same_point(p, q)` | `\|p - q\|² ≤ rtol² * max(\|p\|², \|q\|²)` | Points are equal up to the rounding of their co-ordinates. |
+| `get_orientation(p, q, r)` | `\|L - R\| ≤ rtol * (\|L\| + \|R\| + scale * side)` | Colinear if the cross product `L - R` is within arithmetic and representation error. `scale` is the largest absolute co-ordinate and `side` is the longest side of the triangle, using the Manhattan distance `\|Δx\| + \|Δy\|`. Symmetric in `p`, `q` and `r`. |
+| `on_segment(r, segment)` | colinear and inside the bounding box expanded by `rtol * scale` | `scale` is the largest absolute co-ordinate, as in `get_orientation`, so both tests use the same representation error. |
+| `is_vertical(segment)` | `\|Δx\| ≤ rtol * max(\|x₁\|, \|x₂\|)` | |
+| `intersect_geometry(segment1, segment2)` | orientations of the end points, as in `do_intersect` | No intersection if both end points of one segment are on the same side of the other. Parallel if both end points of one segment are colinear with the other. If an end point is colinear with the other segment, it is returned exactly. Otherwise the intersection is calculated and clamped to `segment1`. |
+| `is_clockwise`, `is_counter_clockwise` | `\|area\| ≤ n * rtol * Σ(\|xᵢyᵢ₊₁\| + \|yᵢxᵢ₊₁\|) / 2` | Zero area within floating point error: neither direction, and dropped from boolean results. The error of a sum of `n` terms grows at most linearly with `n`. |
+| `segments_to_paths` | `\|Δx\| ≤ 0.5e-6` and `\|Δy\| ≤ 0.5e-6` | End points of segments are matched to the first point within half of `1e-6`. This does not depend on `rtol`. The output points are not rounded. Rounding alone does not work: points which differ by floating point error can round in different directions, e.g. `0.0078125 ± 1e-17` to 6 decimal places. |
 
-Other uses of tolerances:
-- Vertical segments are detected with machine precision, `eps(T)`, not `atol`.
-- For the line method of `intersect_geometry`, lines are parallel if the determinant is at most `eps(T)`.
+Notes:
+- `intersect_geometry` uses the same orientations as `do_intersect` so that they always agree. Returning end points exactly avoids creating tiny segments from an intersection point which was calculated a few ulps away from a vertex.
+- In the Martinez-Rueda algorithm, an intersection point is clamped to one segment but can be a few ulps past the end of the other segment. So the point is classified by the sweep order (see `PolygonAlgorithms.classify_intersection`): a point at or before the start of a segment is treated as the start and a point at or after the end is treated as the end.
+- `on_segment`: The simpler bound box check is done rather than determining if the closest point is within the tolerance of the segment.
+- For the line method of `intersect_geometry`, lines are parallel if `|det| ≤ default_rtol(T) * (|a₁b₂| + |a₂b₁|)`.
 
 ### Case studies
 
@@ -213,11 +254,12 @@ polygon2 = PolygonAlgorithms.rotate(polygon1, π/1.0, (0.0, 0.0));
 
 Note that the second polygon is computationally rotated. 
 This is numerically accurate up to approximately `eps(Float64)=2.2e-16` times the size of the coordinates, which is about `4e-15` here.
-Therefore, the points will not exactly align below this tolerance.
-Because of this, running `intersect_geometry(polygon1, polygon2; atol=atol)` will only succeed for `atol ≥ 1e-14`. 
+Therefore, the points will not exactly align.
+This is a representation error, so it is covered by the default tolerance.
+`intersect_geometry(polygon1, polygon2)` returns a single region with an area of `102.83` for every `rtol` from the default to `1e-6`.
 
-In the next example, the tolerances cause unexpected behaviour.
-This example is from [Clipper2: test 141](test\boolean\Polygons.txt):
+In the next example, a large tolerance is the cause of the failure.
+This example is from [Clipper2: test 141](https://github.com/AngusJohnson/Clipper2/blob/main/Tests/Polygons.txt):
 
 <p align="center">
   <img src="images/robustness_segments.png" width="45%" style="padding:5px"/>
@@ -230,20 +272,13 @@ segment2 = ((830.0, 1150.0), (1540.0, 600.0))
 segment3 = ((1180.0, 170.0), (1260.0, 1040.0))
 ```
 
-These segments look like they intersect at a single point, but magnified 1.5 million times they intersect at 3 points, `4.15e-5` to `5.68e-5` apart.
-How they are handled depends on `atol` relative to this distance:
-- Much smaller (e.g. the default `1e-6`): the 3 intersections are distinct and are classified correctly.
-- Much larger (e.g. `1e-2`): the 3 intersections are within `atol` of each other, so they are snapped to a single vertex, similar to Clipper2.
-- Similar: some intersections are snapped and others are not. 
-For example, the top half of `segment3` (green, length ~209) does not cross the middle section of `segment1` (blue, length ~5e-5), but there are two tolerance checks: `|det| ≤ |segment3| * atol` determines if they are parallel, and `-atol / |segment3| ≤ u` checks that the intersection is on `segment3`.
-The lines cross `|u| * |segment3| = 4.15e-5` before the start of the top half of `segment3`, and the height of the parallelogram is `|det| / |segment3| = 4.79e-5`.
-So for `|u| * |segment3| ≤ atol < |det| / |segment3|`, that is `4.15e-5 ≤ atol < 4.79e-5`, they are found to intersect.
-
-Test 141 passes in all these cases.
-However, it fails for `atol ≥ 0.7` because elsewhere in the clip polygon there is a cluster of intersections about 1 unit wide.
-Splitting there creates segments about as short as `atol`, which are colinear, within `atol`, with any line through one of their end points.
-Two segments meeting at 52° are therefore classified as overlapping and merged.
-The Martinez-Rueda algorithm maintains a precise order of segments, and fails when they are classified incorrectly.
+These segments look like they intersect at a single point. 
+However, upon magnification by a factor of 1.5 million, it is evident that they intersect at 3 different points.
+The two black segments - the top half of `segment3` (green) and a middle section of `segment1` (blue) - at this magnification do not intersect.
+Note that the top half of `segment3` (length ~209) is much longer than the middle section of `segment1` (length ~5e-5).
+With the default tolerance, they correctly do not intersect.
+For `rtol ≥ 1e-7`, the end points of the short section are colinear with the top half of `segment3` within tolerance, so `do_intersect` reports that they touch.
+This incorrect classification can then cause the Martinez-Rueda algorithm to fail, and test 141 fails for `rtol = 1e-6`.
 
 ## Installation
 

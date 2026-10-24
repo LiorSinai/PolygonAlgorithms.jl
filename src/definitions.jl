@@ -19,15 +19,29 @@ A polygon represented as a list of vertices.
 The last point implicitly connects back to the first point, so it should not be repeated.
 """
 const Path2D{T<:AbstractFloat} = Vector{<:Point2D{T}}
-# atol is a distance.
-const default_atol = 1e-6
+"""
+    default_rtol(T)
+
+The default tolerance for floats of type `T`: `64eps(T)`.
+This is `1.4e-14` for `Float64` and `7.6e-6` for `Float32`.
+
+`rtol` is a relative tolerance for floating point error only.
+A computed value `x` is treated as zero if `|x| ≤ rtol * Σ|terms|`, where the terms are the products
+that were added or subtracted to calculate `x`.
+For example, Shewchuk's error bound for the orientation determinant is `≈ 1.5eps * Σ|terms|`.
+
+The default is larger than this bound to allow for inputs which were themselves calculated,
+for example by rotation. Their rounding error is relative to the size of the numbers in that calculation,
+which can be larger than the co-ordinates of the point.
+"""
+default_rtol(::Type{T}) where T<:AbstractFloat = 64eps(T)
 
 """
-    decimal_tolerance(atol)
+    decimal_tolerance(rtol)
 
 The number of decimal places to round based on the tolerance.
 """
-decimal_tolerance(atol::AbstractFloat) = atol > 1 ? 0 : ceil(Int, min(18, -log10(atol)))
+decimal_tolerance(rtol::AbstractFloat) = rtol > 1 ? 0 : ceil(Int, min(18, -log10(rtol)))
 
 """
     Line2D(a, b, c)
@@ -64,11 +78,15 @@ norm2(p::Point2D, q::Point2D) = (p[1] - q[1]) * (p[1] - q[1]) + (p[2] - q[2]) * 
 norm(p::Point2D, q::Point2D) = sqrt(norm2(p, q))
 
 """
-    is_same_point(p, q; atol=default_atol)
+    is_same_point(p, q; rtol=default_rtol(T))
 
-Return `true` if the Euclidean distance between `p` and `q` is at most `atol`.
+Return `true` if the distance between `p` and `q` is within floating point error of their magnitudes:
+`|p - q|² ≤ rtol² * max(|p|², |q|²)`.
 """
-is_same_point(p::Point2D, q::Point2D; atol::AbstractFloat=default_atol) = norm2(p, q) <= atol * atol
+function is_same_point(p::Point2D{T}, q::Point2D{T}; rtol::AbstractFloat=default_rtol(T)) where T
+    scale2 = max(p[1] * p[1] + p[2] * p[2], q[1] * q[1] + q[2] * q[2])
+    norm2(p, q) <= rtol * rtol * scale2
+end
 
 """
     translate(points::Vector{<:Point2D}, t::Point2D)
