@@ -303,7 +303,12 @@ function event_loop!(
                 calculate_other_annotations!(head, below)
             end
             insert!(sweep_status, idx, head)
+            popfirst!(queue)
         else # event is ending, so remove it from the status
+            # Remove head from the queue first. Dividing the new adjacent edges can insert an
+            # event ahead of it, e.g. if an intersection is snapped to head's end point.
+            # This tends to happen more often with a larger atol
+            popfirst!(queue)
             idx = find_transition(sweep_status, head.other; atol=atol)
             if !(0 < idx <= length(sweep_status) && sweep_status[idx] === head.other)
                 @warn "$(head.other) was not in the expected location in the sweep status. " * 
@@ -324,7 +329,6 @@ function event_loop!(
             push!(annotated_segments, copy(head.other))
             popat!(sweep_status, idx)
         end
-        popfirst!(queue)
     end
     annotated_segments
 end

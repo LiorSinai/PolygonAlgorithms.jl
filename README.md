@@ -170,7 +170,7 @@ The main tolerance is the absolute tolerance `atol`, with a default value of `Po
 
 `atol` should be small relative to the features of the polygons.
 Large values can cause the Martinez-Rueda algorithm to fail.
-For example, [Clipper2](https://github.com/AngusJohnson/Clipper2) test 141, which has integer co-ordinates, passes for `atol ≤ 0.2` but fails for `atol ≥ 0.3`.
+For example, [Clipper2](https://github.com/AngusJohnson/Clipper2) test 141, which has integer co-ordinates, passes for `atol ≤ 0.6` but fails for `atol ≥ 0.7`.
 
 [Clipper2](https://www.angusj.com/clipper2/Docs/Robustness.htm) has a different approach to robustness: it casts all numbers to integers.
 Hence for multiple lines, like the case study below, intersections will be collapsed to a single point, and the segments adjusted slightly.
@@ -216,7 +216,7 @@ This is numerically accurate up to approximately `eps(Float64)=2.2e-16` times th
 Therefore, the points will not exactly align below this tolerance.
 Because of this, running `intersect_geometry(polygon1, polygon2; atol=atol)` will only succeed for `atol ≥ 1e-14`. 
 
-In the next example, the tolerances are the cause of the failure.
+In the next example, the tolerances cause unexpected behaviour.
 This example is from [Clipper2: test 141](https://github.com/AngusJohnson/Clipper2/blob/main/Tests/Polygons.txt):
 
 <p align="center">
@@ -230,17 +230,20 @@ segment2 = ((830.0, 1150.0), (1540.0, 600.0))
 segment3 = ((1180.0, 170.0), (1260.0, 1040.0))
 ```
 
-These segments look like they intersect at a single point. 
-However, upon magnification by a factor of 1.5 million, it is evident that they intersect at 3 different points.
-The two black segments - the top half of `segment3` (green) and a middle section of `segment1` (blue) - at this magnification do not intersect.
-Note that the top half of `segment3` (length ~209) is much longer than the middle section of `segment1` (length ~5e-5).
-For most tolerances they won't intersect.
-However there are two tolerance checks here: `|det| ≤ |segment3| * atol` determines if they are parallel, and `-atol / |segment3| ≤ u` checks that the intersection is on `segment3`.
+These segments look like they intersect at a single point, but magnified 1.5 million times they intersect at 3 points, `4.15e-5` to `5.68e-5` apart.
+How they are handled depends on `atol` relative to this distance:
+- Much smaller (e.g. the default `1e-6`): the 3 intersections are distinct and are classified correctly.
+- Much larger (e.g. `1e-2`): the 3 intersections are within `atol` of each other, so they are snapped to a single vertex, similar to Clipper2.
+- Similar: some intersections are snapped and others are not. 
+For example, the top half of `segment3` (green, length ~209) does not cross the middle section of `segment1` (blue, length ~5e-5), but there are two tolerance checks: `|det| ≤ |segment3| * atol` determines if they are parallel, and `-atol / |segment3| ≤ u` checks that the intersection is on `segment3`.
 The lines cross `|u| * |segment3| = 4.15e-5` before the start of the top half of `segment3`, and the height of the parallelogram is `|det| / |segment3| = 4.79e-5`.
-Therefore for the narrow range `|u| * |segment3| ≤ atol < |det| / |segment3|`, these will intersect.
-For this case, that is `4.15e-5 ≤ atol < 4.79e-5` e.g. `4.2e-5`.
-This can then cause the Martinez-Rueda algorithm to fail.
-This is because it maintains a precise order of segments and their intersections, and will fail if these are classified incorrectly.
+So for `|u| * |segment3| ≤ atol < |det| / |segment3|`, that is `4.15e-5 ≤ atol < 4.79e-5`, they are found to intersect.
+
+Test 141 passes in all these cases.
+However, it fails for `atol ≥ 0.7` because elsewhere in the clip polygon there is a cluster of intersections about 1 unit wide.
+Splitting there creates segments about as short as `atol`, which are colinear, within `atol`, with any line through one of their end points.
+Two segments meeting at 52° are therefore classified as overlapping and merged.
+The Martinez-Rueda algorithm maintains a precise order of segments, and fails when they are classified incorrectly.
 
 ## Installation
 
