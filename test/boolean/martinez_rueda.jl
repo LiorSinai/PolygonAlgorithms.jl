@@ -1,27 +1,29 @@
 using Test
 using PolygonAlgorithms: SegmentEvent, SegmentAnnotations
-using PolygonAlgorithms: add_annotated_segment!, compare_events, convert_to_event_queue
+using PolygonAlgorithms: compare_events, convert_to_events, create_segment_pair
 using PolygonAlgorithms: check_and_divide_intersection!, event_loop!
-using PolygonAlgorithms: chain_segments
 using PolygonAlgorithms: is_hole, match_holes_polygons, Polygon
 using PolygonAlgorithms: BLANK
+using PolygonAlgorithms: are_equivalent_polygons
 
 @testset "Martinez-Rueda algorithm" verbose=false begin
 
     @testset "almost vertical" begin
         # the original segment was ((0.5345889348336309, 0.9626445530693036), (0.5346819812512368, 0.7153822809806809))
-        # it was not vertical, but the two intersecting lines make a tiny vertical segment
+        # it was not vertical, but the two intersecting lines make a tiny almost vertical segment (Δx=4.3e-7)
+        # Vertical is detected with eps, so it is ordered left to right like any other segment.
         event_queue = [
-            SegmentEvent(((0.5346362515873916, 0.8369046444971744), (0.5346819812512368, 0.7153822809806809)), true),
-            SegmentEvent(((0.5346362515873916, 0.8369046444971744), (0.702057739662388, 0.63591526606886130)), true),
             SegmentEvent(((0.5346358170779485, 0.8380593132624886), (0.5346362515873916, 0.8369046444971744)), true),
             SegmentEvent(((0.5346358170779485, 0.8380593132624886), (0.6336845198791616, 0.7251516629897194)), true),
+            SegmentEvent(((0.5346362515873916, 0.8369046444971744), (0.5346819812512368, 0.7153822809806809)), true),
+            SegmentEvent(((0.5346362515873916, 0.8369046444971744), (0.702057739662388, 0.63591526606886130)), true),
         ]
-        # the event_loop! modified event_queue[3] with update_end!
-        # now, the tail should be inserted after it.
-        tail = SegmentEvent(event_queue[3].segment, false)
+        @test issorted(event_queue; lt=compare_events)
+        # the event_loop! modified event_queue[1] with update_end!
+        # now, the tail should be inserted after its start, and before the events that start at its end point.
+        tail = SegmentEvent(event_queue[1].segment, false)
         idx = searchsortedfirst(event_queue, tail; lt=compare_events)
-        @test_broken idx == 5
+        @test idx == 3
     end
 
     @testset "divide" begin
@@ -137,8 +139,8 @@ using PolygonAlgorithms: BLANK
             expected = [
                 ev2_start,
                 ev2_end,
-                SegmentEvent(((5.0, 1.0), (7.0, -1.0)), true, true, self_annotations),
-                SegmentEvent(((5.0, 1.0), (7.0, -1.0)), false, true, self_annotations),
+                SegmentEvent(((5.0, 1.0), (7.0, -1.0)), true, true, SegmentAnnotations()),
+                SegmentEvent(((5.0, 1.0), (7.0, -1.0)), false, true, SegmentAnnotations()),
             ]
             @test queue == expected
         end
@@ -167,8 +169,8 @@ using PolygonAlgorithms: BLANK
             rectangle = [
                 (3.0, 3.0), (7.0, -1.0), (4.0, -4.0), (0.0, 0.0)
             ];
-            event_queue = convert_to_event_queue(rectangle)
-            annotated_segments = event_loop!(event_queue; self_intersection=true)
+            events = convert_to_events(rectangle)
+            annotated_segments = event_loop!(events; self_intersection=true)
             expected = [
                 SegmentEvent(((0.0, 0.0), (3.0, 3.0)), true, true, SegmentAnnotations(false, true)),
                 SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true, true, SegmentAnnotations(true, false)),
@@ -182,8 +184,8 @@ using PolygonAlgorithms: BLANK
             rectangle_horiz = [
                 (-1.0, 0.0), (-1.0, 3.0), (12.0, 3.0), (12.0, 0.0)
             ];
-            event_queue = convert_to_event_queue(rectangle_horiz)
-            annotated_segments = event_loop!(event_queue; self_intersection=true)
+            events = convert_to_events(rectangle_horiz)
+            annotated_segments = event_loop!(events; self_intersection=true)
             expected = [
                 SegmentEvent(((-1.0, 0.0), (-1.0, 3.0)), true, true, SegmentAnnotations(false, true)),
                 SegmentEvent(((-1.0, 0.0), (12.0, 0.0)), true, true, SegmentAnnotations(true, false)),
@@ -198,8 +200,8 @@ using PolygonAlgorithms: BLANK
             self_intersect = [
                 (0.0, 0.0), (2.0, 2.0), (6.0, -2.0), (11.0, 2.0), (11.0, 0.0)
             ]
-            event_queue = convert_to_event_queue(self_intersect)
-            annotated_segments = event_loop!(event_queue; self_intersection=true)
+            events = convert_to_events(self_intersect)
+            annotated_segments = event_loop!(events; self_intersection=true)
             expected = [
                 SegmentEvent(((0.0, 0.0), (2.0, 2.0)), true, true, SegmentAnnotations(false, true)),
                 SegmentEvent(((0.0, 0.0), (4.0, 0.0)), true, true, SegmentAnnotations(true, false)),
@@ -219,8 +221,8 @@ using PolygonAlgorithms: BLANK
                 (-0.8, 0.0), (0.0, 0.6), (0.8, 0.0), (0.5, -1.0), (-0.5, -1.0)
             ]
             pentagram = pentagon[[1, 3, 5, 2, 4]]
-            event_queue = convert_to_event_queue(pentagram)
-            annotated_segments = event_loop!(event_queue; self_intersection=true)
+            events = convert_to_events(pentagram)
+            annotated_segments = event_loop!(events; self_intersection=true)
             expected = [
                 SegmentEvent(((-0.5, -1.0), (-0.3062015503875969, -0.3798449612403101)), true, true, SegmentAnnotations(false, true)),
                 SegmentEvent(((-0.8, 0.0), (-0.3062015503875969, -0.3798449612403101)), true, true, SegmentAnnotations(true, false)),
@@ -256,7 +258,7 @@ using PolygonAlgorithms: BLANK
             ]
             queue = SegmentEvent{Float64}[]
             for ev in vcat(rectangle, rectangle_horiz)
-                add_annotated_segment!(queue, ev)
+                 push!(queue, create_segment_pair(ev)...)
             end
             annotated_segments = event_loop!(queue; self_intersection=false)
             expected = [
@@ -296,7 +298,7 @@ using PolygonAlgorithms: BLANK
             ]
             queue = SegmentEvent{Float64}[]
             for ev in vcat(self_intersect, rectangle_horiz)
-                add_annotated_segment!(queue, ev)
+                push!(queue, create_segment_pair(ev)...)
             end
             annotated_segments = event_loop!(queue; self_intersection=false)
             expected = [
@@ -367,126 +369,17 @@ using PolygonAlgorithms: BLANK
         end
     end
 
-    @testset "chain segments" begin
-        @testset "chain segments - rectangle" begin
-            segments = [
-                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
-                SegmentEvent(((0.0, 0.0), (3.0, 3.0)), true),
-                SegmentEvent(((3.0, 3.0), (7.0, -1.0)), true),
-                SegmentEvent(((4.0, -4.0), (7.0, -1.0)), true),
-            ]
-            regions = chain_segments(segments)
-            expected = [[
-                    SegmentEvent(((3.0, 3.0), (7.0, -1.0)), false),
-                    SegmentEvent(((0.0, 0.0), (3.0, 3.0)),  false),
-                    SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
-                    SegmentEvent(((0.0, 0.0), (4.0, -4.0)), false),
-            ]]
-            @test regions == expected
-        end
-
-        @testset "close fuzzy" begin
-            segments = [
-                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
-                SegmentEvent(((0.0, 0.0), (3.0, 3.0)), true),
-                SegmentEvent(((3.0, 3.0), (7.0, -1.0)), true),
-                SegmentEvent(((3.999, -3.999), (7.0, -1.0)), true),
-            ]
-            regions = chain_segments(segments)
-            expected = [[
-                SegmentEvent(((3.999, -3.999), (7.0, -1.0)), true),
-                SegmentEvent(((3.0, 3.0), (7.0, -1.0)), false),
-                SegmentEvent(((0.0, 0.0), (3.0, 3.0)), false),
-                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), true),
-                SegmentEvent(((0.0, 0.0), (4.0, -4.0)), false),
-            ]]
-            @test regions == expected
-        end
-
-        @testset "chain segments - improper" begin
-            segments = [
-                SegmentEvent(((0.0, 0.0), (2.0, 2.0)), true),
-                SegmentEvent(((2.0, 2.0), (5.0, 1.0)), true),
-                SegmentEvent(((2.0, 2.0), (3.0, 5.0)), true),
-                SegmentEvent(((3.0, 5.0), (5.0, 1.0)), true),
-            ]
-            @test_throws AssertionError chain_segments(segments)
-        end
-
-        @testset "chain segments - improper hole" begin
-            segments = [
-                SegmentEvent(((0.0, 0.0), (0.0, 4.0)), true, true, SegmentAnnotations(false, true)),
-                SegmentEvent(((2.0, 1.0), (2.0, 2.0)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((0.0, 4.0), (2.0, 2.0)), true, true, SegmentAnnotations(true, true) ),
-                SegmentEvent(((2.0, 1.0), (3.0, 3.0)), true, true, SegmentAnnotations(false, true)),
-                SegmentEvent(((2.0, 2.0), (3.0, 3.0)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((0.0, 0.0), (5.0, 1.0)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((5.0, 1.0), (5.0, 4.0)), true, true, SegmentAnnotations(true, false)),
-                SegmentEvent(((0.0, 4.0), (5.0, 4.0)), true, true, SegmentAnnotations(false, true)),
-            ]
-            @test_throws AssertionError chain_segments(segments)
-        end
-    end
-
-    @testset "holes" begin
-        @testset "two squares with holes" begin
-            regions = [
-                [
-                    SegmentEvent(((2.0, 1.0), (2.0, 2.0)), false, true, SegmentAnnotations(false, true)),
-                    SegmentEvent(((1.0, 1.0), (2.0, 1.0)), false, true, SegmentAnnotations(false, true)),
-                    SegmentEvent(((1.0, 1.0), (1.0, 2.0)), true,  true, SegmentAnnotations(true, false)),
-                    SegmentEvent(((1.0, 1.0), (1.0, 2.0)), false, true, SegmentAnnotations(true, false)),
-                ],
-                [
-                    SegmentEvent(((3.0, 0.0), (3.0, 3.0)), false, true, SegmentAnnotations(true, false)),
-                    SegmentEvent(((0.0, 0.0), (3.0, 0.0)), false, true, SegmentAnnotations(true, false)),
-                    SegmentEvent(((0.0, 0.0), (0.0, 3.0)), true,  true, SegmentAnnotations(false, true)),
-                    SegmentEvent(((0.0, 0.0), (0.0, 3.0)), false, true, SegmentAnnotations(false, true)),
-                ],
-                [
-                    SegmentEvent(((6.0, 1.0), (6.0, 2.0)), false, true, SegmentAnnotations(false, true)),
-                    SegmentEvent(((5.0, 1.0), (6.0, 1.0)), false, true, SegmentAnnotations(false, true)),
-                    SegmentEvent(((5.0, 1.0), (5.0, 2.0)), true,  true, SegmentAnnotations(true, false)),
-                    SegmentEvent(((5.0, 1.0), (5.0, 2.0)), false, true, SegmentAnnotations(true, false)),
-                ],
-                [
-                   SegmentEvent(((7.0, 0.0), (7.0, 3.0)), false, true, SegmentAnnotations(true, false))
-                    SegmentEvent(((4.0, 0.0), (7.0, 0.0)), false, true, SegmentAnnotations(true, false))
-                    SegmentEvent(((4.0, 0.0), (4.0, 3.0)), true,  true, SegmentAnnotations(false, true))
-                    SegmentEvent(((4.0, 0.0), (4.0, 3.0)), false, true, SegmentAnnotations(false, true))
-                ]
-            ]
-            classification = map(is_hole, regions)
-            expected = [true, false, true, false]
-            @test classification == expected
-            polygons = [
-                Polygon([(3.0, 3.0), (3.0, 0.0), (0.0, 0.0), (0.0, 3.0)]),
-                Polygon([(7.0, 3.0), (7.0, 0.0), (4.0, 0.0), (4.0, 3.0)]),
-            ]
-            holes = [
-                [(2.0, 2.0), (2.0, 1.0), (1.0, 1.0), (1.0, 2.0)],
-                [(6.0, 2.0), (6.0, 1.0), (5.0, 1.0), (5.0, 2.0)],
-            ]
-            parents = match_holes_polygons(polygons, holes)
-            @test parents == [1, 2]
-        end
-
-        @testset "nested squares with holes" begin
-            poly1 = Polygon(
-                [(0.0, 0.0), (0.0, 7.0), (7.0, 7.0), (7.0, 0.0)]
-            )
-            poly2 = Polygon(
-                [(2.0, 2.0), (2.0, 5.0), (5.0, 5.0), (5.0, 2.0)];
-            )
-            holes = [
-                [(1.0, 1.0), (1.0, 6.0), (6.0, 6.0), (6.0, 1.0)],
-                [(3.0, 3.0), (3.0, 4.0), (4.0, 4.0), (4.0, 3.0)],
-            ]
-            # order does not matter
-            parents = match_holes_polygons([poly1, poly2], holes)
-            @test parents == [1, 2]
-            parents = match_holes_polygons([poly2, poly1], holes)
-            @test parents == [2, 1]
-        end
+    @testset "atol sets the output rounding" begin
+        # the output points are rounded to the decimal places of atol for all input types
+        square1 = [(1e-4, 0.0), (1.0001, 0.0), (1.0001, 1.0), (1e-4, 1.0)]
+        square2 = [(0.5, 0.5), (1.5, 0.5), (1.5, 1.5), (0.5, 1.5)]
+        expected = [(1.0, 0.5), (1.0, 1.0), (0.5, 1.0), (0.5, 0.5)]
+        # the start point depends on Dict ordering, which varies between Julia versions
+        regions = intersect_geometry(square1, square2; atol=1e-2)
+        @test are_equivalent_polygons(regions, [expected])
+        regions = intersect_geometry([square1], square2; atol=1e-2)
+        @test are_equivalent_polygons(regions, [expected])
+        regions = intersect_geometry(Polygon(square1), Polygon(square2); atol=1e-2)
+        @test are_equivalent_polygons(regions, [Polygon(expected)])
     end
 end

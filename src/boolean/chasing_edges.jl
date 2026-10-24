@@ -1,14 +1,29 @@
+"""
+    chasing_edges_algorithm(polygon1, polygon2; atol=default_atol)
+
+A fast algorithm for finding the intersection, if it exists, between two
+convex polygons.
+
+- Time complexity: `O(n+m)` where `n` and `m` vertices on polygon 1 and 2 respectively.
+- Description: this algorithm rotates two pointers, one around each polygon. Each iteration it only
+    advances one pointer based on a set of "advance rules". After two cycles around the polygons 
+    it is guaranteed to have found all (zero, one or both) intersection points and 
+    all the points in between.
+- Algorithm is from "A New Linear Algorithm for Intersecting Convex Polygons" (1981) by Joseph O'Rourke et. al.
+- Reference: https://www.cs.jhu.edu/~misha/Spring16/ORourke82.pdf
+"""
 function chasing_edges_algorithm(
     polygon1::Path2D{T}, polygon2::Path2D{T}
-    ; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol
+    ; atol::AbstractFloat=default_atol
     ) where T
     n = length(polygon1)
     m = length(polygon2)
     points = Point2D{T}[]
-    if is_clockwise(polygon1)
+    # only the direction is needed, so don't treat thin polygons as zero area
+    if is_clockwise(polygon1; atol=eps(T))
         polygon1 = reverse(polygon1)
     end
-    if is_clockwise(polygon2)
+    if is_clockwise(polygon2; atol=eps(T))
         polygon2 = reverse(polygon2)
     end
     poly1_in_2 = false
@@ -20,7 +35,7 @@ function chasing_edges_algorithm(
         j_prev = j == 1 ? m : j - 1
         edge1 = (polygon1[i_prev], polygon1[i])
         edge2 = (polygon2[j_prev], polygon2[j])
-        inter = intersect_geometry(edge1, edge2; atol=atol, rtol=rtol)
+        inter = intersect_geometry(edge1, edge2; atol=atol)
         is_colinear = isapprox(cross_product(edge1, edge2), 0.0; atol=atol)
         if !isnothing(inter) && !is_colinear
             is_second_iter = k > (m + n)
@@ -52,9 +67,9 @@ function chasing_edges_algorithm(
         end
     end
     if isempty(points)
-        if contains(polygon2, polygon1[1])
+        if contains(polygon2, polygon1[1]; atol=atol)
             return polygon1
-        elseif contains(polygon1, polygon2[1])
+        elseif contains(polygon1, polygon2[1]; atol=atol)
             return polygon2
         end
     end

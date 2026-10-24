@@ -45,4 +45,13 @@
         rect = bounds(polygons)
         @test rect == (-2.0, -10.0, 8.0, 6.0)
     end
+
+    @testset "Polygon" begin
+        polygons = [
+            PolygonAlgorithms.Polygon([(2.0, 1.0), (4.0, 6.0), (8.0, -3.0), (3.0, -6.0)]),
+            PolygonAlgorithms.Polygon([(-2.0, 2.0), (2.0, 2.0), (-1.0, 0.0), (-0.5, 1.5)]),
+        ]
+        @test bounds(polygons[1]) == (2.0, -6.0, 8.0, 6.0)
+        @test bounds(polygons) == (-2.0, -6.0, 8.0, 6.0)
+    end
 end

@@ -1,13 +1,39 @@
+"""
+    ConvexHullAlgorithm
 
+Abstract type for convex hull algorithms. See `convex_hull`.
+"""
 abstract type ConvexHullAlgorithm end
 
+"""
+    GiftWrappingAlg()
+
+Gift wrapping (Jarvis march) convex hull algorithm.
+Starting from the leftmost point, it repeatedly selects the most counter-clockwise point as the next hull point.
+
+- Time complexity: `O(nh)` where `n` is the number of points and `h` is the number of points on the hull.
+- Reference: https://www.geeksforgeeks.org/convex-hull-using-jarvis-algorithm-or-wrapping/
+"""
 struct GiftWrappingAlg <: ConvexHullAlgorithm end
+
+"""
+    GrahamScanAlg()
+
+Graham scan convex hull algorithm.
+The points are sorted by angle around the bottom-left point and then scanned with a stack,
+popping points which do not make a counter-clockwise turn.
+
+- Time complexity: `O(n*log(n))` where `n` is the number of points.
+- Reference: https://www.geeksforgeeks.org/convex-hull-using-graham-scan/
+"""
 struct GrahamScanAlg <: ConvexHullAlgorithm end
 
 """
-    convex_hull([GiftWrappingAlg()], points, ; atol=default_atol)
+    convex_hull([alg=GiftWrappingAlg()], points; atol=default_atol)
 
 Determine the indices of the convex hull for a set of points.
+The indices are returned in counter-clockwise order.
+Use `points[convex_hull(points)]` to get the hull vertices.
 
 Algorithm can either be `GiftWrappingAlg()` or `GrahamScanAlg()`.
 
@@ -17,7 +43,7 @@ For  `n` input vertices and `h` resultant vertices on the convex hull:
 """
 convex_hull(points::Path2D; options...) = convex_hull(GiftWrappingAlg(), points; options...)
 
-function convex_hull(::GiftWrappingAlg, points::Path2D; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol)
+function convex_hull(::GiftWrappingAlg, points::Path2D; atol::AbstractFloat=default_atol)
     # https://www.geeksforgeeks.org/convex-hull-using-jarvis-algorithm-or-wrapping/    
     topleft = left_topmost(points)
     hull_idxs = Int[]
@@ -56,6 +82,11 @@ function convex_hull(::GiftWrappingAlg, points::Path2D; atol::AbstractFloat=defa
     hull_idxs
 end
 
+"""
+    left_topmost(points)
+
+The index of the leftmost point. Ties are broken by choosing the topmost point.
+"""
 function left_topmost(points::Path2D)
     idx = 1
     for i in eachindex(points)
@@ -68,11 +99,14 @@ function left_topmost(points::Path2D)
     idx
 end
 
-function convex_hull(::GrahamScanAlg, points::Path2D; atol::AbstractFloat=default_atol, rtol::AbstractFloat=default_rtol)
+function convex_hull(::GrahamScanAlg, points::Path2D; atol::AbstractFloat=default_atol)
     # https://www.geeksforgeeks.org/convex-hull-using-graham-scan/
     idx = bottom_leftmost(points)
     p0 = points[idx]
     idxs = sortperm(points, lt=(p, q) -> isless_orientation(p, q, p0; atol=atol))
+    if length(idxs) < 3
+        return idxs
+    end
 
     hull = idxs[[1, 2, 3]]
     if get_orientation(points[hull[1]], points[hull[2]], points[hull[3]]; atol=atol) == COLINEAR
@@ -88,6 +122,11 @@ function convex_hull(::GrahamScanAlg, points::Path2D; atol::AbstractFloat=defaul
     hull
 end
 
+"""
+    bottom_leftmost(points)
+
+The index of the bottommost point. Ties are broken by choosing the leftmost point.
+"""
 function bottom_leftmost(points::Path2D)
     idx = 1
     for i in eachindex(points)

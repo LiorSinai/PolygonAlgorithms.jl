@@ -39,6 +39,12 @@ end;
     @test issetequal(hull, expected)
 end;
 
+@testset "convex hull fewer than 3 points" begin
+    @test convex_hull(alg, [(1.0, 2.0)]) == [1]
+    hull = convex_hull(alg, [(0.0, 0.0), (1.0, 1.0)])
+    @test issetequal(hull, [1, 2])
+end;
+
 @testset "convex hull grid" begin
     points = [(i, j) for i in 1.0:10.0 for j in 1.0:10.0]
     hull = convex_hull(alg, points)
